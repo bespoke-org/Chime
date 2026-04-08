@@ -1,16 +1,60 @@
 import { FormBlockType } from "@prisma/client";
 import { z } from "zod";
 
-export const formMetadataSchema = z.object({
-  title: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(600).default(""),
-  slug: z
-    .string()
-    .trim()
-    .min(2)
-    .max(64)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only."),
-});
+export const formMetadataSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(600).default(""),
+    completionTitle: z.string().trim().max(120).default(""),
+    completionMessage: z.string().trim().max(600).default(""),
+    completionLinkLabel: z.string().trim().max(80).default(""),
+    completionLinkUrl: z.string().trim().max(2048).default(""),
+    slug: z
+      .string()
+      .trim()
+      .min(2)
+      .max(64)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only."),
+  })
+  .superRefine((value, context) => {
+    const hasLabel = Boolean(value.completionLinkLabel);
+    const hasUrl = Boolean(value.completionLinkUrl);
+
+    if (hasLabel !== hasUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [hasLabel ? "completionLinkUrl" : "completionLinkLabel"],
+        message: "Add both a follow-up link label and URL, or leave both empty.",
+      });
+    }
+
+    if (!hasUrl) {
+      return;
+    }
+
+    try {
+      const parsedUrl = new URL(value.completionLinkUrl);
+
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["completionLinkUrl"],
+          message: "Use a full http:// or https:// URL for the follow-up link.",
+        });
+      }
+    } catch {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["completionLinkUrl"],
+        message: "Use a valid follow-up link URL.",
+      });
+    }
+  })
+  .transform((value) => ({
+    ...value,
+    completionLinkLabel: value.completionLinkLabel || null,
+    completionLinkUrl: value.completionLinkUrl || null,
+  }));
 
 export const createBlockSchema = z.object({
   type: z.nativeEnum(FormBlockType),

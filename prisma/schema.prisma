@@ -72,17 +72,21 @@ model VerificationToken {
 }
 
 model Form {
-  id          String       @id @default(cuid())
-  userId      String
-  title       String       @default("Untitled form")
-  description String       @default("")
-  slug        String       @unique
-  status      FormStatus   @default(DRAFT)
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  blocks      FormBlock[]
-  responses   Response[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                  String       @id @default(cuid())
+  userId              String
+  title               String       @default("Untitled form")
+  description         String       @default("")
+  completionTitle     String       @default("Thanks for taking the time.")
+  completionMessage   String       @default("Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.")
+  completionLinkLabel String?
+  completionLinkUrl   String?
+  slug                String       @unique
+  status              FormStatus   @default(DRAFT)
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blocks              FormBlock[]
+  responses           Response[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([userId, updatedAt(sort: Desc)])
 }

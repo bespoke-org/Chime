@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, LoaderCircle } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,10 @@ type PublicForm = {
   id: string;
   title: string;
   description: string;
+  completionTitle: string;
+  completionMessage: string;
+  completionLinkLabel: string | null;
+  completionLinkUrl: string | null;
   slug: string;
   blocks: PublicBlock[];
 };
@@ -60,6 +65,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
   const currentBlock = form.blocks[step];
   const progress = useMemo(() => ((step + 1) / form.blocks.length) * 100, [form.blocks.length, step]);
+  const completionTitle = form.completionTitle.trim() || "Thanks for taking the time.";
+  const completionMessage =
+    form.completionMessage.trim() ||
+    "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.";
+  const completionLinkLabel = form.completionLinkLabel?.trim() || null;
+  const completionLinkUrl = form.completionLinkUrl?.trim() || null;
 
   function setAnswer(blockId: string, value: string | string[]) {
     setAnswers((current) => ({
@@ -142,11 +153,20 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     return (
       <Card className="w-full max-w-3xl overflow-hidden bg-[#16120f] p-10 text-white shadow-[0_36px_120px_rgba(22,18,15,0.32)]">
         <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#b9dfb9]">Response received</p>
-        <h2 className="mt-6 font-display text-5xl">Thanks for taking the time.</h2>
-        <p className="mt-4 max-w-2xl text-base leading-8 text-white/72">
-          Your response was submitted anonymously. The creator can review your answers, but they are not linked to a
-          login or account.
-        </p>
+        <h2 className="mt-6 font-display text-5xl">{completionTitle}</h2>
+        <p className="mt-4 max-w-2xl text-base leading-8 text-white/72">{completionMessage}</p>
+        {completionLinkLabel && completionLinkUrl ? (
+          <div className="mt-8">
+            <Link
+              href={completionLinkUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-xl bg-[#9fd7a4] px-5 py-3 text-sm font-semibold !text-[#122012] transition hover:bg-[#b8e4bb]"
+            >
+              {completionLinkLabel}
+            </Link>
+          </div>
+        ) : null}
       </Card>
     );
   }

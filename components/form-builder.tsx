@@ -63,6 +63,10 @@ type BuilderForm = {
   id: string;
   title: string;
   description: string;
+  completionTitle: string;
+  completionMessage: string;
+  completionLinkLabel: string | null;
+  completionLinkUrl: string | null;
   slug: string;
   status: "DRAFT" | "PUBLISHED";
   updatedAt: string;
@@ -245,6 +249,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   const [metadataDraft, setMetadataDraft] = useState({
     title: initialForm.title,
     description: initialForm.description,
+    completionTitle: initialForm.completionTitle,
+    completionMessage: initialForm.completionMessage,
+    completionLinkLabel: initialForm.completionLinkLabel ?? "",
+    completionLinkUrl: initialForm.completionLinkUrl ?? "",
     slug: initialForm.slug,
   });
 
@@ -262,9 +270,13 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     setMetadataDraft({
       title: form.title,
       description: form.description,
+      completionTitle: form.completionTitle,
+      completionMessage: form.completionMessage,
+      completionLinkLabel: form.completionLinkLabel ?? "",
+      completionLinkUrl: form.completionLinkUrl ?? "",
       slug: form.slug,
     });
-  }, [form.title, form.description, form.slug]);
+  }, [form.title, form.description, form.completionTitle, form.completionMessage, form.completionLinkLabel, form.completionLinkUrl, form.slug]);
 
   useEffect(() => {
     setBlockDraft(selectedBlock);
@@ -555,6 +567,50 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                   <span className="font-medium text-[var(--ink)]">Share URL slug</span>
                   <Input value={metadataDraft.slug} onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))} />
                 </label>
+              </div>
+
+              <div className="space-y-5 border-t border-black/8 pt-6">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">After submission</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                    Customize what respondents see after they finish the form, including an optional next-step link.
+                  </p>
+                </div>
+
+                <div className="grid gap-5">
+                  <label className="space-y-2 text-sm text-[var(--muted)]">
+                    <span className="font-medium text-[var(--ink)]">Completion title</span>
+                    <Input
+                      value={metadataDraft.completionTitle}
+                      onChange={(event) => setMetadataDraft((current) => ({ ...current, completionTitle: event.target.value }))}
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm text-[var(--muted)]">
+                    <span className="font-medium text-[var(--ink)]">Completion message</span>
+                    <Textarea
+                      value={metadataDraft.completionMessage}
+                      onChange={(event) => setMetadataDraft((current) => ({ ...current, completionMessage: event.target.value }))}
+                    />
+                  </label>
+                  <div className="grid gap-5 lg:grid-cols-2">
+                    <label className="space-y-2 text-sm text-[var(--muted)]">
+                      <span className="font-medium text-[var(--ink)]">Follow-up link label</span>
+                      <Input
+                        value={metadataDraft.completionLinkLabel}
+                        placeholder="Read next steps"
+                        onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkLabel: event.target.value }))}
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm text-[var(--muted)]">
+                      <span className="font-medium text-[var(--ink)]">Follow-up link URL</span>
+                      <Input
+                        value={metadataDraft.completionLinkUrl}
+                        placeholder="https://example.com/next"
+                        onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkUrl: event.target.value }))}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className="grid gap-4 rounded-[20px] border border-black/8 bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">

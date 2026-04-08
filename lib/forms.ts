@@ -71,6 +71,10 @@ export type BuilderForm = {
   id: string;
   title: string;
   description: string;
+  completionTitle: string;
+  completionMessage: string;
+  completionLinkLabel: string | null;
+  completionLinkUrl: string | null;
   slug: string;
   status: FormStatus;
   updatedAt: string;
@@ -82,6 +86,10 @@ export type PublicForm = {
   id: string;
   title: string;
   description: string;
+  completionTitle: string;
+  completionMessage: string;
+  completionLinkLabel: string | null;
+  completionLinkUrl: string | null;
   slug: string;
   blocks: SerializedBlock[];
 };
@@ -116,6 +124,10 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     id: form.id,
     title: form.title,
     description: form.description,
+    completionTitle: form.completionTitle,
+    completionMessage: form.completionMessage,
+    completionLinkLabel: form.completionLinkLabel,
+    completionLinkUrl: form.completionLinkUrl,
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -129,6 +141,10 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
     id: form.id,
     title: form.title,
     description: form.description,
+    completionTitle: form.completionTitle,
+    completionMessage: form.completionMessage,
+    completionLinkLabel: form.completionLinkLabel,
+    completionLinkUrl: form.completionLinkUrl,
     slug: form.slug,
     blocks: form.blocks.map(serializeBlock),
   };
