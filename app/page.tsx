@@ -11,9 +11,9 @@ export default async function HomePage() {
   const session = await getServerAuthSession();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-6 py-8 lg:px-10 lg:py-10">
-      <section className="flex flex-1 items-center py-16 lg:py-24">
-        <Card className="w-full p-8 lg:p-10">
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-6 py-8 lg:px-10 lg:py-10">
+      <section className="flex flex-1 items-center justify-center py-16 lg:py-24">
+        <Card className="w-full max-w-3xl p-8 lg:p-10">
           <div className="max-w-2xl">
             <div className="flex items-center gap-4">
               <Image src="/sproute.png" alt="Lively Forms" width={72} height={72} priority className="size-18" />
