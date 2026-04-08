@@ -16,13 +16,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col gap-4 rounded-[32px] border border-black/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(235,247,235,0.92))] px-8 py-8 shadow-[0_24px_70px_rgba(15,23,42,0.06)] lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Creator dashboard</p>
-          <h1 className="font-display text-5xl leading-tight text-[var(--ink)]">Build linear forms that feel composed.</h1>
-          <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-            Start drafts fast, keep editing focused, and send people into a one-screen-at-a-time runner that stays
-            anonymous on submission.
+      <section className="flex flex-col gap-4 border-b border-black/8 pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Dashboard</p>
+          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">Your forms</h1>
+          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">
+            Create a form, open a draft, or review responses.
           </p>
         </div>
         <form action={createFormAction}>
@@ -36,13 +35,13 @@ export default async function DashboardPage() {
       {forms.length === 0 ? (
         <EmptyState
           eyebrow="No forms yet"
-          title="Start with a draft and shape the conversation."
-          description="Every new form begins with a welcome text block and a first question so you can immediately refine the flow."
+          title="Create your first form"
+          description="New forms start as drafts so you can edit before publishing."
           action={
             <form action={createFormAction}>
               <Button type="submit">
                 <Plus className="size-4" />
-                Create your first form
+                New form
               </Button>
             </form>
           }
@@ -57,8 +56,8 @@ export default async function DashboardPage() {
                     {form.status === "PUBLISHED" ? "Published" : "Draft"}
                   </Badge>
                   <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">{form.title}</h2>
-                  <p className="mt-3 max-w-xl text-sm leading-7 text-[var(--muted)]">
-                    {form.description || "No description yet — open the builder to shape the story of the form."}
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
+                    {form.description || "No description yet."}
                   </p>
                 </div>
                 <Link href={`/forms/${form.id}/edit`}>

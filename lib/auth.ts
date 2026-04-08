@@ -12,7 +12,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "database",
   },
   pages: {
-    signIn: "/login",
+    signIn: "/",
   },
   providers: [
     GoogleProvider({

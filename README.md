@@ -107,7 +107,6 @@ bun run prisma:studio
 ## Product surfaces
 
 ### Creator app
-- `/login`
 - `/dashboard`
 - `/forms/[id]/edit`
 - `/forms/[id]/responses`

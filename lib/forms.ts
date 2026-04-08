@@ -375,6 +375,14 @@ export async function updateOwnedFormMetadata(userId: string, formId: string, pa
   return toBuilderForm(form);
 }
 
+export async function deleteOwnedForm(userId: string, formId: string) {
+  await assertOwner(userId, formId);
+
+  await db.form.delete({
+    where: { id: formId },
+  });
+}
+
 export async function setOwnedFormPublished(userId: string, formId: string, payload: unknown) {
   const parsed = publishFormSchema.parse(payload);
   const form = await assertOwner(userId, formId);

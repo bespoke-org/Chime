@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f3f8f1;
-  --bg-strong: #e3f0e0;
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-strong: rgba(255, 255, 255, 0.92);
-  --ink: #162015;
-  --muted: #5f7060;
-  --accent: #74ad7c;
-  --accent-soft: #b9dfb9;
-  --line: rgba(22, 32, 21, 0.08);
+  --bg: #f5f5f1;
+  --bg-strong: #ecece6;
+  --surface: rgba(255, 255, 255, 0.88);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --ink: #171717;
+  --muted: #5f5f5a;
+  --accent: #4f7a58;
+  --accent-soft: #dbe6dd;
+  --line: rgba(23, 23, 23, 0.08);
 }
 
 @theme inline {
@@ -25,23 +25,9 @@
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.82), transparent 42%),
-    linear-gradient(180deg, #fbfef9 0%, #f3f8f1 48%, #e7f2e5 100%);
+  background: linear-gradient(180deg, #f8f8f4 0%, #f2f1eb 100%);
   color: var(--ink);
   font-family: var(--font-manrope), sans-serif;
-}
-
-body::before {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background-image: linear-gradient(rgba(255,255,255,0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(circle at center, black, transparent 82%);
-  opacity: 0.5;
 }
 
 main {

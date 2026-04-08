@@ -31,12 +31,12 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
   }
 
   return (
-    <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-[30px] border border-black/8 bg-white/70 px-6 py-5 backdrop-blur-sm lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-5">
+      <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Responses</p>
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{form.title}</h1>
-          <p className="mt-2 text-sm leading-7 text-[var(--muted)]">Read each anonymous submission in form order and keep the conversational context intact.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review anonymous submissions in form order.</p>
         </div>
         <div className="flex gap-3">
           <Badge>{responses.length} submissions</Badge>
@@ -58,25 +58,28 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
           }
         />
       ) : (
-        <div className="grid gap-4">
-          {responses.map((response) => (
-            <Card key={response.id} className="p-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Anonymous response</p>
-                  <h2 className="mt-3 font-display text-3xl text-[var(--ink)]">{formatDate(response.submittedAt)}</h2>
-                  <p className="mt-2 text-sm text-[var(--muted)]">{response.answerCount} answers captured</p>
+        <Card className="overflow-hidden p-0">
+          <div className="divide-y divide-black/8">
+            {responses.map((response) => (
+              <div key={response.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                    <h2 className="font-display text-2xl text-[var(--ink)]">{formatDate(response.submittedAt)}</h2>
+                    <p className="text-sm text-[var(--muted)]">{response.answerCount} answers</p>
+                  </div>
                 </div>
-                <Link href={`/forms/${form.id}/responses/${response.id}`}>
-                  <Button>
-                    Open response
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </Link>
+                <div className="sm:flex sm:justify-end">
+                  <Link href={`/forms/${form.id}/responses/${response.id}`}>
+                    <Button size="sm" variant="secondary">
+                      Open
+                      <ArrowRight className="size-4" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Card>
       )}
     </div>
   );

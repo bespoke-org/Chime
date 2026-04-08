@@ -14,7 +14,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: "Lively Forms",
-  description: "Lively Forms is a conversational form builder with an elegant creator workflow.",
+  description: "Lively Forms is a conversational form builder for creating, publishing, and reviewing forms.",
 };
 
 export default function RootLayout({

@@ -9,7 +9,7 @@ export async function createFormAction() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/");
   }
 
   const form = await createDraftForm(session.user.id);

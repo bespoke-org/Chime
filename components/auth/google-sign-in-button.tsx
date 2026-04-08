@@ -11,7 +11,6 @@ export function GoogleSignInButton() {
 
   return (
     <Button
-      className="w-full"
       size="lg"
       onClick={() =>
         startTransition(() => {

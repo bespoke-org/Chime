@@ -22,6 +22,7 @@ import {
   Link as LinkIcon,
   LoaderCircle,
   Plus,
+  MessagesSquare,
   Radio,
   Rows3,
   Save,
@@ -38,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -232,8 +234,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   const [selection, setSelection] = useState<Selection>(() =>
     initialForm.blocks[0] ? { kind: "block", blockId: initialForm.blocks[0].id } : { kind: "form" },
   );
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastData[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [isDndReady, setIsDndReady] = useState(false);
 
@@ -268,15 +269,23 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     setIsDndReady(true);
   }, []);
 
+  function showToast(message: string, variant: ToastData["variant"] = "success") {
+    const id = crypto.randomUUID();
+    setToasts((current) => [...current, { id, message, variant }]);
+  }
+
+  function dismissToast(id: string) {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }
+
   async function withTask(task: string, runner: () => Promise<void>) {
     setBusy(task);
-    setError(null);
 
     try {
       await runner();
     } catch (caughtError) {
       const nextError = caughtError instanceof Error ? caughtError.message : "Something went wrong.";
-      setError(nextError);
+      showToast(nextError, "error");
     } finally {
       setBusy(null);
     }
@@ -290,7 +299,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       });
 
       setForm(payload.form);
-      setMessage("Form settings saved.");
+      showToast("Saved form settings");
     });
   }
 
@@ -306,7 +315,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         blocks: [...current.blocks, payload.block],
       }));
       setSelection({ kind: "block", blockId: payload.block.id });
-      setMessage(`${blockLabels[type]} added.`);
+      showToast(`Added ${blockLabels[type].toLowerCase()}`);
     });
   }
 
@@ -330,7 +339,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         ...current,
         blocks: current.blocks.map((block) => (block.id === payload.block.id ? payload.block : block)),
       }));
-      setMessage("Block saved.");
+      showToast("Saved block");
     });
   }
 
@@ -350,7 +359,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           })),
       }));
       setSelection({ kind: "form" });
-      setMessage("Block removed.");
+      showToast("Removed block");
     });
   }
 
@@ -364,7 +373,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       });
 
       setForm(payload.form);
-      setMessage(payload.form.status === "PUBLISHED" ? "Form published." : "Form moved back to draft.");
+      showToast(payload.form.status === "PUBLISHED" ? "Form published" : "Form moved back to draft");
       router.refresh();
     });
   }
@@ -372,7 +381,26 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   async function copyShareLink() {
     const url = `${window.location.origin}/f/${form.slug}`;
     await navigator.clipboard.writeText(url);
-    setMessage("Share link copied.");
+    showToast("Copied share link");
+  }
+
+  async function deleteForm() {
+    const confirmed = window.confirm(
+      "Delete this form permanently? This will also delete all blocks and responses. This action cannot be undone.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await withTask("delete-form", async () => {
+      await fetchJson(`/api/forms/${form.id}`, {
+        method: "DELETE",
+      });
+
+      router.push("/dashboard");
+      router.refresh();
+    });
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -400,29 +428,41 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       });
 
       setForm(payload.form);
-      setMessage("Block order updated.");
+      showToast("Updated block order");
     } catch (caughtError) {
       setForm((current) => ({ ...current, blocks: previous }));
-      setError(caughtError instanceof Error ? caughtError.message : "Could not reorder blocks.");
+      showToast(caughtError instanceof Error ? caughtError.message : "Could not reorder blocks.", "error");
     }
   }
 
   const shareHref = `/f/${form.slug}`;
 
   return (
-    <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-[30px] border border-black/8 bg-white/70 px-6 py-5 backdrop-blur-sm xl:flex-row xl:items-center xl:justify-between">
+    <>
+      <ToastViewport toasts={toasts} onDismiss={dismissToast} />
+      <div className="space-y-6">
+        <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Builder</p>
-          <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{form.title}</h1>
-          <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
-            Left: structure and flow. Right: the selected block or form settings.
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Builder</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
+            <Badge className={cn(form.status === "PUBLISHED" && "bg-[var(--accent-soft)] text-[#2f5d35]")}>{form.status}</Badge>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Edit blocks, update settings, and review responses.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge className={cn(form.status === "PUBLISHED" && "bg-[var(--accent-soft)] text-[#2f5d35]")}>{form.status}</Badge>
+        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+          <Button
+            variant={selection.kind === "form" ? "default" : "secondary"}
+            onClick={() => setSelection({ kind: "form" })}
+          >
+            <Settings2 className="size-4" />
+            Settings
+          </Button>
           <Link href={`/forms/${form.id}/responses`}>
-            <Button variant="secondary">Responses ({form.responseCount})</Button>
+            <Button variant="secondary">
+              <MessagesSquare className="size-4" />
+              Responses ({form.responseCount})
+            </Button>
           </Link>
           <Button variant={form.status === "PUBLISHED" ? "secondary" : "default"} onClick={togglePublished}>
             {busy === "publish" ? <LoaderCircle className="size-4 animate-spin" /> : <LinkIcon className="size-4" />}
@@ -431,43 +471,12 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         </div>
       </section>
 
-      {(message || error) && (
-        <div
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error ? "border-rose-200 bg-rose-50 text-rose-700" : "border-[#cfe9d0] bg-[#eef9ef] text-[#2f5d35]",
-          )}
-        >
-          {error ?? message}
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Flow</p>
-              <h2 className="mt-2 font-display text-3xl text-[var(--ink)]">Blocks</h2>
-            </div>
+            <h2 className="font-display text-3xl text-[var(--ink)]">Blocks</h2>
             <Badge>{form.blocks.length} steps</Badge>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setSelection({ kind: "form" })}
-            className={cn(
-              "mt-5 flex w-full items-center gap-3 rounded-[22px] border px-4 py-4 text-left transition",
-              selection.kind === "form" ? "border-[var(--accent)] bg-white shadow-[0_18px_44px_rgba(15,23,42,0.08)]" : "border-black/8 bg-white/60 hover:bg-white",
-            )}
-          >
-            <div className="rounded-full border border-black/8 p-2 text-[var(--muted)]">
-              <Settings2 className="size-4" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Form settings</p>
-              <p className="mt-1 font-medium text-[var(--ink)]">Title, slug, publish state</p>
-            </div>
-          </button>
 
           <div className="mt-5 space-y-3">
             {isDndReady ? (
@@ -522,8 +531,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           {selection.kind === "form" ? (
             <div className="space-y-6">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Form settings</p>
-                <h2 className="mt-3 font-display text-4xl text-[var(--ink)]">Shape the live version.</h2>
+                <h2 className="font-display text-4xl text-[var(--ink)]">Settings</h2>
               </div>
 
               <div className="grid gap-5">
@@ -549,7 +557,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Public route</p>
                   <p className="mt-2 truncate text-sm text-[var(--ink)]">{shareHref}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    Only published forms accept anonymous submissions. Editing a published form updates the live experience.
+                    Published forms accept anonymous submissions. Changes to a published form go live immediately.
                   </p>
                 </div>
                 <Button variant="secondary" onClick={copyShareLink}>
@@ -564,7 +572,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </Link>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-6">
+                <Button variant="danger" onClick={deleteForm}>
+                  {busy === "delete-form" ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  Delete form
+                </Button>
                 <Button onClick={saveMetadata}>
                   {busy === "metadata" ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
                   Save form settings
@@ -679,10 +691,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           ) : (
             <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-dashed border-black/10 bg-[var(--bg-strong)] p-10 text-center">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Nothing selected</p>
-                <h2 className="mt-4 font-display text-4xl text-[var(--ink)]">Pick a block or open form settings.</h2>
-                <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-[var(--muted)]">
-                  The builder stays intentionally simple in v0: organize the flow on the left, edit the selected step on the right.
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Nothing selected</p>
+                <h2 className="mt-4 font-display text-4xl text-[var(--ink)]">Select a block or open form settings.</h2>
+                <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[var(--muted)]">
+                  Use the left panel to choose what you want to edit.
                 </p>
                 <div className="mt-6 flex justify-center">
                   <Button variant="secondary" onClick={() => addBlock("SHORT_TEXT")}>
@@ -694,7 +706,8 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
             </div>
           )}
         </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

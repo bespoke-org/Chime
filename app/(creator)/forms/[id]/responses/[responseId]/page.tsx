@@ -31,11 +31,11 @@ export default async function ResponseDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-[30px] border border-black/8 bg-white/70 px-6 py-5 backdrop-blur-sm lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Submission replay</p>
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{formatDate(response.submittedAt)}</h1>
-          <p className="mt-2 text-sm leading-7 text-[var(--muted)]">Text blocks appear as context markers while answerable steps show the submitted value.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review submitted answers in form order.</p>
         </div>
         <Link href={`/forms/${id}/responses`}>
           <Button variant="secondary">Back to responses</Button>
