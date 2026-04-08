@@ -34,7 +34,7 @@ export default async function ResponseDetailPage({
       <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Submission replay</p>
-          <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{formatDate(response.submittedAt)}</h1>
+          <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Submission #{response.submissionNumber} · {formatDate(response.submittedAt)}</h1>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review submitted answers in form order.</p>
         </div>
         <Link href={`/forms/${id}/responses`}>
@@ -65,7 +65,7 @@ export default async function ResponseDetailPage({
               </div>
               <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">{block.title}</h2>
               {block.description ? <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{block.description}</p> : null}
-              <div className="mt-6 rounded-[24px] border border-black/8 bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
+              <div className="mt-6 rounded-[18px] border border-black/8 bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
                 {Array.isArray(answer) ? (
                   <div className="flex flex-wrap gap-2">
                     {answer.map((value) => (

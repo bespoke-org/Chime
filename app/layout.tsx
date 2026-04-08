@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import { Kurale, Manrope } from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const kurale = Kurale({
+  variable: "--font-kurale",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -24,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${fraunces.variable} ${manrope.variable}`}>{children}</body>
+      <body className={`${kurale.variable} ${manrope.variable}`}>{children}</body>
     </html>
   );
 }

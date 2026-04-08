@@ -147,12 +147,16 @@ function BlockRowInner({
     <>
       {dragHandle}
       <button className="min-w-0 flex-1 text-left" type="button" onClick={() => onSelect(block.id)}>
-        <div className="flex items-center gap-2 text-[var(--muted)]">
-          <Icon className="size-4" />
-          <span className="text-xs font-semibold uppercase tracking-[0.22em]">{blockLabels[block.type]}</span>
+        <div className="flex items-center justify-between gap-2 text-[var(--muted)]">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Icon className="size-3.5 shrink-0" />
+            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.18em]">{blockLabels[block.type]}</span>
+          </div>
+          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-strong)] text-[10px] font-semibold text-[var(--ink)]">
+            {block.position + 1}
+          </span>
         </div>
-        <p className="mt-2 truncate font-medium text-[var(--ink)]">{getBlockPreview(block)}</p>
-        <p className="mt-1 truncate text-xs text-[var(--muted)]">{block.description || "No helper copy yet"}</p>
+        <p className="mt-1 truncate text-sm font-medium text-[var(--ink)]">{getBlockPreview(block)}</p>
       </button>
     </>
   );
@@ -177,7 +181,7 @@ function SortableBlockRow({
         transition,
       }}
       className={cn(
-        "group flex items-start gap-3 rounded-[22px] border px-4 py-4 transition",
+        "group flex items-center gap-2.5 rounded-[16px] border px-3 py-3 transition",
         selected ? "border-[var(--accent)] bg-white shadow-[0_18px_44px_rgba(15,23,42,0.08)]" : "border-black/8 bg-white/65 hover:bg-white",
       )}
     >
@@ -186,12 +190,12 @@ function SortableBlockRow({
         onSelect={onSelect}
         dragHandle={
           <button
-            className="mt-1 rounded-full border border-black/8 p-2 text-[var(--muted)] transition hover:bg-black/5"
+            className="rounded-full border border-black/8 p-1.5 text-[var(--muted)] transition hover:bg-black/5"
             type="button"
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="size-4" />
+            <GripVertical className="size-3.5" />
           </button>
         }
       />
@@ -211,7 +215,7 @@ function StaticBlockRow({
   return (
     <div
       className={cn(
-        "group flex items-start gap-3 rounded-[22px] border px-4 py-4 transition",
+        "group flex items-center gap-2.5 rounded-[16px] border px-3 py-3 transition",
         selected ? "border-[var(--accent)] bg-white shadow-[0_18px_44px_rgba(15,23,42,0.08)]" : "border-black/8 bg-white/65 hover:bg-white",
       )}
     >
@@ -219,8 +223,8 @@ function StaticBlockRow({
         block={block}
         onSelect={onSelect}
         dragHandle={
-          <div className="mt-1 rounded-full border border-black/8 p-2 text-[var(--muted)]">
-            <GripVertical className="size-4" />
+          <div className="rounded-full border border-black/8 p-1.5 text-[var(--muted)]">
+            <GripVertical className="size-3.5" />
           </div>
         }
       />
@@ -250,6 +254,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   );
 
   const [blockDraft, setBlockDraft] = useState<BuilderBlock | null>(selectedBlock);
+  const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -446,7 +451,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Builder</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
-            <Badge className={cn(form.status === "PUBLISHED" && "bg-[var(--accent-soft)] text-[#2f5d35]")}>{form.status}</Badge>
+            <Badge className={cn("rounded-full", form.status === "PUBLISHED" && "bg-[var(--accent-soft)] text-[#2f5d35]")}>{form.status}</Badge>
           </div>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Edit blocks, update settings, and review responses.</p>
         </div>
@@ -552,7 +557,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </label>
               </div>
 
-              <div className="grid gap-4 rounded-[28px] border border-black/8 bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+              <div className="grid gap-4 rounded-[20px] border border-black/8 bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Public route</p>
                   <p className="mt-2 truncate text-sm text-[var(--ink)]">{shareHref}</p>
@@ -586,11 +591,13 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           ) : blockDraft ? (
             <div className="space-y-6">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Selected block</p>
-                  <h2 className="mt-3 font-display text-4xl text-[var(--ink)]">{blockLabels[blockDraft.type]}</h2>
+                <div className="flex items-center gap-3">
+                  {SelectedBlockIcon ? <SelectedBlockIcon className="size-6 text-[var(--ink)]" /> : null}
+                  <h2 className="font-display text-4xl text-[var(--ink)]">{blockLabels[blockDraft.type]}</h2>
                 </div>
-                <Badge>{blockDraft.position + 1}</Badge>
+                <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--bg-strong)] text-sm font-semibold text-[var(--ink)]">
+                  {blockDraft.position + 1}
+                </span>
               </div>
 
               <div className="grid gap-5">
@@ -663,7 +670,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 )}
 
                 {isQuestion(blockDraft.type) ? (
-                  <label className="flex items-center gap-3 rounded-2xl border border-black/8 bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
+                  <label className="flex items-center gap-3 rounded-xl border border-black/8 bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
                     <input
                       checked={blockDraft.required}
                       className="size-4 rounded border-black/15"
@@ -689,7 +696,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
               </div>
             </div>
           ) : (
-            <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-dashed border-black/10 bg-[var(--bg-strong)] p-10 text-center">
+            <div className="flex min-h-[420px] items-center justify-center rounded-[20px] border border-dashed border-black/10 bg-[var(--bg-strong)] p-10 text-center">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Nothing selected</p>
                 <h2 className="mt-4 font-display text-4xl text-[var(--ink)]">Select a block or open form settings.</h2>

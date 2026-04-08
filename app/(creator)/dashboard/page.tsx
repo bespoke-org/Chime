@@ -52,7 +52,7 @@ export default async function DashboardPage() {
             <Card key={form.id} className="p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <Badge className={form.status === "PUBLISHED" ? "bg-[var(--accent-soft)] text-[#2f5d35]" : "bg-black/5"}>
+                  <Badge className={form.status === "PUBLISHED" ? "rounded-full bg-[var(--accent-soft)] text-[#2f5d35]" : "rounded-full bg-black/5"}>
                     {form.status === "PUBLISHED" ? "Published" : "Draft"}
                   </Badge>
                   <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">{form.title}</h2>

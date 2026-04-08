@@ -153,7 +153,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
   return (
     <Card className="w-full max-w-4xl overflow-hidden bg-[#16120f] p-4 text-white shadow-[0_36px_120px_rgba(22,18,15,0.32)] sm:p-6 lg:p-8">
-      <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b9dfb9]">{form.title}</p>
@@ -198,7 +198,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                 <div className="mt-10 space-y-4">
                   {currentBlock.type === "SHORT_TEXT" ? (
                     <Input
-                      className="h-14 rounded-[24px] border-white/10 bg-white/6 text-lg text-white placeholder:text-white/28"
+                      className="h-14 rounded-[18px] border-white/10 bg-white/6 text-lg text-white placeholder:text-white/28"
                       placeholder={(currentBlock.config as { placeholder: string }).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
@@ -207,7 +207,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                   {currentBlock.type === "LONG_TEXT" ? (
                     <Textarea
-                      className="min-h-[180px] rounded-[28px] border-white/10 bg-white/6 text-lg text-white placeholder:text-white/28"
+                      className="min-h-[180px] rounded-[20px] border-white/10 bg-white/6 text-lg text-white placeholder:text-white/28"
                       placeholder={(currentBlock.config as { placeholder: string }).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
@@ -224,7 +224,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             key={option}
                             type="button"
                             className={cn(
-                              "flex items-center justify-between rounded-[22px] border px-5 py-4 text-left transition",
+                              "flex items-center justify-between rounded-[16px] border px-5 py-4 text-left transition",
                               selected
                                 ? "border-[#9fd7a4] bg-[#9fd7a4]/16 text-white"
                                 : "border-white/10 bg-white/4 text-white/78 hover:bg-white/8",
@@ -251,7 +251,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             key={option}
                             type="button"
                             className={cn(
-                              "flex items-center justify-between rounded-[22px] border px-5 py-4 text-left transition",
+                              "flex items-center justify-between rounded-[16px] border px-5 py-4 text-left transition",
                               selected
                                 ? "border-[#9fd7a4] bg-[#9fd7a4]/16 text-white"
                                 : "border-white/10 bg-white/4 text-white/78 hover:bg-white/8",

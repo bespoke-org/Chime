@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -14,13 +15,13 @@ export default async function HomePage() {
       <section className="flex flex-1 items-center py-16 lg:py-24">
         <Card className="w-full p-8 lg:p-10">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Lively Forms</p>
-            <h1 className="mt-4 font-display text-5xl leading-tight text-[var(--ink)] sm:text-6xl">
-              Create, publish, and review forms.
-            </h1>
-            <p className="mt-5 text-base leading-7 text-[var(--muted)] sm:text-lg">
-              Lively Forms is a focused tool for building conversational forms, sharing them publicly, and reviewing
-              anonymous responses.
+            <div className="flex items-center gap-4">
+              <Image src="/sproute.png" alt="Lively Forms" width={72} height={72} priority className="size-18" />
+              <h1 className="font-display text-5xl leading-none text-[var(--ink)] sm:text-6xl">Lively Forms</h1>
+            </div>
+            <p className="mt-6 max-w-xl text-base leading-7 text-[var(--muted)] sm:text-lg">
+              Like a seed in good soil, every thoughtful question has the power to make something grow. Build forms
+              that feel alive—gentle invitations to reflect, respond, and uncover what matters most.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -36,9 +37,6 @@ export default async function HomePage() {
               )}
             </div>
 
-            <div className="mt-10 border-t border-black/8 pt-6 text-sm text-[var(--muted)]">
-              <p>Core workflow: create a form, publish it, and review responses.</p>
-            </div>
           </div>
         </Card>
       </section>

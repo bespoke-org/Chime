@@ -100,11 +100,13 @@ export type ResponseListItem = {
   id: string;
   submittedAt: string;
   answerCount: number;
+  submissionNumber: number;
 };
 
 export type ResponseDetail = {
   id: string;
   submittedAt: string;
+  submissionNumber: number;
   answers: Record<string, string | string[]>;
   blocks: SerializedBlock[];
 };
@@ -601,21 +603,22 @@ export async function listResponsesForOwnedForm(userId: string, formId: string) 
     where: {
       formId,
     },
-    orderBy: {
-      submittedAt: "desc",
-    },
+    orderBy: [{ submittedAt: "asc" }, { id: "asc" }],
   });
 
   return {
     form,
-    responses: responses.map((response) => ({
-      id: response.id,
-      submittedAt: response.submittedAt.toISOString(),
-      answerCount:
-        typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
-          ? Object.keys(response.answersJson as Record<string, unknown>).length
-          : 0,
-    })) satisfies ResponseListItem[],
+    responses: responses
+      .map((response, index) => ({
+        id: response.id,
+        submittedAt: response.submittedAt.toISOString(),
+        answerCount:
+          typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
+            ? Object.keys(response.answersJson as Record<string, unknown>).length
+            : 0,
+        submissionNumber: index + 1,
+      }))
+      .reverse() satisfies ResponseListItem[],
   };
 }
 
@@ -647,9 +650,29 @@ export async function getOwnedResponseDetail(userId: string, formId: string, res
     throw new AppError("Response not found.", 404);
   }
 
+  const submissionNumber = await db.response.count({
+    where: {
+      formId,
+      OR: [
+        {
+          submittedAt: {
+            lt: response.submittedAt,
+          },
+        },
+        {
+          submittedAt: response.submittedAt,
+          id: {
+            lte: response.id,
+          },
+        },
+      ],
+    },
+  });
+
   return {
     id: response.id,
     submittedAt: response.submittedAt.toISOString(),
+    submissionNumber,
     answers:
       typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
         ? (response.answersJson as Record<string, string | string[]>)

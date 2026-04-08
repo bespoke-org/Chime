@@ -64,7 +64,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
               <div key={response.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                    <h2 className="font-display text-2xl text-[var(--ink)]">{formatDate(response.submittedAt)}</h2>
+                    <h2 className="font-display text-2xl text-[var(--ink)]">Submission #{response.submissionNumber} · {formatDate(response.submittedAt)}</h2>
                     <p className="text-sm text-[var(--muted)]">{response.answerCount} answers</p>
                   </div>
                 </div>
