@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+
+import { handleRouteError } from "@/lib/api";
+import { getServerAuthSession } from "@/lib/auth";
+import { addOwnedBlock } from "@/lib/forms";
+
+export async function POST(request: Request, context: { params: Promise<{ formId: string }> }) {
+  const session = await getServerAuthSession();
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const payload = await request.json();
+    const { formId } = await context.params;
+    const block = await addOwnedBlock(session.user.id, formId, payload);
+
+    return NextResponse.json({ block });
+  } catch (error) {
+    return handleRouteError(error);
+  }
+}
