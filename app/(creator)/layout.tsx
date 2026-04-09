@@ -12,16 +12,6 @@ export default async function CreatorLayout({ children }: { children: React.Reac
     redirect("/");
   }
 
-  const firstName = session.user.name?.trim().split(/\s+/)[0] ?? session.user.email?.split("@")[0] ?? "Creator";
-  const greetings = [
-    `Lovely day, ${firstName}.`,
-    `Ask away, ${firstName}.`,
-    `Welcome back, ${firstName}.`,
-    `How are you, ${firstName}?`,
-    `Something good starts here, ${firstName}.`,
-  ];
-  const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10">
       <header className="mb-8 flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-center lg:justify-between">
@@ -33,9 +23,9 @@ export default async function CreatorLayout({ children }: { children: React.Reac
           >
             <Image src="/sproute.png" alt="Lively Forms" width={48} height={48} priority className="size-12" />
           </Link>
-          <div>
-            <p className="font-display text-2xl text-[var(--ink)]">{greeting}</p>
-          </div>
+          <Link href="/dashboard" className="font-display text-2xl text-[var(--ink)] transition hover:text-[var(--accent)]">
+            Lively Forms
+          </Link>
         </div>
         <div className="flex items-center gap-5">
           <Link href="/dashboard" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
