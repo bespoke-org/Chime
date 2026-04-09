@@ -25,7 +25,7 @@ function compareText(left: string, right: string) {
   return left.localeCompare(right, undefined, { sensitivity: "base" });
 }
 
-export function DashboardFormBrowser({ forms }: { forms: FormListItem[] }) {
+export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormListItem[]; workspaceLabel: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -108,8 +108,8 @@ export function DashboardFormBrowser({ forms }: { forms: FormListItem[] }) {
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Dashboard</p>
-          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">Your forms</h1>
-          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">Create a form, open a draft, or review responses.</p>
+          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">{workspaceLabel}</h1>
+          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">Create a form, open a draft, or review responses in the active workspace.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">

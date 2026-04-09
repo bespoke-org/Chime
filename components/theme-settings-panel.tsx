@@ -2,9 +2,8 @@
 
 import { LaptopMinimal, MoonStar, SunMedium } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { useThemePreference } from "@/components/theme-provider";
-import { cn, sentenceCase } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { ThemePreference } from "@/lib/theme";
 
 const options: Array<{
@@ -34,10 +33,10 @@ const options: Array<{
 ];
 
 export function ThemeSettingsPanel() {
-  const { preference, resolvedTheme, setPreference } = useThemePreference();
+  const { preference, setPreference } = useThemePreference();
 
   return (
-    <Card className="p-6 lg:p-8">
+    <div>
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Appearance</p>
         <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Theme settings</h1>
@@ -78,14 +77,6 @@ export function ThemeSettingsPanel() {
         })}
       </div>
 
-      <div className="mt-8 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-5 py-4">
-        <p className="text-sm text-[var(--muted)]">
-          Selected mode: <span className="font-medium text-[var(--ink)]">{sentenceCase(preference)}</span>
-        </p>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Active theme right now: <span className="font-medium text-[var(--ink)]">{sentenceCase(resolvedTheme)}</span>
-        </p>
-      </div>
-    </Card>
+    </div>
   );
 }

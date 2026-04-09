@@ -37,6 +37,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Responses</p>
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{form.title}</h1>
+          <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">{form.workspace.label}</p>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review anonymous submissions in form order.</p>
         </div>
         <div className="flex flex-wrap gap-3 lg:justify-end">

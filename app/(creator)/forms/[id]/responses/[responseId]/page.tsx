@@ -35,6 +35,7 @@ export default async function ResponseDetailPage({
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Submission replay</p>
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Submission #{response.submissionNumber} · {formatDate(response.submittedAt)}</h1>
+          <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">{response.workspace.label}</p>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review submitted answers in form order.</p>
         </div>
         <Link href={`/forms/${id}/responses`}>

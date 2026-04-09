@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getServerAuthSession } from "@/lib/auth";
+import { getActiveWorkspaceForUser, serializeWorkspaceValue } from "@/lib/workspaces";
 
 export default async function CreatorLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerAuthSession();
@@ -11,6 +13,8 @@ export default async function CreatorLayout({ children }: { children: React.Reac
   if (!session?.user?.id) {
     redirect("/");
   }
+
+  const workspaceState = await getActiveWorkspaceForUser(session.user.id);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10">
@@ -27,13 +31,17 @@ export default async function CreatorLayout({ children }: { children: React.Reac
             Lively Forms
           </Link>
         </div>
-        <div className="flex items-center gap-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-5">
           <Link href="/dashboard" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
             Dashboard
           </Link>
           <Link href="/settings" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
             Settings
           </Link>
+          <WorkspaceSwitcher
+            options={workspaceState.options}
+            activeValue={serializeWorkspaceValue(workspaceState.activeWorkspace)}
+          />
           <SignOutButton />
         </div>
       </header>

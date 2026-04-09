@@ -13,6 +13,7 @@ export function SignOutButton() {
     <Button
       size="sm"
       variant="secondary"
+      className="shrink-0 whitespace-nowrap"
       onClick={() =>
         startTransition(() => {
           void signOut({ callbackUrl: "/" });

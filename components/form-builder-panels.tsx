@@ -48,6 +48,7 @@ export function BuilderHeader({
           <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
           <FormStatusBadge status={form.status} />
         </div>
+        <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">{form.workspace.label}</p>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Edit blocks, update settings, and review responses.</p>
       </div>
       <div className="flex flex-wrap items-center gap-3 lg:justify-end">

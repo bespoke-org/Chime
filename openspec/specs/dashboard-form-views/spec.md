@@ -44,3 +44,14 @@ The system SHALL keep core dashboard management actions available in both grid a
 #### Scenario: Creator opens a form from table view
 - **WHEN** an authenticated creator uses a dashboard action in table view
 - **THEN** the system allows direct navigation to the builder or responses for that form
+
+### Requirement: Dashboard views are scoped to the active workspace
+The system SHALL scope dashboard form listings to the creator's selected personal or organization workspace.
+
+#### Scenario: Creator views personal workspace dashboard
+- **WHEN** an authenticated creator selects their personal workspace in the dashboard
+- **THEN** the system shows only forms from that personal workspace
+
+#### Scenario: Creator views organization workspace dashboard
+- **WHEN** an authenticated creator selects an organization workspace they belong to in the dashboard
+- **THEN** the system shows only forms from that organization workspace

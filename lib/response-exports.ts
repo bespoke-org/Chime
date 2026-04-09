@@ -4,6 +4,7 @@ import { isQuestionBlock, serializeBlock, type SerializedBlock } from "@/lib/blo
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { slugify } from "@/lib/utils";
+import { workspaceAccessWhere } from "@/lib/workspaces";
 
 export type ResponseExportFormat = "csv" | "xlsx";
 
@@ -36,9 +37,15 @@ export async function loadOwnedFormResponsesForExport(userId: string, formId: st
   const form = await db.form.findFirst({
     where: {
       id: formId,
-      userId,
+      ...workspaceAccessWhere(userId),
     },
     include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       blocks: {
         orderBy: {
           position: "asc",

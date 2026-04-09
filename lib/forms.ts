@@ -18,11 +18,14 @@ import {
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import type {
+  ActiveWorkspace,
   BuilderForm,
   FormListItem,
   PublicForm,
   ResponseDetail,
   ResponseListItem,
+  ResponseReviewFormSummary,
+  WorkspaceReference,
 } from "@/lib/form-types";
 import {
   blockUpdateSchema,
@@ -32,8 +35,15 @@ import {
   reorderBlocksSchema,
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
+import { assertOrganizationMember, workspaceAccessWhere, workspaceFilterWhere } from "@/lib/workspaces";
 
 const builderFormInclude = {
+  organization: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
   blocks: {
     orderBy: {
       position: "asc",
@@ -54,6 +64,12 @@ type ResponseRecord = Prisma.ResponseGetPayload<{
   include: {
     form: {
       include: {
+        organization: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
         blocks: {
           orderBy: {
             position: "asc";
@@ -82,6 +98,21 @@ export type {
   ResponseListItem,
 } from "@/lib/form-types";
 
+function toWorkspaceReference(form: { organizationId: string | null; organization: { id: string; name: string } | null }): WorkspaceReference {
+  if (form.organizationId && form.organization) {
+    return {
+      kind: "organization",
+      organizationId: form.organizationId,
+      label: form.organization.name,
+    };
+  }
+
+  return {
+    kind: "personal",
+    label: "Personal workspace",
+  };
+}
+
 function toBuilderForm(form: BuilderFormRecord): BuilderForm {
   return {
     id: form.id,
@@ -95,6 +126,7 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
     responseCount: form._count.responses,
+    workspace: toWorkspaceReference(form),
     blocks: form.blocks.map(serializeBlock),
   };
 }
@@ -167,11 +199,11 @@ async function createUniqueSlug(seed: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
-async function assertOwner(userId: string, formId: string) {
+async function assertAccessibleForm(userId: string, formId: string) {
   const form = await db.form.findFirst({
     where: {
       id: formId,
-      userId,
+      ...workspaceAccessWhere(userId),
     },
     include: builderFormInclude,
   });
@@ -294,10 +326,20 @@ function parseSnapshotBlocks(response: ResponseRecord): SerializedBlock[] {
     }));
 }
 
-export async function listFormsForOwner(userId: string): Promise<FormListItem[]> {
+export async function listFormsForWorkspace(userId: string, workspace: ActiveWorkspace): Promise<FormListItem[]> {
+  if (workspace.kind === "organization") {
+    await assertOrganizationMember(userId, workspace.organizationId);
+  }
+
   const forms = await db.form.findMany({
-    where: { userId },
+    where: workspaceFilterWhere(userId, workspace),
     include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       _count: {
         select: {
           responses: true,
@@ -317,15 +359,21 @@ export async function listFormsForOwner(userId: string): Promise<FormListItem[]>
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
     responseCount: form._count.responses,
+    workspace: toWorkspaceReference(form),
   }));
 }
 
-export async function createDraftForm(userId: string) {
+export async function createDraftForm(userId: string, workspace: ActiveWorkspace) {
+  if (workspace.kind === "organization") {
+    await assertOrganizationMember(userId, workspace.organizationId);
+  }
+
   const slug = await createUniqueSlug(`untitled-form-${Math.random().toString(36).slice(2, 6)}`);
 
   const form = await db.form.create({
     data: {
       userId,
+      organizationId: workspace.kind === "organization" ? workspace.organizationId : null,
       title: "Untitled form",
       description: "",
       slug,
@@ -340,13 +388,13 @@ export async function createDraftForm(userId: string) {
 }
 
 export async function getOwnedFormForBuilder(userId: string, formId: string) {
-  const form = await assertOwner(userId, formId);
+  const form = await assertAccessibleForm(userId, formId);
   return toBuilderForm(form);
 }
 
 export async function updateOwnedFormMetadata(userId: string, formId: string, payload: unknown) {
   const parsed = formMetadataSchema.parse(payload);
-  await assertOwner(userId, formId);
+  await assertAccessibleForm(userId, formId);
   await ensureUniqueSlug(parsed.slug, formId);
 
   const form = await db.form.update({
@@ -359,7 +407,7 @@ export async function updateOwnedFormMetadata(userId: string, formId: string, pa
 }
 
 export async function deleteOwnedForm(userId: string, formId: string) {
-  await assertOwner(userId, formId);
+  await assertAccessibleForm(userId, formId);
 
   await db.form.delete({
     where: { id: formId },
@@ -368,7 +416,7 @@ export async function deleteOwnedForm(userId: string, formId: string) {
 
 export async function setOwnedFormPublished(userId: string, formId: string, payload: unknown) {
   const parsed = publishFormSchema.parse(payload);
-  const form = await assertOwner(userId, formId);
+  const form = await assertAccessibleForm(userId, formId);
 
   if (parsed.published && form.blocks.length === 0) {
     throw new AppError("Add at least one block before publishing.", 422);
@@ -387,7 +435,7 @@ export async function setOwnedFormPublished(userId: string, formId: string, payl
 
 export async function addOwnedBlock(userId: string, formId: string, payload: unknown) {
   const parsed = createBlockSchema.parse(payload);
-  const form = await assertOwner(userId, formId);
+  const form = await assertAccessibleForm(userId, formId);
   const position = form.blocks.length;
 
   const titleByType: Record<FormBlockType, string> = {
@@ -415,15 +463,12 @@ export async function addOwnedBlock(userId: string, formId: string, payload: unk
 
 export async function updateOwnedBlock(userId: string, formId: string, blockId: string, payload: unknown) {
   const parsed = blockUpdateSchema.parse(payload);
-  await assertOwner(userId, formId);
+  await assertAccessibleForm(userId, formId);
 
   const block = await db.formBlock.findFirst({
     where: {
       id: blockId,
       formId,
-      form: {
-        userId,
-      },
     },
   });
 
@@ -446,15 +491,12 @@ export async function updateOwnedBlock(userId: string, formId: string, blockId: 
 }
 
 export async function deleteOwnedBlock(userId: string, formId: string, blockId: string) {
-  await assertOwner(userId, formId);
+  await assertAccessibleForm(userId, formId);
 
   const block = await db.formBlock.findFirst({
     where: {
       id: blockId,
       formId,
-      form: {
-        userId,
-      },
     },
   });
 
@@ -485,7 +527,7 @@ export async function deleteOwnedBlock(userId: string, formId: string, blockId: 
 
 export async function reorderOwnedBlocks(userId: string, formId: string, payload: unknown) {
   const parsed = reorderBlocksSchema.parse(payload);
-  const form = await assertOwner(userId, formId);
+  const form = await assertAccessibleForm(userId, formId);
 
   const currentIds = form.blocks.map((block) => block.id).sort();
   const nextIds = [...parsed.blockIds].sort();
@@ -579,7 +621,7 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
 }
 
 export async function listResponsesForOwnedForm(userId: string, formId: string) {
-  const form = await assertOwner(userId, formId);
+  const form = await assertAccessibleForm(userId, formId);
   const responses = await db.response.findMany({
     where: {
       formId,
@@ -588,7 +630,11 @@ export async function listResponsesForOwnedForm(userId: string, formId: string) 
   });
 
   return {
-    form,
+    form: {
+      id: form.id,
+      title: form.title,
+      workspace: toWorkspaceReference(form),
+    } satisfies ResponseReviewFormSummary,
     responses: responses
       .map((response, index) => ({
         id: response.id,
@@ -604,19 +650,23 @@ export async function listResponsesForOwnedForm(userId: string, formId: string) 
 }
 
 export async function getOwnedResponseDetail(userId: string, formId: string, responseId: string): Promise<ResponseDetail> {
-  await assertOwner(userId, formId);
+  await assertAccessibleForm(userId, formId);
 
   const response = await db.response.findFirst({
     where: {
       id: responseId,
       formId,
-      form: {
-        userId,
-      },
+      form: workspaceAccessWhere(userId),
     },
     include: {
       form: {
         include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           blocks: {
             orderBy: {
               position: "asc",
@@ -654,6 +704,8 @@ export async function getOwnedResponseDetail(userId: string, formId: string, res
     id: response.id,
     submittedAt: response.submittedAt.toISOString(),
     submissionNumber,
+    formTitle: response.form.title,
+    workspace: toWorkspaceReference(response.form),
     answers:
       typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
         ? (response.answersJson as Record<string, string | string[]>)
