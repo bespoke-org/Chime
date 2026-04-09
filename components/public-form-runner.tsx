@@ -1,13 +1,15 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, LoaderCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Circle, LoaderCircle, Square } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +61,7 @@ async function submitResponse(slug: string, answers: Record<string, string | str
 export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
-  const [error, setError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
@@ -79,6 +81,15 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }));
   }
 
+  function showToast(message: string, variant: ToastData["variant"] = "success") {
+    const id = crypto.randomUUID();
+    setToasts((current) => [...current, { id, message, variant }]);
+  }
+
+  function dismissToast(id: string) {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }
+
   function validateStep() {
     if (!currentBlock || currentBlock.type === "TEXT") {
       return true;
@@ -95,7 +106,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      setError("Please answer before continuing.");
+      showToast("Please answer before continuing.", "error");
       return false;
     }
 
@@ -104,7 +115,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      setError("Choose one option before continuing.");
+      showToast("Choose one option before continuing.", "error");
       return false;
     }
 
@@ -113,7 +124,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      setError("Choose at least one option before continuing.");
+      showToast("Choose at least one option before continuing.", "error");
       return false;
     }
 
@@ -121,8 +132,6 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   }
 
   async function handleContinue() {
-    setError(null);
-
     if (!validateStep()) {
       return;
     }
@@ -133,7 +142,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         await submitResponse(form.slug, answers);
         setIsComplete(true);
       } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : "Could not submit response.");
+        showToast(caughtError instanceof Error ? caughtError.message : "Could not submit response.", "error");
       } finally {
         setIsSubmitting(false);
       }
@@ -145,80 +154,122 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   }
 
   function handleBack() {
-    setError(null);
     setStep((current) => Math.max(0, current - 1));
   }
 
   if (isComplete) {
     return (
-      <Card className="w-full max-w-3xl overflow-hidden bg-[#16120f] p-10 text-white shadow-[0_36px_120px_rgba(22,18,15,0.32)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#b9dfb9]">Response received</p>
-        <h2 className="mt-6 font-display text-5xl">{completionTitle}</h2>
-        <p className="mt-4 max-w-2xl text-base leading-8 text-white/72">{completionMessage}</p>
-        {completionLinkLabel && completionLinkUrl ? (
-          <div className="mt-8">
-            <Link
-              href={completionLinkUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-[#9fd7a4] px-5 py-3 text-sm font-semibold !text-[#122012] transition hover:bg-[#b8e4bb]"
-            >
-              {completionLinkLabel}
-            </Link>
+      <Card className="w-full max-w-3xl overflow-hidden">
+        <div className="border-b border-black/8 bg-[var(--accent-soft)]/55 px-6 py-6 sm:px-8">
+          <div className="flex items-center gap-4">
+            <Image src="/sproute.png" alt="Lively Forms" width={44} height={44} priority className="size-11" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Response received</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">Lively Forms</p>
+            </div>
           </div>
-        ) : null}
+        </div>
+        <div className="px-6 py-8 sm:px-8 sm:py-10">
+          <h2 className="max-w-2xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">{completionTitle}</h2>
+          <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{completionMessage}</p>
+          {completionLinkLabel && completionLinkUrl ? (
+            <div className="mt-8">
+              <Link
+                href={completionLinkUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ className: "w-fit" })}
+              >
+                {completionLinkLabel}
+              </Link>
+            </div>
+          ) : null}
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card className="w-full max-w-4xl overflow-hidden bg-[#16120f] p-4 text-white shadow-[0_36px_120px_rgba(22,18,15,0.32)] sm:p-6 lg:p-8">
-      <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-6 sm:p-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b9dfb9]">{form.title}</p>
-            {form.description ? <p className="mt-2 max-w-xl text-sm leading-7 text-white/62">{form.description}</p> : null}
+    <>
+      <ToastViewport toasts={toasts} onDismiss={dismissToast} />
+      <Card className="w-full max-w-5xl overflow-hidden">
+      <div className="border-b border-black/8 px-6 py-6 sm:px-8 sm:py-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-4">
+              <Image src="/sproute.png" alt="Lively Forms" width={44} height={44} priority className="size-11 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Lively Forms</p>
+                <h1 className="mt-2 font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">{form.title}</h1>
+              </div>
+            </div>
+            {form.description ? <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--muted)]">{form.description}</p> : null}
           </div>
-          <div className="sm:min-w-[180px]">
-            <div className="h-2 rounded-full bg-white/10">
+
+          <div className="w-full max-w-sm shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2f5d35]">
+                Step {step + 1} of {form.blocks.length}
+              </span>
+              <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">{Math.round(progress)}%</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-strong)]">
               <motion.div
-                className="h-full rounded-full bg-[#9fd7a4]"
+                className="h-full rounded-full bg-[var(--accent)]"
                 animate={{ width: `${progress}%` }}
                 transition={{ type: "spring", stiffness: 130, damping: 20 }}
               />
             </div>
-            <p className="mt-2 text-right text-xs uppercase tracking-[0.24em] text-white/45">
-              Step {step + 1} of {form.blocks.length}
-            </p>
           </div>
         </div>
+      </div>
 
+      <div className="px-6 py-8 sm:px-8 sm:py-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentBlock.id}
-            initial={{ opacity: 0, y: 18 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -18 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
             className="min-h-[360px]"
           >
             {currentBlock.type === "TEXT" ? (
-              <div className="flex min-h-[320px] flex-col justify-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/38">Context</p>
-                <h2 className="mt-5 font-display text-4xl leading-tight sm:text-6xl">{currentBlock.title || "Take a breath before the next step."}</h2>
-                {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-white/72">{currentBlock.description}</p> : null}
-                <p className="mt-6 max-w-2xl text-lg leading-9 text-white/78">{(currentBlock.config as { body: string }).body}</p>
+              <div className="flex min-h-[320px] flex-col justify-center rounded-[18px] bg-[var(--bg-strong)]/75 px-6 py-8 sm:px-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Context</p>
+                <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
+                  {currentBlock.title || "Take a breath before the next step."}
+                </h2>
+                {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{currentBlock.description}</p> : null}
+                <p className="mt-6 max-w-3xl text-lg leading-9 text-[var(--ink)]/82">{(currentBlock.config as { body: string }).body}</p>
               </div>
             ) : (
               <div className="flex min-h-[320px] flex-col justify-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/38">Question</p>
-                <h2 className="mt-5 font-display text-4xl leading-tight sm:text-6xl">{currentBlock.title}</h2>
-                {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-white/72">{currentBlock.description}</p> : null}
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Question</p>
+                  {currentBlock.required ? (
+                    <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2f5d35]">
+                      Required
+                    </span>
+                  ) : null}
+                </div>
+
+                <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
+                  {currentBlock.title}
+                </h2>
+                {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{currentBlock.description}</p> : null}
 
                 <div className="mt-10 space-y-4">
+                  {currentBlock.type === "SINGLE_CHOICE" ? (
+                    <p className="text-sm font-medium text-[var(--muted)]">Choose one option.</p>
+                  ) : null}
+
+                  {currentBlock.type === "MULTIPLE_CHOICE" ? (
+                    <p className="text-sm font-medium text-[var(--muted)]">Select all that apply.</p>
+                  ) : null}
                   {currentBlock.type === "SHORT_TEXT" ? (
                     <Input
-                      className="h-14 rounded-[18px] border-white/10 bg-white/6 text-lg text-white placeholder:text-white/28"
+                      className="h-14 border-black/10 bg-[var(--surface-strong)] text-base text-[var(--ink)] placeholder:text-[var(--muted)]/65"
                       placeholder={(currentBlock.config as { placeholder: string }).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
@@ -227,7 +278,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                   {currentBlock.type === "LONG_TEXT" ? (
                     <Textarea
-                      className="min-h-[180px] rounded-[20px] border-white/10 bg-white/6 text-lg text-white placeholder:text-white/28"
+                      className="min-h-[180px] border-black/10 bg-[var(--surface-strong)] text-base text-[var(--ink)] placeholder:text-[var(--muted)]/65"
                       placeholder={(currentBlock.config as { placeholder: string }).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
@@ -244,15 +295,19 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             key={option}
                             type="button"
                             className={cn(
-                              "flex items-center justify-between rounded-[16px] border px-5 py-4 text-left transition",
+                              "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
                               selected
-                                ? "border-[#9fd7a4] bg-[#9fd7a4]/16 text-white"
-                                : "border-white/10 bg-white/4 text-white/78 hover:bg-white/8",
+                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[0_12px_28px_rgba(79,122,88,0.08)]"
+                                : "border-black/8 bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-white",
                             )}
                             onClick={() => setAnswer(currentBlock.id, option)}
                           >
-                            <span>{option}</span>
-                            {selected ? <Check className="size-4" /> : null}
+                            <div className="flex items-center gap-3">
+                              <span className="inline-flex size-5 items-center justify-center rounded-full border border-black/12 bg-white/70">
+                                {selected ? <Check className="size-3.5 text-[var(--accent)]" /> : <Circle className="size-3.5 text-[var(--muted)]/55" />}
+                              </span>
+                              <span>{option}</span>
+                            </div>
                           </button>
                         );
                       })}
@@ -271,10 +326,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             key={option}
                             type="button"
                             className={cn(
-                              "flex items-center justify-between rounded-[16px] border px-5 py-4 text-left transition",
+                              "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
                               selected
-                                ? "border-[#9fd7a4] bg-[#9fd7a4]/16 text-white"
-                                : "border-white/10 bg-white/4 text-white/78 hover:bg-white/8",
+                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[0_12px_28px_rgba(79,122,88,0.08)]"
+                                : "border-black/8 bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-white",
                             )}
                             onClick={() => {
                               const nextValues = selected
@@ -283,31 +338,29 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               setAnswer(currentBlock.id, nextValues);
                             }}
                           >
-                            <span>{option}</span>
-                            {selected ? <Check className="size-4" /> : null}
+                            <div className="flex items-center gap-3">
+                              <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-black/12 bg-white/70">
+                                {selected ? <Check className="size-3.5 text-[var(--accent)]" /> : <Square className="size-3.5 text-[var(--muted)]/55" />}
+                              </span>
+                              <span>{option}</span>
+                            </div>
                           </button>
                         );
                       })}
                     </div>
                   ) : null}
                 </div>
-
-                {currentBlock.required ? (
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.24em] text-[#b9dfb9]">Required</p>
-                ) : null}
               </div>
             )}
           </motion.div>
         </AnimatePresence>
 
-        {error ? <p className="mt-4 text-sm text-[#f8b4b4]">{error}</p> : null}
-
-        <div className="mt-8 flex items-center justify-between gap-3">
-          <Button variant="secondary" className="border border-white/10 bg-white/5 text-white hover:bg-white/12" onClick={handleBack} disabled={step === 0 || isSubmitting}>
+        <div className="mt-8 flex items-center justify-between gap-3 border-t border-black/8 pt-6">
+          <Button variant="secondary" onClick={handleBack} disabled={step === 0 || isSubmitting}>
             <ArrowLeft className="size-4" />
             Back
           </Button>
-          <Button className="bg-[#9fd7a4] text-[#122012] hover:bg-[#b8e4bb]" onClick={handleContinue} disabled={isSubmitting}>
+          <Button onClick={handleContinue} disabled={isSubmitting}>
             {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
             {step === form.blocks.length - 1 ? "Submit response" : "Continue"}
             {!isSubmitting ? <ArrowRight className="size-4" /> : null}
@@ -315,5 +368,6 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         </div>
       </div>
     </Card>
+    </>
   );
 }

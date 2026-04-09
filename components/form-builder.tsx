@@ -262,6 +262,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   );
 
   const [blockDraft, setBlockDraft] = useState<BuilderBlock | null>(selectedBlock);
+  const [choiceOptionsDraft, setChoiceOptionsDraft] = useState(
+    selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
+      ? (selectedBlock.config as ChoiceConfig).options.join("\n")
+      : "",
+  );
   const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -280,6 +285,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   useEffect(() => {
     setBlockDraft(selectedBlock);
+    setChoiceOptionsDraft(
+      selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
+        ? (selectedBlock.config as ChoiceConfig).options.join("\n")
+        : "",
+    );
   }, [selectedBlock]);
 
   useEffect(() => {
@@ -348,7 +358,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           title: blockDraft.title,
           description: blockDraft.description,
           required: blockDraft.required,
-          config: blockDraft.config,
+          config:
+            blockDraft.type === "SINGLE_CHOICE" || blockDraft.type === "MULTIPLE_CHOICE"
+              ? { options: choiceOptionsDraft.split("\n") }
+              : blockDraft.config,
         }),
       });
 
@@ -565,7 +578,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </label>
                 <label className="space-y-2 text-sm text-[var(--muted)]">
                   <span className="font-medium text-[var(--ink)]">Share URL slug</span>
-                  <Input value={metadataDraft.slug} onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))} />
+                  <Input
+                    value={metadataDraft.slug}
+                    className="font-mono text-[13px]"
+                    onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))}
+                  />
                 </label>
               </div>
 
@@ -616,7 +633,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
               <div className="grid gap-4 rounded-[20px] border border-black/8 bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Public route</p>
-                  <p className="mt-2 truncate text-sm text-[var(--ink)]">{shareHref}</p>
+                  <p className="mt-2 truncate font-mono text-[13px] text-[var(--ink)]">{shareHref}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">
                     Published forms accept anonymous submissions. Changes to a published form go live immediately.
                   </p>
@@ -704,22 +721,20 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                   <label className="space-y-2 text-sm text-[var(--muted)]">
                     <span className="font-medium text-[var(--ink)]">Choice options</span>
                     <Textarea
-                      value={(blockDraft.config as ChoiceConfig).options.join("\n")}
-                      onChange={(event) =>
+                      value={choiceOptionsDraft}
+                      onChange={(event) => {
+                        setChoiceOptionsDraft(event.target.value);
                         setBlockDraft((current) =>
                           current
                             ? {
                                 ...current,
                                 config: {
-                                  options: event.target.value
-                                    .split("\n")
-                                    .map((option) => option.trim())
-                                    .filter(Boolean),
+                                  options: event.target.value.split("\n"),
                                 },
                               }
                             : current,
-                        )
-                      }
+                        );
+                      }}
                     />
                     <p className="text-xs text-[var(--muted)]">Use one option per line. We’ll keep the first 10 non-empty values.</p>
                   </label>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowRight, ArrowUp, LayoutGrid, Plus, TableProperties } from "lucide-react";
+import { ArrowDown, ArrowUp, LayoutGrid, Plus, TableProperties } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
@@ -162,16 +162,14 @@ export function DashboardFormBrowser({ forms }: { forms: FormListItem[] }) {
                   <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">{form.description || "No description yet."}</p>
                 </div>
                 <Link href={`/forms/${form.id}/edit`}>
-                  <Button variant="secondary" size="sm">
-                    Edit
-                  </Button>
+                  <Button size="sm">Open</Button>
                 </Link>
               </div>
 
               <div className="mt-6 grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Share URL</p>
-                  <p className="mt-2 truncate">/{form.slug}</p>
+                  <p className="mt-2 truncate font-mono text-[13px]">/{form.slug}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Responses</p>
@@ -183,17 +181,6 @@ export function DashboardFormBrowser({ forms }: { forms: FormListItem[] }) {
                 </div>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link href={`/forms/${form.id}/edit`}>
-                  <Button>
-                    Open builder
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </Link>
-                <Link href={`/forms/${form.id}/responses`}>
-                  <Button variant="secondary">View responses</Button>
-                </Link>
-              </div>
             </Card>
           ))}
         </section>

@@ -228,17 +228,19 @@ function sanitizeOptions(options: string[]) {
 }
 
 function normalizeBlockConfig(type: FormBlockType, value: unknown): BlockConfig {
-  const config = parseBlockConfig(type, value);
-
-  if ((type === FormBlockType.SINGLE_CHOICE || type === FormBlockType.MULTIPLE_CHOICE) && "options" in config) {
-    const options = sanitizeOptions(config.options);
+  if (type === FormBlockType.SINGLE_CHOICE || type === FormBlockType.MULTIPLE_CHOICE) {
+    const rawOptions =
+      typeof value === "object" && value && "options" in value && Array.isArray(value.options)
+        ? value.options.filter((option): option is string => typeof option === "string")
+        : [];
+    const options = sanitizeOptions(rawOptions);
 
     return {
       options: options.length >= 2 ? options : ["Option 1", "Option 2"],
     };
   }
 
-  return config;
+  return parseBlockConfig(type, value);
 }
 
 function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | string[] | undefined {
