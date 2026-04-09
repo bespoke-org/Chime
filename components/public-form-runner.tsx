@@ -160,7 +160,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   if (isComplete) {
     return (
       <Card className="w-full max-w-3xl overflow-hidden">
-        <div className="border-b border-black/8 bg-[var(--accent-soft)]/55 px-6 py-6 sm:px-8">
+        <div className="border-b border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-6 py-6 sm:px-8">
           <div className="flex items-center gap-4">
             <Image src="/sproute.png" alt="Lively Forms" width={44} height={44} priority className="size-11" />
             <div>
@@ -178,7 +178,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                 href={completionLinkUrl}
                 target="_blank"
                 rel="noreferrer"
-                className={buttonVariants({ className: "w-fit" })}
+                className={buttonVariants({ variant: "default", className: "w-fit !bg-[var(--ink)] !text-[var(--bg)]" })}
               >
                 {completionLinkLabel}
               </Link>
@@ -193,7 +193,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <Card className="w-full max-w-5xl overflow-hidden">
-      <div className="border-b border-black/8 px-6 py-6 sm:px-8 sm:py-7">
+      <div className="border-b border-[color:var(--line)] px-6 py-6 sm:px-8 sm:py-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-4">
@@ -208,7 +208,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
           <div className="w-full max-w-sm shrink-0">
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2f5d35]">
+              <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
                 Step {step + 1} of {form.blocks.length}
               </span>
               <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">{Math.round(progress)}%</span>
@@ -248,7 +248,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Question</p>
                   {currentBlock.required ? (
-                    <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2f5d35]">
+                    <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
                       Required
                     </span>
                   ) : null}
@@ -269,7 +269,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   ) : null}
                   {currentBlock.type === "SHORT_TEXT" ? (
                     <Input
-                      className="h-14 border-black/10 bg-[var(--surface-strong)] text-base text-[var(--ink)] placeholder:text-[var(--muted)]/65"
+                      className="h-14 text-base placeholder:text-[var(--muted)]/65"
                       placeholder={(currentBlock.config as { placeholder: string }).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
@@ -278,7 +278,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                   {currentBlock.type === "LONG_TEXT" ? (
                     <Textarea
-                      className="min-h-[180px] border-black/10 bg-[var(--surface-strong)] text-base text-[var(--ink)] placeholder:text-[var(--muted)]/65"
+                      className="min-h-[180px] text-base placeholder:text-[var(--muted)]/65"
                       placeholder={(currentBlock.config as { placeholder: string }).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
@@ -298,12 +298,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
                               selected
                                 ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[0_12px_28px_rgba(79,122,88,0.08)]"
-                                : "border-black/8 bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-white",
+                                : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                             )}
                             onClick={() => setAnswer(currentBlock.id, option)}
                           >
                             <div className="flex items-center gap-3">
-                              <span className="inline-flex size-5 items-center justify-center rounded-full border border-black/12 bg-white/70">
+                              <span className="inline-flex size-5 items-center justify-center rounded-full border border-[color:var(--line)] bg-[var(--surface)]">
                                 {selected ? <Check className="size-3.5 text-[var(--accent)]" /> : <Circle className="size-3.5 text-[var(--muted)]/55" />}
                               </span>
                               <span>{option}</span>
@@ -329,7 +329,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
                               selected
                                 ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[0_12px_28px_rgba(79,122,88,0.08)]"
-                                : "border-black/8 bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-white",
+                                : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                             )}
                             onClick={() => {
                               const nextValues = selected
@@ -339,7 +339,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             }}
                           >
                             <div className="flex items-center gap-3">
-                              <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-black/12 bg-white/70">
+                              <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
                                 {selected ? <Check className="size-3.5 text-[var(--accent)]" /> : <Square className="size-3.5 text-[var(--muted)]/55" />}
                               </span>
                               <span>{option}</span>
@@ -355,7 +355,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           </motion.div>
         </AnimatePresence>
 
-        <div className="mt-8 flex items-center justify-between gap-3 border-t border-black/8 pt-6">
+        <div className="mt-8 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
           <Button variant="secondary" onClick={handleBack} disabled={step === 0 || isSubmitting}>
             <ArrowLeft className="size-4" />
             Back

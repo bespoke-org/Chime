@@ -32,7 +32,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-5">
-      <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Responses</p>
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{form.title}</h1>
@@ -59,7 +59,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
         />
       ) : (
         <Card className="overflow-hidden p-0">
-          <div className="divide-y divide-black/8">
+          <div className="divide-y divide-[color:var(--line)]">
             {responses.map((response) => (
               <div key={response.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="min-w-0">

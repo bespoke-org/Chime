@@ -31,7 +31,7 @@ export default async function ResponseDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Submission replay</p>
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Submission #{response.submissionNumber} · {formatDate(response.submittedAt)}</h1>
@@ -61,15 +61,15 @@ export default async function ResponseDetailPage({
             <Card key={block.id} className="p-6">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge>{block.type.replaceAll("_", " ")}</Badge>
-                {block.required ? <Badge className="bg-amber-100 text-amber-700">Required</Badge> : null}
+                {block.required ? <Badge className="bg-[var(--accent-soft)] text-[var(--accent-ink)]">Required</Badge> : null}
               </div>
               <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">{block.title}</h2>
               {block.description ? <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{block.description}</p> : null}
-              <div className="mt-6 rounded-[18px] border border-black/8 bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
+              <div className="mt-6 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
                 {Array.isArray(answer) ? (
                   <div className="flex flex-wrap gap-2">
                     {answer.map((value) => (
-                      <Badge key={value} className="bg-white text-[var(--ink)]">
+                      <Badge key={value} className="bg-[var(--surface-strong)] text-[var(--ink)]">
                         {value}
                       </Badge>
                     ))}

@@ -24,7 +24,7 @@ export default async function CreatorLayout({ children }: { children: React.Reac
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10">
-      <header className="mb-8 flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-center lg:justify-between">
+      <header className="mb-8 flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
@@ -40,6 +40,9 @@ export default async function CreatorLayout({ children }: { children: React.Reac
         <div className="flex items-center gap-5">
           <Link href="/dashboard" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
             Dashboard
+          </Link>
+          <Link href="/settings" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
+            Settings
           </Link>
           <SignOutButton />
         </div>

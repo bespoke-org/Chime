@@ -156,7 +156,7 @@ function BlockRowInner({
             <Icon className="size-3.5 shrink-0" />
             <span className="truncate text-[10px] font-semibold uppercase tracking-[0.18em]">{blockLabels[block.type]}</span>
           </div>
-          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-strong)] text-[10px] font-semibold text-[var(--ink)]">
+          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-[color:var(--line-strong)] bg-[var(--accent-soft)] text-[10px] font-semibold text-[var(--accent-ink)]">
             {block.position + 1}
           </span>
         </div>
@@ -186,7 +186,9 @@ function SortableBlockRow({
       }}
       className={cn(
         "group flex items-center gap-2.5 rounded-[16px] border px-3 py-3 transition",
-        selected ? "border-[var(--accent)] bg-white shadow-[0_18px_44px_rgba(15,23,42,0.08)]" : "border-black/8 bg-white/65 hover:bg-white",
+        selected
+          ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[0_18px_44px_rgba(15,23,42,0.08)]"
+          : "border-[color:var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-strong)]",
       )}
     >
       <BlockRowInner
@@ -194,7 +196,7 @@ function SortableBlockRow({
         onSelect={onSelect}
         dragHandle={
           <button
-            className="rounded-full border border-black/8 p-1.5 text-[var(--muted)] transition hover:bg-black/5"
+            className="rounded-full border border-[color:var(--line)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--accent-soft)]"
             type="button"
             {...attributes}
             {...listeners}
@@ -220,14 +222,16 @@ function StaticBlockRow({
     <div
       className={cn(
         "group flex items-center gap-2.5 rounded-[16px] border px-3 py-3 transition",
-        selected ? "border-[var(--accent)] bg-white shadow-[0_18px_44px_rgba(15,23,42,0.08)]" : "border-black/8 bg-white/65 hover:bg-white",
+        selected
+          ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[0_18px_44px_rgba(15,23,42,0.08)]"
+          : "border-[color:var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-strong)]",
       )}
     >
       <BlockRowInner
         block={block}
         onSelect={onSelect}
         dragHandle={
-          <div className="rounded-full border border-black/8 p-1.5 text-[var(--muted)]">
+          <div className="rounded-full border border-[color:var(--line)] p-1.5 text-[var(--muted)]">
             <GripVertical className="size-3.5" />
           </div>
         }
@@ -471,12 +475,12 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <div className="space-y-6">
-        <section className="flex flex-col gap-4 border-b border-black/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Builder</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
-            <Badge className={cn("rounded-full", form.status === "PUBLISHED" && "bg-[var(--accent-soft)] text-[#2f5d35]")}>{form.status}</Badge>
+            <Badge className={cn("rounded-full", form.status === "PUBLISHED" && "bg-[var(--accent-soft)] text-[var(--accent-ink)]")}>{form.status}</Badge>
           </div>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Edit blocks, update settings, and review responses.</p>
         </div>
@@ -534,7 +538,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
             )}
           </div>
 
-          <div className="mt-6 space-y-3 border-t border-black/8 pt-6">
+          <div className="mt-6 space-y-3 border-t border-[color:var(--line)] pt-6">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Add block</p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {blockCreationOrder.map((type) => {
@@ -586,7 +590,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </label>
               </div>
 
-              <div className="space-y-5 border-t border-black/8 pt-6">
+              <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">After submission</p>
                   <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
@@ -630,7 +634,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </div>
               </div>
 
-              <div className="grid gap-4 rounded-[20px] border border-black/8 bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+              <div className="grid gap-4 rounded-[20px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Public route</p>
                   <p className="mt-2 truncate font-mono text-[13px] text-[var(--ink)]">{shareHref}</p>
@@ -650,7 +654,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </Link>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
                 <Button variant="danger" onClick={deleteForm}>
                   {busy === "delete-form" ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                   Delete form
@@ -668,7 +672,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                   {SelectedBlockIcon ? <SelectedBlockIcon className="size-6 text-[var(--ink)]" /> : null}
                   <h2 className="font-display text-4xl text-[var(--ink)]">{blockLabels[blockDraft.type]}</h2>
                 </div>
-                <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--bg-strong)] text-sm font-semibold text-[var(--ink)]">
+                <span className="inline-flex size-8 items-center justify-center rounded-full border border-[color:var(--line-strong)] bg-[var(--accent-soft)] text-sm font-semibold text-[var(--accent-ink)]">
                   {blockDraft.position + 1}
                 </span>
               </div>
@@ -741,10 +745,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 )}
 
                 {isQuestion(blockDraft.type) ? (
-                  <label className="flex items-center gap-3 rounded-xl border border-black/8 bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
+                  <label className="flex items-center gap-3 rounded-xl border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
                     <input
                       checked={blockDraft.required}
-                      className="size-4 rounded border-black/15"
+                      className="size-4 rounded border-[color:var(--line-strong)]"
                       type="checkbox"
                       onChange={(event) =>
                         setBlockDraft((current) => (current ? { ...current, required: event.target.checked } : current))
@@ -755,7 +759,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
                 <Button variant="danger" onClick={() => deleteBlock(blockDraft.id)}>
                   {busy === `delete-${blockDraft.id}` ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                   Delete block
@@ -767,7 +771,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
               </div>
             </div>
           ) : (
-            <div className="flex min-h-[420px] items-center justify-center rounded-[20px] border border-dashed border-black/10 bg-[var(--bg-strong)] p-10 text-center">
+            <div className="flex min-h-[420px] items-center justify-center rounded-[20px] border border-dashed border-[color:var(--line)] bg-[var(--bg-strong)] p-10 text-center">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Nothing selected</p>
                 <h2 className="mt-4 font-display text-4xl text-[var(--ink)]">Select a block or open form settings.</h2>

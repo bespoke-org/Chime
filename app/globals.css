@@ -2,14 +2,45 @@
 
 :root {
   --bg: #f5f5f1;
+  --bg-start: #f8f8f4;
+  --bg-end: #f2f1eb;
   --bg-strong: #ecece6;
-  --surface: rgba(255, 255, 255, 0.88);
+  --surface: rgba(255, 255, 255, 0.85);
   --surface-strong: rgba(255, 255, 255, 0.96);
   --ink: #171717;
   --muted: #5f5f5a;
   --accent: #4f7a58;
   --accent-soft: #dbe6dd;
+  --accent-ink: #2f5d35;
+  --danger-soft: rgba(190, 24, 93, 0.08);
+  --danger-ink: #be123c;
+  --danger-line: rgba(190, 24, 93, 0.24);
   --line: rgba(23, 23, 23, 0.08);
+  --line-strong: rgba(23, 23, 23, 0.14);
+}
+
+:root[data-theme="dark"] {
+  --bg: #141512;
+  --bg-start: #171915;
+  --bg-end: #10110f;
+  --bg-strong: #1d1f1b;
+  --surface: rgba(28, 30, 27, 0.88);
+  --surface-strong: rgba(34, 36, 32, 0.98);
+  --ink: #f2f1eb;
+  --muted: #b4b2aa;
+  --accent: #8db896;
+  --accent-soft: rgba(141, 184, 150, 0.16);
+  --accent-ink: #d7ecd9;
+  --danger-soft: rgba(190, 24, 93, 0.16);
+  --danger-ink: #ffb3c7;
+  --danger-line: rgba(255, 179, 199, 0.28);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @theme inline {
@@ -25,7 +56,7 @@
 
 body {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8f8f4 0%, #f2f1eb 100%);
+  background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
   color: var(--ink);
   font-family: var(--font-manrope), sans-serif;
 }

@@ -38,10 +38,10 @@ function ToastItem({
       exit={{ opacity: 0, x: 24, y: -8, scale: 0.98 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
       className={cn(
-        "pointer-events-auto flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.12)]",
+        "pointer-events-auto flex items-start gap-3 rounded-xl border bg-[var(--bg-strong)] px-4 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.12)]",
         toast.variant === "error"
-          ? "border-rose-200 text-rose-700"
-          : "border-[#cfe9d0] text-[#2f5d35]",
+          ? "border-[color:var(--danger-line)] text-[var(--danger-ink)]"
+          : "border-[color:var(--accent)] text-[var(--accent-ink)]",
       )}
       role="status"
       aria-live="polite"
@@ -51,7 +51,10 @@ function ToastItem({
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        className="rounded-full p-1 opacity-60 transition hover:bg-black/5 hover:opacity-100"
+        className={cn(
+          "rounded-full p-1 opacity-60 transition hover:opacity-100",
+          toast.variant === "error" ? "hover:bg-[var(--danger-soft)]" : "hover:bg-[var(--accent-soft)]",
+        )}
         aria-label="Dismiss notification"
       >
         <X className="size-4" />

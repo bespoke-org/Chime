@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   return forms.length === 0 ? (
     <div className="space-y-8">
-      <section className="flex flex-col gap-4 border-b border-black/8 pb-6 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Dashboard</p>
           <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">Your forms</h1>
