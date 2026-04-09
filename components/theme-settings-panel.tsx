@@ -59,7 +59,7 @@ export function ThemeSettingsPanel() {
               className={cn(
                 "rounded-[18px] border p-5 text-left transition",
                 selected
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_16px_40px_rgba(79,122,88,0.10)]"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-accent)]"
                   : "border-[color:var(--line)] bg-[var(--surface-strong)] hover:bg-[var(--surface)]",
               )}
               aria-pressed={selected}

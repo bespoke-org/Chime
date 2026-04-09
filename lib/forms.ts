@@ -17,6 +17,13 @@ import {
 } from "@/lib/blocks";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
+import type {
+  BuilderForm,
+  FormListItem,
+  PublicForm,
+  ResponseDetail,
+  ResponseListItem,
+} from "@/lib/form-types";
 import {
   blockUpdateSchema,
   createBlockSchema,
@@ -67,57 +74,13 @@ const snapshotBlockSchema = z.object({
   config: z.unknown(),
 });
 
-export type BuilderForm = {
-  id: string;
-  title: string;
-  description: string;
-  completionTitle: string;
-  completionMessage: string;
-  completionLinkLabel: string | null;
-  completionLinkUrl: string | null;
-  slug: string;
-  status: FormStatus;
-  updatedAt: string;
-  responseCount: number;
-  blocks: SerializedBlock[];
-};
-
-export type PublicForm = {
-  id: string;
-  title: string;
-  description: string;
-  completionTitle: string;
-  completionMessage: string;
-  completionLinkLabel: string | null;
-  completionLinkUrl: string | null;
-  slug: string;
-  blocks: SerializedBlock[];
-};
-
-export type FormListItem = {
-  id: string;
-  title: string;
-  description: string;
-  slug: string;
-  status: FormStatus;
-  updatedAt: string;
-  responseCount: number;
-};
-
-export type ResponseListItem = {
-  id: string;
-  submittedAt: string;
-  answerCount: number;
-  submissionNumber: number;
-};
-
-export type ResponseDetail = {
-  id: string;
-  submittedAt: string;
-  submissionNumber: number;
-  answers: Record<string, string | string[]>;
-  blocks: SerializedBlock[];
-};
+export type {
+  BuilderForm,
+  FormListItem,
+  PublicForm,
+  ResponseDetail,
+  ResponseListItem,
+} from "@/lib/form-types";
 
 function toBuilderForm(form: BuilderFormRecord): BuilderForm {
   return {

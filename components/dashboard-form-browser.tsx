@@ -6,10 +6,10 @@ import { ArrowDown, ArrowUp, LayoutGrid, Plus, TableProperties } from "lucide-re
 import { useEffect, useMemo, useState } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
-import { Badge } from "@/components/ui/badge";
+import { FormStatusBadge } from "@/components/form-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { FormListItem } from "@/lib/forms";
+import type { FormListItem } from "@/lib/form-types";
 import { cn, formatDate } from "@/lib/utils";
 
 type DashboardView = "grid" | "table";
@@ -155,9 +155,7 @@ export function DashboardFormBrowser({ forms }: { forms: FormListItem[] }) {
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="font-display text-3xl text-[var(--ink)]">{form.title}</h2>
-                    <Badge className={form.status === "PUBLISHED" ? "rounded-full bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "rounded-full"}>
-                      {form.status === "PUBLISHED" ? "Published" : "Draft"}
-                    </Badge>
+                    <FormStatusBadge status={form.status} />
                   </div>
                   <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">{form.description || "No description yet."}</p>
                 </div>
@@ -228,9 +226,7 @@ export function DashboardFormBrowser({ forms }: { forms: FormListItem[] }) {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <Badge className={form.status === "PUBLISHED" ? "rounded-full bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "rounded-full"}>
-                        {form.status === "PUBLISHED" ? "Published" : "Draft"}
-                      </Badge>
+                      <FormStatusBadge status={form.status} />
                     </td>
                     <td className="px-5 py-4 text-[var(--muted)]">{form.responseCount}</td>
                     <td className="px-5 py-4 text-[var(--muted)]">{formatDate(form.updatedAt)}</td>

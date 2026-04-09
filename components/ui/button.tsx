@@ -9,13 +9,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[var(--ink)] px-5 py-3 text-[var(--bg)] shadow-[0_16px_40px_rgba(15,23,42,0.18)] hover:-translate-y-0.5 hover:shadow-[0_20px_48px_rgba(15,23,42,0.24)] focus-visible:ring-[var(--ink)]",
+          "bg-[var(--ink)] px-5 py-3 text-[var(--bg)] shadow-[var(--shadow-button)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-button-hover)] focus-visible:ring-[var(--ink)]",
         secondary:
           "bg-[var(--surface-strong)] px-5 py-3 text-[var(--ink)] ring-1 ring-[color:var(--line)] hover:bg-[var(--surface)] focus-visible:ring-[var(--ink)]",
         ghost:
           "px-3 py-2 text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)] focus-visible:ring-[var(--ink)]",
         danger:
-          "bg-[var(--surface-strong)] px-5 py-3 text-[var(--muted)] ring-1 ring-[color:var(--line)] hover:bg-[#ef4444] hover:text-white hover:ring-[#ef4444] focus-visible:ring-[#ef4444]",
+          "bg-[var(--surface-strong)] px-5 py-3 text-[var(--muted)] ring-1 ring-[color:var(--line)] hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)] hover:ring-[var(--danger-hover)] focus-visible:ring-[var(--danger-hover)]",
       },
       size: {
         default: "h-11",

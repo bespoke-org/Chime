@@ -11,34 +11,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
+import type { ChoiceBlockConfig, LongTextBlockConfig, ShortTextBlockConfig, TextBlockConfig } from "@/lib/blocks";
+import type { PublicForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
-
-type BlockType = "TEXT" | "SHORT_TEXT" | "LONG_TEXT" | "SINGLE_CHOICE" | "MULTIPLE_CHOICE";
-
-type PublicBlock = {
-  id: string;
-  type: BlockType;
-  title: string;
-  description: string;
-  required: boolean;
-  position: number;
-  config:
-    | { body: string }
-    | { placeholder: string }
-    | { options: string[] };
-};
-
-type PublicForm = {
-  id: string;
-  title: string;
-  description: string;
-  completionTitle: string;
-  completionMessage: string;
-  completionLinkLabel: string | null;
-  completionLinkUrl: string | null;
-  slug: string;
-  blocks: PublicBlock[];
-};
 
 async function submitResponse(slug: string, answers: Record<string, string | string[]>) {
   const response = await fetch(`/api/public/forms/${slug}/responses`, {
@@ -241,7 +216,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   {currentBlock.title || "Take a breath before the next step."}
                 </h2>
                 {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{currentBlock.description}</p> : null}
-                <p className="mt-6 max-w-3xl text-lg leading-9 text-[var(--ink)]/82">{(currentBlock.config as { body: string }).body}</p>
+                <p className="mt-6 max-w-3xl text-lg leading-9 text-[var(--ink)]/82">{(currentBlock.config as TextBlockConfig).body}</p>
               </div>
             ) : (
               <div className="flex min-h-[320px] flex-col justify-center">
@@ -270,7 +245,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   {currentBlock.type === "SHORT_TEXT" ? (
                     <Input
                       className="h-14 text-base placeholder:text-[var(--muted)]/65"
-                      placeholder={(currentBlock.config as { placeholder: string }).placeholder}
+                      placeholder={(currentBlock.config as ShortTextBlockConfig).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
                     />
@@ -279,7 +254,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   {currentBlock.type === "LONG_TEXT" ? (
                     <Textarea
                       className="min-h-[180px] text-base placeholder:text-[var(--muted)]/65"
-                      placeholder={(currentBlock.config as { placeholder: string }).placeholder}
+                      placeholder={(currentBlock.config as LongTextBlockConfig).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
                     />
@@ -287,7 +262,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                   {currentBlock.type === "SINGLE_CHOICE" ? (
                     <div className="grid gap-3">
-                      {(currentBlock.config as { options: string[] }).options.map((option) => {
+                      {(currentBlock.config as ChoiceBlockConfig).options.map((option) => {
                         const selected = answers[currentBlock.id] === option;
 
                         return (
@@ -297,7 +272,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             className={cn(
                               "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
                               selected
-                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[0_12px_28px_rgba(79,122,88,0.08)]"
+                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                 : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                             )}
                             onClick={() => setAnswer(currentBlock.id, option)}
@@ -316,7 +291,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                   {currentBlock.type === "MULTIPLE_CHOICE" ? (
                     <div className="grid gap-3">
-                      {(currentBlock.config as { options: string[] }).options.map((option) => {
+                      {(currentBlock.config as ChoiceBlockConfig).options.map((option) => {
                         const rawValues = answers[currentBlock.id];
                         const currentValues: string[] = Array.isArray(rawValues) ? rawValues : [];
                         const selected = currentValues.includes(option);
@@ -328,7 +303,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             className={cn(
                               "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
                               selected
-                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[0_12px_28px_rgba(79,122,88,0.08)]"
+                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                 : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                             )}
                             onClick={() => {

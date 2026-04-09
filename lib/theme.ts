@@ -9,6 +9,10 @@ export function isThemePreference(value: unknown): value is ThemePreference {
   return typeof value === "string" && THEME_PREFERENCES.includes(value as ThemePreference);
 }
 
+export function normalizeThemePreference(value: unknown): ThemePreference {
+  return isThemePreference(value) ? value : "system";
+}
+
 export function resolveTheme(preference: ThemePreference, systemPrefersDark: boolean): ResolvedTheme {
   if (preference === "system") {
     return systemPrefersDark ? "dark" : "light";
@@ -17,19 +21,23 @@ export function resolveTheme(preference: ThemePreference, systemPrefersDark: boo
   return preference;
 }
 
-export function applyThemePreference(preference: ThemePreference) {
-  const resolved = resolveTheme(preference, window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const root = document.documentElement;
+export function applyResolvedTheme(root: HTMLElement, preference: ThemePreference, systemPrefersDark: boolean) {
+  const resolved = resolveTheme(preference, systemPrefersDark);
 
   root.dataset.themePreference = preference;
   root.dataset.theme = resolved;
   root.style.colorScheme = resolved;
+
+  return resolved;
+}
+
+export function applyThemePreference(preference: ThemePreference) {
+  return applyResolvedTheme(document.documentElement, preference, window.matchMedia("(prefers-color-scheme: dark)").matches);
 }
 
 export function readStoredThemePreference(): ThemePreference {
   try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return isThemePreference(stored) ? stored : "system";
+    return normalizeThemePreference(window.localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
     return "system";
   }
@@ -43,22 +51,27 @@ export function persistThemePreference(preference: ThemePreference) {
   }
 }
 
-export const themeInitScript = `(() => {
-  const storageKey = ${JSON.stringify(THEME_STORAGE_KEY)};
-  const root = document.documentElement;
-  const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+export function createThemeInitScript() {
+  return `(() => {
+    const storageKey = ${JSON.stringify(THEME_STORAGE_KEY)};
+    const validPreferences = ${JSON.stringify(THEME_PREFERENCES)};
+    const root = document.documentElement;
+    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  let preference = "system";
+    let preference = "system";
 
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      preference = stored;
-    }
-  } catch {}
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (validPreferences.includes(stored)) {
+        preference = stored;
+      }
+    } catch {}
 
-  const resolved = preference === "system" ? (systemDark ? "dark" : "light") : preference;
-  root.dataset.themePreference = preference;
-  root.dataset.theme = resolved;
-  root.style.colorScheme = resolved;
-})();`;
+    const resolved = preference === "system" ? (systemDark ? "dark" : "light") : preference;
+    root.dataset.themePreference = preference;
+    root.dataset.theme = resolved;
+    root.style.colorScheme = resolved;
+  })();`;
+}
+
+export const themeInitScript = createThemeInitScript();

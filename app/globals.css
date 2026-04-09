@@ -12,11 +12,20 @@
   --accent: #4f7a58;
   --accent-soft: #dbe6dd;
   --accent-ink: #2f5d35;
+  --danger: #e11d48;
+  --danger-hover: #be123c;
+  --danger-contrast: #fff8fb;
   --danger-soft: rgba(190, 24, 93, 0.08);
   --danger-ink: #be123c;
   --danger-line: rgba(190, 24, 93, 0.24);
   --line: rgba(23, 23, 23, 0.08);
   --line-strong: rgba(23, 23, 23, 0.14);
+  --shadow-surface: 0 22px 60px rgba(15, 23, 42, 0.08);
+  --shadow-elevated: 0 18px 44px rgba(15, 23, 42, 0.08);
+  --shadow-button: 0 16px 40px rgba(15, 23, 42, 0.18);
+  --shadow-button-hover: 0 20px 48px rgba(15, 23, 42, 0.24);
+  --shadow-toast: 0 18px 50px rgba(15, 23, 42, 0.12);
+  --shadow-accent: 0 16px 40px rgba(79, 122, 88, 0.1);
 }
 
 :root[data-theme="dark"] {
@@ -31,11 +40,20 @@
   --accent: #8db896;
   --accent-soft: rgba(141, 184, 150, 0.16);
   --accent-ink: #d7ecd9;
+  --danger: #ff6b93;
+  --danger-hover: #ff5b88;
+  --danger-contrast: #220710;
   --danger-soft: rgba(190, 24, 93, 0.16);
   --danger-ink: #ffb3c7;
   --danger-line: rgba(255, 179, 199, 0.28);
   --line: rgba(255, 255, 255, 0.1);
   --line-strong: rgba(255, 255, 255, 0.18);
+  --shadow-surface: 0 22px 60px rgba(0, 0, 0, 0.24);
+  --shadow-elevated: 0 18px 44px rgba(0, 0, 0, 0.22);
+  --shadow-button: 0 16px 40px rgba(0, 0, 0, 0.32);
+  --shadow-button-hover: 0 20px 48px rgba(0, 0, 0, 0.4);
+  --shadow-toast: 0 18px 50px rgba(0, 0, 0, 0.28);
+  --shadow-accent: 0 16px 40px rgba(79, 122, 88, 0.22);
   color-scheme: dark;
 }
 

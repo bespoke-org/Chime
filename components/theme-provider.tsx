@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import {
   THEME_STORAGE_KEY,
+  applyResolvedTheme,
   applyThemePreference,
   persistThemePreference,
   readStoredThemePreference,
@@ -39,8 +40,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const nextResolved = event.matches ? "dark" : "light";
-      document.documentElement.dataset.theme = nextResolved;
+      const nextResolved = applyResolvedTheme(document.documentElement, currentPreference, event.matches);
       setResolvedTheme(nextResolved);
     };
 
