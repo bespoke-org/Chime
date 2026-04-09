@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
+import { ResponseExportActions } from "@/components/response-export-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,8 +39,9 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
           <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{form.title}</h1>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review anonymous submissions in form order.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3 lg:justify-end">
           <Badge>{responses.length} submissions</Badge>
+          <ResponseExportActions formId={form.id} />
           <Link href={`/forms/${form.id}/edit`}>
             <Button variant="secondary">Back to builder</Button>
           </Link>

@@ -21,3 +21,10 @@ The system SHALL allow an authenticated creator to open an individual response a
 #### Scenario: Creator inspects response with text blocks in the form
 - **WHEN** an authenticated creator views a response for a form that includes text blocks
 - **THEN** the system shows only answerable block responses while preserving the form order context for the submission
+
+### Requirement: Creator can start response exports from the responses view
+The system SHALL present response export actions in the responses view for a form owned by the authenticated creator.
+
+#### Scenario: Creator opens responses for an owned form
+- **WHEN** an authenticated creator opens the responses view for a form they own
+- **THEN** the system displays available export actions for the supported response export formats

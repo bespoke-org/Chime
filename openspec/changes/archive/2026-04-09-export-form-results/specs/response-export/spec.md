@@ -1,0 +1,48 @@
+## ADDED Requirements
+
+### Requirement: Creator can export owned form responses in CSV and XLSX formats
+The system SHALL allow an authenticated creator to export responses for a form they own in CSV and XLSX formats.
+
+#### Scenario: Creator exports owned form responses as CSV
+- **WHEN** an authenticated creator requests a CSV export for a form they own
+- **THEN** the system downloads a CSV file containing that form's responses
+
+#### Scenario: Creator exports owned form responses as XLSX
+- **WHEN** an authenticated creator requests an XLSX export for a form they own
+- **THEN** the system downloads an XLSX file containing that form's responses
+
+### Requirement: Export requests are restricted by form ownership
+The system SHALL allow response exports only for forms owned by the authenticated creator and SHALL deny export access for forms owned by others.
+
+#### Scenario: Creator exports another creator's form
+- **WHEN** an authenticated creator requests an export for a form they do not own
+- **THEN** the system denies access and does not return response data
+
+### Requirement: Export output uses one row per submission with stable columns
+The system SHALL export one row per submission and SHALL include submission metadata plus one column for each answerable block in the form's saved order.
+
+#### Scenario: Form contains multiple question types
+- **WHEN** a creator exports responses for a form with multiple answerable block types
+- **THEN** the export contains submission metadata columns followed by one column per answerable block in saved order
+
+#### Scenario: Form contains text-only blocks
+- **WHEN** a creator exports responses for a form that includes non-answerable text blocks
+- **THEN** the export excludes those text blocks from answer columns
+
+### Requirement: Exported answers are spreadsheet-readable
+The system SHALL serialize answers into readable cell values suitable for spreadsheet use across supported formats.
+
+#### Scenario: Submission contains a multiple choice answer
+- **WHEN** a creator exports responses that include a multiple choice answer
+- **THEN** the selected options are written as a readable delimited value in the exported cell
+
+#### Scenario: Submission contains long text content
+- **WHEN** a creator exports responses that include long text answers
+- **THEN** the exported file preserves the answer content as text in the corresponding cell
+
+### Requirement: Exports remain available when a form has no submissions
+The system SHALL allow a creator to export an owned form even when it has no submissions and SHALL generate a file with headers only.
+
+#### Scenario: Creator exports an owned form with no responses
+- **WHEN** an authenticated creator exports a form they own that has no submissions
+- **THEN** the system downloads a valid export file containing column headers and no submission rows
