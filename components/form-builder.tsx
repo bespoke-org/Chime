@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   GripVertical,
   LoaderCircle,
+  Plus,
   Radio,
   Rows3,
   SquareCheck,
@@ -33,11 +34,11 @@ import {
   BuilderHeader,
   EmptyEditorState,
   FormSettingsPanel,
+  type ChoiceOptionDraft,
   type FormMetadataDraft,
 } from "@/components/form-builder-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { blockTypeLabels, getBlockPreview, type ChoiceBlockConfig } from "@/lib/blocks";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
@@ -56,6 +57,10 @@ const blockIcons: Record<BlockType, typeof Type> = {
 };
 
 const blockCreationOrder: BlockType[] = ["TEXT", "SHORT_TEXT", "LONG_TEXT", "SINGLE_CHOICE", "MULTIPLE_CHOICE"];
+
+function createChoiceOptionDrafts(options: string[]): ChoiceOptionDraft[] {
+  return options.map((value) => ({ id: crypto.randomUUID(), value }));
+}
 
 async function fetchJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
@@ -84,22 +89,13 @@ function BlockRowInner({
   onSelect: (blockId: string) => void;
   dragHandle: React.ReactNode;
 }) {
-  const Icon = blockIcons[block.type];
-
   return (
     <>
       {dragHandle}
       <button className="min-w-0 flex-1 text-left" type="button" onClick={() => onSelect(block.id)}>
-        <div className="flex items-center justify-between gap-2 text-[var(--muted)]">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <Icon className="size-3.5 shrink-0" />
-            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.18em]">{blockTypeLabels[block.type]}</span>
-          </div>
-          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-[color:var(--line-strong)] bg-[var(--accent-soft)] text-[10px] font-semibold text-[var(--accent-ink)]">
-            {block.position + 1}
-          </span>
+        <div className="min-w-0 flex-1 text-sm font-medium leading-5 text-[var(--ink)]">
+          <span className="block truncate">{getBlockPreview(block)}</span>
         </div>
-        <p className="mt-1 truncate text-sm font-medium text-[var(--ink)]">{getBlockPreview(block)}</p>
       </button>
     </>
   );
@@ -115,6 +111,7 @@ function SortableBlockRow({
   onSelect: (blockId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
+  const Icon = blockIcons[block.type];
 
   return (
     <div
@@ -124,10 +121,10 @@ function SortableBlockRow({
         transition,
       }}
       className={cn(
-        "group flex items-center gap-2.5 rounded-[16px] border px-3 py-3 transition",
+        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2 transition",
         selected
-          ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
-          : "border-[color:var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-strong)]",
+          ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
+          : "hover:bg-[var(--surface)]",
       )}
     >
       <BlockRowInner
@@ -135,12 +132,14 @@ function SortableBlockRow({
         onSelect={onSelect}
         dragHandle={
           <button
-            className="rounded-full border border-[color:var(--line)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--accent-soft)]"
+            className="relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)]"
             type="button"
+            aria-label={`Drag ${getBlockPreview(block)}`}
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="size-3.5" />
+            <Icon className="size-3 transition group-hover:opacity-0" />
+            <GripVertical className="absolute size-3.5 opacity-0 transition group-hover:opacity-100" />
           </button>
         }
       />
@@ -157,21 +156,24 @@ function StaticBlockRow({
   selected: boolean;
   onSelect: (blockId: string) => void;
 }) {
+  const Icon = blockIcons[block.type];
+
   return (
     <div
       className={cn(
-        "group flex items-center gap-2.5 rounded-[16px] border px-3 py-3 transition",
+        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2 transition",
         selected
-          ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
-          : "border-[color:var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-strong)]",
+          ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
+          : "hover:bg-[var(--surface)]",
       )}
     >
       <BlockRowInner
         block={block}
         onSelect={onSelect}
         dragHandle={
-          <div className="rounded-full border border-[color:var(--line)] p-1.5 text-[var(--muted)]">
-            <GripVertical className="size-3.5" />
+          <div className="relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[color:var(--line)] text-[var(--muted)]">
+            <Icon className="size-3 transition group-hover:opacity-0" />
+            <GripVertical className="absolute size-3.5 opacity-0 transition group-hover:opacity-100" />
           </div>
         }
       />
@@ -199,16 +201,19 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     slug: initialForm.slug,
   });
 
+  const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
+  const blockMenuRef = useRef<HTMLDivElement | null>(null);
+
   const selectedBlock = useMemo(
     () => (selection.kind === "block" ? form.blocks.find((block) => block.id === selection.blockId) ?? null : null),
     [form.blocks, selection],
   );
 
   const [blockDraft, setBlockDraft] = useState<BuilderBlock | null>(selectedBlock);
-  const [choiceOptionsDraft, setChoiceOptionsDraft] = useState(
+  const [choiceOptionsDraft, setChoiceOptionsDraft] = useState<ChoiceOptionDraft[]>(
     selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
-      ? (selectedBlock.config as ChoiceBlockConfig).options.join("\n")
-      : "",
+      ? createChoiceOptionDrafts((selectedBlock.config as ChoiceBlockConfig).options)
+      : [],
   );
   const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
 
@@ -230,14 +235,29 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     setBlockDraft(selectedBlock);
     setChoiceOptionsDraft(
       selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
-        ? (selectedBlock.config as ChoiceBlockConfig).options.join("\n")
-        : "",
+        ? createChoiceOptionDrafts((selectedBlock.config as ChoiceBlockConfig).options)
+        : [],
     );
   }, [selectedBlock]);
 
   useEffect(() => {
     setIsDndReady(true);
   }, []);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!blockMenuRef.current?.contains(event.target as Node)) {
+        setIsBlockMenuOpen(false);
+      }
+    }
+
+    if (!isBlockMenuOpen) {
+      return;
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [isBlockMenuOpen]);
 
   function showToast(message: string, variant: ToastData["variant"] = "success") {
     const id = crypto.randomUUID();
@@ -285,6 +305,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         blocks: [...current.blocks, payload.block],
       }));
       setSelection({ kind: "block", blockId: payload.block.id });
+      setIsBlockMenuOpen(false);
       showToast(`Added ${blockTypeLabels[type].toLowerCase()}`);
     });
   }
@@ -303,7 +324,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           required: blockDraft.required,
           config:
             blockDraft.type === "SINGLE_CHOICE" || blockDraft.type === "MULTIPLE_CHOICE"
-              ? { options: choiceOptionsDraft.split("\n") }
+              ? { options: choiceOptionsDraft.map((option) => option.value) }
               : blockDraft.config,
         }),
       });
@@ -422,88 +443,100 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           onTogglePublished={togglePublished}
         />
 
-        <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-3xl text-[var(--ink)]">Blocks</h2>
-            <Badge>{form.blocks.length} steps</Badge>
-          </div>
+        <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-3xl text-[var(--ink)]">Blocks</h2>
+              <div className="relative" ref={blockMenuRef}>
+                <Button
+                  size="sm"
+                  onClick={() => setIsBlockMenuOpen((current) => !current)}
+                  aria-expanded={isBlockMenuOpen}
+                  aria-haspopup="menu"
+                >
+                  <Plus className="size-4" />
+                  New block
+                </Button>
+                {isBlockMenuOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
+                    <div className="grid gap-1">
+                      {blockCreationOrder.map((type) => {
+                        const Icon = blockIcons[type];
 
-          <div className="mt-5 space-y-3">
-            {isDndReady ? (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={form.blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
-                  {form.blocks.map((block) => (
-                    <SortableBlockRow
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+                            onClick={() => addBlock(type)}
+                          >
+                            {busy === `add-${type}` ? <LoaderCircle className="size-4 animate-spin" /> : <Icon className="size-4" />}
+                            {blockTypeLabels[type]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
+              <div className="space-y-1.5">
+                {isDndReady ? (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={form.blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
+                      {form.blocks.map((block) => (
+                        <SortableBlockRow
+                          key={block.id}
+                          block={block}
+                          selected={selection.kind === "block" && selection.blockId === block.id}
+                          onSelect={(blockId) => setSelection({ kind: "block", blockId })}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  form.blocks.map((block) => (
+                    <StaticBlockRow
                       key={block.id}
                       block={block}
                       selected={selection.kind === "block" && selection.blockId === block.id}
                       onSelect={(blockId) => setSelection({ kind: "block", blockId })}
                     />
-                  ))}
-                </SortableContext>
-              </DndContext>
-            ) : (
-              form.blocks.map((block) => (
-                <StaticBlockRow
-                  key={block.id}
-                  block={block}
-                  selected={selection.kind === "block" && selection.blockId === block.id}
-                  onSelect={(blockId) => setSelection({ kind: "block", blockId })}
-                />
-              ))
-            )}
-          </div>
-
-          <div className="mt-6 space-y-3 border-t border-[color:var(--line)] pt-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Add block</p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              {blockCreationOrder.map((type) => {
-                const Icon = blockIcons[type];
-
-                return (
-                  <Button
-                    key={type}
-                    variant="secondary"
-                    size="sm"
-                    className="justify-start"
-                    onClick={() => addBlock(type)}
-                  >
-                    {busy === `add-${type}` ? <LoaderCircle className="size-4 animate-spin" /> : <Icon className="size-4" />}
-                    {blockTypeLabels[type]}
-                  </Button>
-                );
-              })}
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
 
-        <Card className="p-6 lg:p-8">
-          {selection.kind === "form" ? (
-            <FormSettingsPanel
-              metadataDraft={metadataDraft}
-              setMetadataDraft={setMetadataDraft}
-              shareHref={shareHref}
-              copyShareLink={copyShareLink}
-              deleteForm={deleteForm}
-              saveMetadata={saveMetadata}
-              busy={busy}
-            />
-          ) : blockDraft ? (
-            <BlockEditorPanel
-              blockDraft={blockDraft}
-              selectedBlockIcon={SelectedBlockIcon}
-              choiceOptionsDraft={choiceOptionsDraft}
-              setChoiceOptionsDraft={setChoiceOptionsDraft}
-              setBlockDraft={setBlockDraft}
-              deleteBlock={deleteBlock}
-              saveBlock={saveBlock}
-              busy={busy}
-            />
-          ) : (
-            <EmptyEditorState onAddShortText={() => addBlock("SHORT_TEXT")} />
-          )}
-        </Card>
+          </aside>
+
+          <section className="min-w-0 border-t border-[color:var(--line)] pt-6 lg:min-h-full lg:border-t-0 lg:pt-0">
+            {selection.kind === "form" ? (
+              <FormSettingsPanel
+                metadataDraft={metadataDraft}
+                setMetadataDraft={setMetadataDraft}
+                shareHref={shareHref}
+                copyShareLink={copyShareLink}
+                deleteForm={deleteForm}
+                saveMetadata={saveMetadata}
+                busy={busy}
+              />
+            ) : blockDraft ? (
+              <BlockEditorPanel
+                blockDraft={blockDraft}
+                selectedBlockIcon={SelectedBlockIcon}
+                choiceOptionsDraft={choiceOptionsDraft}
+                setChoiceOptionsDraft={setChoiceOptionsDraft}
+                setBlockDraft={setBlockDraft}
+                deleteBlock={deleteBlock}
+                saveBlock={saveBlock}
+                busy={busy}
+              />
+            ) : (
+              <EmptyEditorState onAddShortText={() => addBlock("SHORT_TEXT")} />
+            )}
+          </section>
         </div>
       </div>
     </>

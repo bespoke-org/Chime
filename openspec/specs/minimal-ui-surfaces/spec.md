@@ -25,3 +25,14 @@ The system SHALL present authenticated creator surfaces with concise identity, n
 #### Scenario: Creator has no forms yet
 - **WHEN** an authenticated creator opens an empty dashboard
 - **THEN** the system shows a concise empty state that explains the next action without sales-oriented or poetic product language
+
+### Requirement: Builder uses restrained surface layering
+The system SHALL present the creator builder with a minimal surface hierarchy that prefers spacing, dividers, and clear typography over multiple nested cards or heavy stacked containers.
+
+#### Scenario: Creator compares builder sections
+- **WHEN** an authenticated creator views the builder navigation and editing areas
+- **THEN** the system separates major regions clearly without relying on excessive nested surface treatments
+
+#### Scenario: Creator scans dense builder content
+- **WHEN** an authenticated creator works through builder settings for a form with many blocks
+- **THEN** the builder maintains a calm, low-clutter presentation instead of compounding layered boxes within the editing flow

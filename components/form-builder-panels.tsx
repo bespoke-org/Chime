@@ -1,4 +1,16 @@
-import { Copy, Link as LinkIcon, LoaderCircle, MessagesSquare, Plus, Save, Settings2, Trash2, type LucideIcon } from "lucide-react";
+"use client";
+
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Copy, GripVertical, Link as LinkIcon, LoaderCircle, MessagesSquare, Plus, Save, Settings2, Trash2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -10,7 +22,6 @@ import {
   blockTypeLabels,
   isQuestionBlock,
   type BlockConfig,
-  type ChoiceBlockConfig,
   type LongTextBlockConfig,
   type ShortTextBlockConfig,
   type TextBlockConfig,
@@ -25,6 +36,11 @@ export type FormMetadataDraft = {
   completionLinkLabel: string;
   completionLinkUrl: string;
   slug: string;
+};
+
+export type ChoiceOptionDraft = {
+  id: string;
+  value: string;
 };
 
 export function BuilderHeader({
@@ -89,21 +105,21 @@ export function FormSettingsPanel({
   busy: string | null;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h2 className="font-display text-4xl text-[var(--ink)]">Settings</h2>
       </div>
 
       <div className="grid gap-5">
-        <label className="space-y-2 text-sm text-[var(--muted)]">
+        <label className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">Title</span>
           <Input value={metadataDraft.title} onChange={(event) => setMetadataDraft((current) => ({ ...current, title: event.target.value }))} />
         </label>
-        <label className="space-y-2 text-sm text-[var(--muted)]">
+        <label className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">Description</span>
           <Textarea value={metadataDraft.description} onChange={(event) => setMetadataDraft((current) => ({ ...current, description: event.target.value }))} />
         </label>
-        <label className="space-y-2 text-sm text-[var(--muted)]">
+        <label className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">Share URL slug</span>
           <Input value={metadataDraft.slug} className="font-mono text-[13px]" onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))} />
         </label>
@@ -118,20 +134,20 @@ export function FormSettingsPanel({
         </div>
 
         <div className="grid gap-5">
-          <label className="space-y-2 text-sm text-[var(--muted)]">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">Completion title</span>
             <Input value={metadataDraft.completionTitle} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionTitle: event.target.value }))} />
           </label>
-          <label className="space-y-2 text-sm text-[var(--muted)]">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">Completion message</span>
             <Textarea value={metadataDraft.completionMessage} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionMessage: event.target.value }))} />
           </label>
           <div className="grid gap-5 lg:grid-cols-2">
-            <label className="space-y-2 text-sm text-[var(--muted)]">
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
               <span className="font-medium text-[var(--ink)]">Follow-up link label</span>
               <Input value={metadataDraft.completionLinkLabel} placeholder="Read next steps" onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkLabel: event.target.value }))} />
             </label>
-            <label className="space-y-2 text-sm text-[var(--muted)]">
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
               <span className="font-medium text-[var(--ink)]">Follow-up link URL</span>
               <Input value={metadataDraft.completionLinkUrl} placeholder="https://example.com/next" onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkUrl: event.target.value }))} />
             </label>
@@ -139,7 +155,7 @@ export function FormSettingsPanel({
         </div>
       </div>
 
-      <div className="grid gap-4 rounded-[20px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-5 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+      <div className="grid gap-4 border-t border-[color:var(--line)] pt-6 lg:grid-cols-[1fr_auto_auto] lg:items-center">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Public route</p>
           <p className="mt-2 truncate font-mono text-[13px] text-[var(--ink)]">{shareHref}</p>
@@ -173,6 +189,53 @@ export function FormSettingsPanel({
   );
 }
 
+function SortableChoiceOptionRow({
+  option,
+  index,
+  optionCount,
+  onChange,
+  onRemove,
+}: {
+  option: ChoiceOptionDraft;
+  index: number;
+  optionCount: number;
+  onChange: (optionId: string, value: string) => void;
+  onRemove: (optionId: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: option.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className="flex items-center gap-2 rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)] p-3"
+    >
+      <button
+        type="button"
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
+        aria-label={`Drag option ${index + 1}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <Input value={option.value} placeholder={`Option ${index + 1}`} onChange={(event) => onChange(option.id, event.target.value)} />
+      <button
+        type="button"
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--muted)] transition hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)] hover:border-[var(--danger-hover)] disabled:opacity-100 disabled:text-[var(--line-strong)]"
+        aria-label={`Remove option ${index + 1}`}
+        disabled={optionCount <= 2}
+        onClick={() => onRemove(option.id)}
+      >
+        <Trash2 className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 export function BlockEditorPanel({
   blockDraft,
   selectedBlockIcon: SelectedBlockIcon,
@@ -185,37 +248,85 @@ export function BlockEditorPanel({
 }: {
   blockDraft: BuilderBlock;
   selectedBlockIcon: LucideIcon | null;
-  choiceOptionsDraft: string;
-  setChoiceOptionsDraft: (value: string) => void;
+  choiceOptionsDraft: ChoiceOptionDraft[];
+  setChoiceOptionsDraft: Dispatch<SetStateAction<ChoiceOptionDraft[]>>;
   setBlockDraft: Dispatch<SetStateAction<BuilderBlock | null>>;
   deleteBlock: (blockId: string) => void;
   saveBlock: () => void;
   busy: string | null;
 }) {
+  const optionSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  function syncChoiceOptions(nextOptions: ChoiceOptionDraft[]) {
+    setChoiceOptionsDraft(nextOptions);
+    setBlockDraft((current) =>
+      current
+        ? {
+            ...current,
+            config: { options: nextOptions.map((option) => option.value) } as BlockConfig,
+          }
+        : current,
+    );
+  }
+
+  function updateChoiceOption(optionId: string, value: string) {
+    syncChoiceOptions(choiceOptionsDraft.map((option) => (option.id === optionId ? { ...option, value } : option)));
+  }
+
+  function addChoiceOption() {
+    if (choiceOptionsDraft.length >= 10) {
+      return;
+    }
+
+    syncChoiceOptions([...choiceOptionsDraft, { id: crypto.randomUUID(), value: `Option ${choiceOptionsDraft.length + 1}` }]);
+  }
+
+  function removeChoiceOption(optionId: string) {
+    if (choiceOptionsDraft.length <= 2) {
+      return;
+    }
+
+    syncChoiceOptions(choiceOptionsDraft.filter((option) => option.id !== optionId));
+  }
+
+  function handleChoiceOptionDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = choiceOptionsDraft.findIndex((option) => option.id === active.id);
+    const newIndex = choiceOptionsDraft.findIndex((option) => option.id === over.id);
+
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    syncChoiceOptions(arrayMove(choiceOptionsDraft, oldIndex, newIndex));
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex items-start gap-4">
         <div className="flex items-center gap-3">
           {SelectedBlockIcon ? <SelectedBlockIcon className="size-6 text-[var(--ink)]" /> : null}
           <h2 className="font-display text-4xl text-[var(--ink)]">{blockTypeLabels[blockDraft.type]}</h2>
         </div>
-        <span className="inline-flex size-8 items-center justify-center rounded-full border border-[color:var(--line-strong)] bg-[var(--accent-soft)] text-sm font-semibold text-[var(--accent-ink)]">
-          {blockDraft.position + 1}
-        </span>
       </div>
 
       <div className="grid gap-5">
-        <label className="space-y-2 text-sm text-[var(--muted)]">
+        <label className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">Prompt</span>
           <Input value={blockDraft.title} onChange={(event) => setBlockDraft((current) => (current ? { ...current, title: event.target.value } : current))} />
         </label>
-        <label className="space-y-2 text-sm text-[var(--muted)]">
+        <label className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">Support text</span>
           <Textarea value={blockDraft.description} onChange={(event) => setBlockDraft((current) => (current ? { ...current, description: event.target.value } : current))} />
         </label>
 
         {blockDraft.type === "TEXT" ? (
-          <label className="space-y-2 text-sm text-[var(--muted)]">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">Body copy</span>
             <Textarea
               value={(blockDraft.config as TextBlockConfig).body}
@@ -225,7 +336,7 @@ export function BlockEditorPanel({
         ) : null}
 
         {(blockDraft.type === "SHORT_TEXT" || blockDraft.type === "LONG_TEXT") && (
-          <label className="space-y-2 text-sm text-[var(--muted)]">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">Placeholder</span>
             <Input
               value={blockDraft.type === "SHORT_TEXT" ? (blockDraft.config as ShortTextBlockConfig).placeholder : (blockDraft.config as LongTextBlockConfig).placeholder}
@@ -239,28 +350,36 @@ export function BlockEditorPanel({
         )}
 
         {(blockDraft.type === "SINGLE_CHOICE" || blockDraft.type === "MULTIPLE_CHOICE") && (
-          <label className="space-y-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">Choice options</span>
-            <Textarea
-              value={choiceOptionsDraft}
-              onChange={(event) => {
-                setChoiceOptionsDraft(event.target.value);
-                setBlockDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        config: { options: event.target.value.split("\n") } as BlockConfig,
-                      }
-                    : current,
-                );
-              }}
-            />
-            <p className="text-xs text-[var(--muted)]">Use one option per line. We’ll keep the first 10 non-empty values.</p>
-          </label>
+          <div className="grid gap-3 text-sm text-[var(--muted)]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium text-[var(--ink)]">Choice options</span>
+              <Button variant="secondary" size="sm" onClick={addChoiceOption} disabled={choiceOptionsDraft.length >= 10}>
+                <Plus className="size-4" />
+                Add option
+              </Button>
+            </div>
+            <DndContext sensors={optionSensors} collisionDetection={closestCenter} onDragEnd={handleChoiceOptionDragEnd}>
+              <SortableContext items={choiceOptionsDraft.map((option) => option.id)} strategy={verticalListSortingStrategy}>
+                <div className="grid gap-3">
+                  {choiceOptionsDraft.map((option, index) => (
+                    <SortableChoiceOptionRow
+                      key={option.id}
+                      option={option}
+                      index={index}
+                      optionCount={choiceOptionsDraft.length}
+                      onChange={updateChoiceOption}
+                      onRemove={removeChoiceOption}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            <p className="text-xs text-[var(--muted)]">Drag to reorder, rename in place, and keep between 2 and 10 options.</p>
+          </div>
         )}
 
         {isQuestionBlock(blockDraft.type) ? (
-          <label className="flex items-center gap-3 rounded-xl border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
+          <label className="flex items-center gap-3 rounded-xl bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
             <input
               checked={blockDraft.required}
               className="size-4 rounded border-[color:var(--line-strong)]"
@@ -288,7 +407,7 @@ export function BlockEditorPanel({
 
 export function EmptyEditorState({ onAddShortText }: { onAddShortText: () => void }) {
   return (
-    <div className="flex min-h-[420px] items-center justify-center rounded-[20px] border border-dashed border-[color:var(--line)] bg-[var(--bg-strong)] p-10 text-center">
+    <div className="flex min-h-[420px] items-center justify-center border-t border-dashed border-[color:var(--line)] p-10 text-center">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Nothing selected</p>
         <h2 className="mt-4 font-display text-4xl text-[var(--ink)]">Select a block or open form settings.</h2>
