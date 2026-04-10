@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, LayoutGrid, Plus, TableProperties } from "lucide-re
 import { useEffect, useMemo, useState } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
+import { useI18n } from "@/components/i18n-provider";
 import { FormStatusBadge } from "@/components/form-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,6 +28,7 @@ function compareText(left: string, right: string) {
 
 export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormListItem[]; workspaceLabel: string }) {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const initialView = searchParams.get("view") === "table" ? "table" : "grid";
@@ -107,9 +109,8 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
     <div className="space-y-8">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Dashboard</p>
           <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">{workspaceLabel}</h1>
-          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">Create a form, open a draft, or review responses in the active workspace.</p>
+          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">{t("dashboard.description")}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
@@ -123,7 +124,7 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
               aria-pressed={view === "grid"}
             >
               <LayoutGrid className="size-4" />
-              Grid
+              {t("dashboard.viewGrid")}
             </button>
             <button
               type="button"
@@ -135,13 +136,13 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
               aria-pressed={view === "table"}
             >
               <TableProperties className="size-4" />
-              Table
+              {t("dashboard.viewTable")}
             </button>
           </div>
           <form action={createFormAction}>
             <Button size="lg" type="submit">
               <Plus className="size-4" />
-              New form
+              {t("dashboard.newForm")}
             </Button>
           </form>
         </div>
@@ -157,25 +158,25 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
                     <h2 className="font-display text-3xl text-[var(--ink)]">{form.title}</h2>
                     <FormStatusBadge status={form.status} />
                   </div>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">{form.description || "No description yet."}</p>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">{form.description || t("dashboard.noDescription")}</p>
                 </div>
                 <Link href={`/forms/${form.id}/edit`}>
-                  <Button size="sm">Open</Button>
+                  <Button size="sm">{t("dashboard.open")}</Button>
                 </Link>
               </div>
 
               <div className="mt-6 grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Share URL</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("dashboard.shareUrl")}</p>
                   <p className="mt-2 truncate font-mono text-[13px]">/{form.slug}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Responses</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("dashboard.responses")}</p>
                   <p className="mt-2">{form.responseCount}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Updated</p>
-                  <p className="mt-2">{formatDate(form.updatedAt)}</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("dashboard.updated")}</p>
+                  <p className="mt-2">{formatDate(form.updatedAt, locale)}</p>
                 </div>
               </div>
 
@@ -187,28 +188,28 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[color:var(--line)] text-left">
               <thead className="bg-[var(--bg-strong)] border-b border-[color:var(--line)] shadow-[inset_0_-1px_0_rgba(23,23,23,0.06)]">
-                <tr className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+                <tr className="text-xs uppercase text-[var(--muted)]">
                   <th className="px-5 py-4">
                     <button type="button" onClick={() => handleSort("title")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
-                      Title
+                      {t("dashboard.titleColumn")}
                       {renderSortIcon("title")}
                     </button>
                   </th>
                   <th className="px-5 py-4">
                     <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
-                      Status
+                      {t("dashboard.statusColumn")}
                       {renderSortIcon("status")}
                     </button>
                   </th>
                   <th className="px-5 py-4">
                     <button type="button" onClick={() => handleSort("responseCount")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
-                      Responses
+                      {t("dashboard.responses")}
                       {renderSortIcon("responseCount")}
                     </button>
                   </th>
                   <th className="px-5 py-4">
                     <button type="button" onClick={() => handleSort("updatedAt")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
-                      Updated
+                      {t("dashboard.updated")}
                       {renderSortIcon("updatedAt")}
                     </button>
                   </th>
@@ -222,14 +223,14 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
                         <Link href={`/forms/${form.id}/edit`} className="font-medium text-[var(--ink)] transition hover:text-[var(--accent)]">
                           {form.title}
                         </Link>
-                        <p className="mt-1 truncate text-sm text-[var(--muted)]">{form.description || "No description yet."}</p>
+                        <p className="mt-1 truncate text-sm text-[var(--muted)]">{form.description || t("dashboard.noDescription")}</p>
                       </div>
                     </td>
                     <td className="px-5 py-4">
                       <FormStatusBadge status={form.status} />
                     </td>
                     <td className="px-5 py-4 text-[var(--muted)]">{form.responseCount}</td>
-                    <td className="px-5 py-4 text-[var(--muted)]">{formatDate(form.updatedAt)}</td>
+                    <td className="px-5 py-4 text-[var(--muted)]">{formatDate(form.updatedAt, locale)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -10,10 +10,12 @@ import { Card } from "@/components/ui/card";
 import { getServerAuthSession } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { listResponsesForOwnedForm } from "@/lib/forms";
+import { getRequestI18n } from "@/lib/i18n-server";
 import { formatDate } from "@/lib/utils";
 
 export default async function ResponsesPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerAuthSession();
+  const { locale, t } = await getRequestI18n();
   const { id } = await params;
 
   let form;
@@ -31,32 +33,33 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
     throw error;
   }
 
+  const workspaceLabel = form.workspace.kind === "personal" ? t("workspace.personal") : form.workspace.label;
+
   return (
     <div className="space-y-5">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">Responses</p>
-          <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">{form.title}</h1>
-          <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">{form.workspace.label}</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review anonymous submissions in form order.</p>
+          <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
+          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">{workspaceLabel}</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t("responses.description")}</p>
         </div>
         <div className="flex flex-wrap gap-3 lg:justify-end">
-          <Badge>{responses.length} submissions</Badge>
+          <Badge>{t("responses.submissionsCount", { count: responses.length })}</Badge>
           <ResponseExportActions formId={form.id} />
           <Link href={`/forms/${form.id}/edit`}>
-            <Button variant="secondary">Back to builder</Button>
+            <Button variant="secondary">{t("responses.backToBuilder")}</Button>
           </Link>
         </div>
       </section>
 
       {responses.length === 0 ? (
         <EmptyState
-          eyebrow="No submissions yet"
-          title="Publish the form to start collecting responses."
-          description="Only published forms are available on the public route, and every respondent stays anonymous on submission."
+          eyebrow={t("responses.noSubmissionsEyebrow")}
+          title={t("responses.noSubmissionsTitle")}
+          description={t("responses.noSubmissionsDescription")}
           action={
             <Link href={`/forms/${form.id}/edit`}>
-              <Button>Open builder</Button>
+              <Button>{t("responses.openBuilder")}</Button>
             </Link>
           }
         />
@@ -67,14 +70,14 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
               <div key={response.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                    <h2 className="font-display text-2xl text-[var(--ink)]">Submission #{response.submissionNumber} · {formatDate(response.submittedAt)}</h2>
-                    <p className="text-sm text-[var(--muted)]">{response.answerCount} answers</p>
+                    <h2 className="font-display text-2xl text-[var(--ink)]">{t("responses.submissionTitle", { number: response.submissionNumber, date: formatDate(response.submittedAt, locale) })}</h2>
+                    <p className="text-sm text-[var(--muted)]">{t("responses.answersCount", { count: response.answerCount })}</p>
                   </div>
                 </div>
                 <div className="sm:flex sm:justify-end">
                   <Link href={`/forms/${form.id}/responses/${response.id}`}>
                     <Button size="sm" variant="secondary">
-                      Open
+                      {t("responses.open")}
                       <ArrowRight className="size-4" />
                     </Button>
                   </Link>

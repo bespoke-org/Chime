@@ -2,13 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AccountMenu } from "@/components/account-menu";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getServerAuthSession } from "@/lib/auth";
+import { getRequestI18n } from "@/lib/i18n-server";
 import { getActiveWorkspaceForUser, serializeWorkspaceValue } from "@/lib/workspaces";
 
 export default async function CreatorLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerAuthSession();
+  const { t } = await getRequestI18n();
+  const appName = t("app.name");
 
   if (!session?.user?.id) {
     redirect("/");
@@ -22,27 +25,21 @@ export default async function CreatorLayout({ children }: { children: React.Reac
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
-            aria-label="Go to dashboard"
+            aria-label={t("app.goToDashboardAria")}
             className="shrink-0 transition-transform hover:scale-[1.02]"
           >
-            <Image src="/sproute.png" alt="Lively Forms" width={48} height={48} priority className="size-12" />
+            <Image src="/sproute.png" alt={appName} width={48} height={48} priority className="size-12" />
           </Link>
           <Link href="/dashboard" className="font-display text-2xl text-[var(--ink)] transition hover:text-[var(--accent)]">
-            Lively Forms
+            {appName}
           </Link>
         </div>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-5">
-          <Link href="/dashboard" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
-            Dashboard
-          </Link>
-          <Link href="/settings" className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
-            Settings
-          </Link>
           <WorkspaceSwitcher
             options={workspaceState.options}
             activeValue={serializeWorkspaceValue(workspaceState.activeWorkspace)}
           />
-          <SignOutButton />
+          <AccountMenu user={session.user} />
         </div>
       </header>
       {children}

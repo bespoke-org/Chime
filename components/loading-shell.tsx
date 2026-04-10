@@ -1,4 +1,4 @@
-export function LoadingShell({ title }: { title: string }) {
+export function LoadingShell({ label }: { label: string }) {
   return (
     <div className="space-y-6">
       <div className="h-4 w-24 animate-pulse rounded-full bg-[var(--line)]" />
@@ -7,7 +7,7 @@ export function LoadingShell({ title }: { title: string }) {
         <div className="h-[420px] animate-pulse rounded-[20px] bg-[var(--surface)] shadow-[var(--shadow-surface)]" />
         <div className="h-[420px] animate-pulse rounded-[20px] bg-[var(--surface)] shadow-[var(--shadow-surface)]" />
       </div>
-      <p className="text-sm text-[var(--muted)]">Loading {title}…</p>
+      <p className="text-sm text-[var(--muted)]">{label}</p>
     </div>
   );
 }

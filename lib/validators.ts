@@ -1,6 +1,8 @@
 import { FormBlockType } from "@prisma/client";
 import { z } from "zod";
 
+import { supportedLocales } from "@/lib/i18n";
+
 export const formMetadataSchema = z
   .object({
     title: z.string().trim().min(1).max(120),
@@ -74,3 +76,40 @@ export const reorderBlocksSchema = z.object({
 export const publishFormSchema = z.object({
   published: z.boolean(),
 });
+
+export const profileSettingsSchema = z
+  .object({
+    firstName: z.string().trim().max(60).default(""),
+    secondName: z.string().trim().max(60).default(""),
+    locale: z.enum(supportedLocales).default("en"),
+    image: z.string().trim().max(2048).default(""),
+  })
+  .superRefine((value, context) => {
+    if (!value.image) {
+      return;
+    }
+
+    try {
+      const parsedUrl = new URL(value.image);
+
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["image"],
+          message: "Use a full http:// or https:// URL for the profile image.",
+        });
+      }
+    } catch {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["image"],
+        message: "Use a valid profile image URL.",
+      });
+    }
+  })
+  .transform((value) => ({
+    firstName: value.firstName || null,
+    secondName: value.secondName || null,
+    locale: value.locale,
+    image: value.image || null,
+  }));

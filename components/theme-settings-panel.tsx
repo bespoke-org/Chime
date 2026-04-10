@@ -2,46 +2,39 @@
 
 import { LaptopMinimal, MoonStar, SunMedium } from "lucide-react";
 
+import { useI18n } from "@/components/i18n-provider";
 import { useThemePreference } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import type { ThemePreference } from "@/lib/theme";
 
 const options: Array<{
   value: ThemePreference;
-  title: string;
-  description: string;
   icon: typeof SunMedium;
 }> = [
   {
     value: "light",
-    title: "Light",
-    description: "Always use the light theme.",
     icon: SunMedium,
   },
   {
     value: "dark",
-    title: "Dark",
-    description: "Always use the dark theme.",
     icon: MoonStar,
   },
   {
     value: "system",
-    title: "System",
-    description: "Follow your device theme automatically.",
     icon: LaptopMinimal,
   },
 ];
 
 export function ThemeSettingsPanel() {
   const { preference, setPreference } = useThemePreference();
+  const { t } = useI18n();
 
   return (
     <div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Appearance</p>
-        <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Theme settings</h1>
+        <h1 className="font-display text-4xl text-[var(--ink)]">{t("settings.appearance.title")}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-          Choose how Lively Forms looks across creator pages, public forms, and the home page.
+          {t("settings.appearance.description")}
         </p>
       </div>
 
@@ -64,12 +57,12 @@ export function ThemeSettingsPanel() {
               aria-pressed={selected}
             >
               <div className="flex items-center gap-3">
-                <span className="inline-flex size-10 items-center justify-center rounded-xl bg-[var(--bg-strong)] text-[var(--ink)]">
+                <span className="inline-flex size-10 items-center justify-center text-[var(--ink)]">
                   <Icon className="size-5" />
                 </span>
                 <div>
-                  <p className="font-semibold text-[var(--ink)]">{option.title}</p>
-                  <p className="mt-1 text-sm text-[var(--muted)]">{option.description}</p>
+                  <p className="font-semibold text-[var(--ink)]">{t(`settings.appearance.options.${option.value}.title`)}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{t(`settings.appearance.options.${option.value}.description`)}</p>
                 </div>
               </div>
             </button>

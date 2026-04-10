@@ -1,9 +1,12 @@
 import type { FormStatus } from "@prisma/client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { Badge } from "@/components/ui/badge";
-import { cn, sentenceCase } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function FormStatusBadge({ status, className }: { status: FormStatus; className?: string }) {
+  const { t } = useI18n();
+
   return (
     <Badge
       className={cn(
@@ -12,7 +15,7 @@ export function FormStatusBadge({ status, className }: { status: FormStatus; cla
         className,
       )}
     >
-      {sentenceCase(status)}
+      {t(`statuses.${status.toLowerCase()}`)}
     </Badge>
   );
 }

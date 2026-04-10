@@ -3,6 +3,7 @@ import { utils, write } from "xlsx";
 import { isQuestionBlock, serializeBlock, type SerializedBlock } from "@/lib/blocks";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
+import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
 import { slugify } from "@/lib/utils";
 import { workspaceAccessWhere } from "@/lib/workspaces";
 
@@ -27,11 +28,34 @@ export type ResponseExportDataset = {
   rows: ResponseExportRow[];
 };
 
-const METADATA_COLUMNS: ResponseExportColumn[] = [
-  { key: "submissionNumber", label: "Submission #" },
-  { key: "submittedAt", label: "Submitted at" },
-  { key: "responseId", label: "Response ID" },
-];
+const exportCopyByLocale: Record<AppLocale, {
+  metadataColumns: ResponseExportColumn[];
+  questionFallback: string;
+  sheetName: string;
+}> = {
+  en: {
+    metadataColumns: [
+      { key: "submissionNumber", label: "Submission #" },
+      { key: "submittedAt", label: "Submitted at" },
+      { key: "responseId", label: "Response ID" },
+    ],
+    questionFallback: "Question {number}",
+    sheetName: "Responses",
+  },
+  ru: {
+    metadataColumns: [
+      { key: "submissionNumber", label: "Ответ №" },
+      { key: "submittedAt", label: "Дата ответа" },
+      { key: "responseId", label: "ID ответа" },
+    ],
+    questionFallback: "Вопрос {number}",
+    sheetName: "Ответы",
+  },
+};
+
+function getExportCopy(locale: AppLocale = DEFAULT_LOCALE) {
+  return exportCopyByLocale[locale] ?? exportCopyByLocale[DEFAULT_LOCALE];
+}
 
 export async function loadOwnedFormResponsesForExport(userId: string, formId: string) {
   const form = await db.form.findFirst({
@@ -64,8 +88,9 @@ export async function loadOwnedFormResponsesForExport(userId: string, formId: st
   return form;
 }
 
-function createQuestionColumnLabel(block: SerializedBlock, questionIndex: number, seenLabels: Map<string, number>) {
-  const baseLabel = block.title.trim() || `Question ${questionIndex}`;
+function createQuestionColumnLabel(block: SerializedBlock, questionIndex: number, seenLabels: Map<string, number>, locale: AppLocale) {
+  const copy = getExportCopy(locale);
+  const baseLabel = block.title.trim() || copy.questionFallback.replace("{number}", String(questionIndex));
   const occurrence = (seenLabels.get(baseLabel) ?? 0) + 1;
   seenLabels.set(baseLabel, occurrence);
 
@@ -80,15 +105,16 @@ export function serializeExportAnswer(value: ExportAnswerValue) {
   return typeof value === "string" ? value : "";
 }
 
-export function buildResponseExportDataset(form: OwnedFormExportRecord): ResponseExportDataset {
+export function buildResponseExportDataset(form: OwnedFormExportRecord, locale: AppLocale = DEFAULT_LOCALE): ResponseExportDataset {
   const questionBlocks = form.blocks.map(serializeBlock).filter((block) => isQuestionBlock(block.type));
   const seenLabels = new Map<string, number>();
+  const copy = getExportCopy(locale);
 
   const columns = [
-    ...METADATA_COLUMNS,
+    ...copy.metadataColumns,
     ...questionBlocks.map((block, index) => ({
       key: block.id,
-      label: createQuestionColumnLabel(block, index + 1, seenLabels),
+      label: createQuestionColumnLabel(block, index + 1, seenLabels, locale),
       blockId: block.id,
     })),
   ];
@@ -144,14 +170,14 @@ export function createCsvExportBuffer(dataset: ResponseExportDataset) {
   return Buffer.from(`\uFEFF${content}`, "utf8");
 }
 
-export function createXlsxExportBuffer(dataset: ResponseExportDataset) {
+export function createXlsxExportBuffer(dataset: ResponseExportDataset, locale: AppLocale = DEFAULT_LOCALE) {
   const worksheet = utils.aoa_to_sheet([
     dataset.columns.map((column) => column.label),
     ...dataset.rows.map((row) => dataset.columns.map((column) => row.values[column.key] ?? "")),
   ]);
   const workbook = utils.book_new();
 
-  utils.book_append_sheet(workbook, worksheet, "Responses");
+  utils.book_append_sheet(workbook, worksheet, getExportCopy(locale).sheetName);
 
   return write(workbook, {
     type: "buffer",
@@ -178,12 +204,12 @@ export function parseResponseExportFormat(value: string | null): ResponseExportF
   throw new AppError("Unsupported export format.", 422);
 }
 
-export async function createOwnedFormResponseExport(userId: string, formId: string, format: ResponseExportFormat) {
+export async function createOwnedFormResponseExport(userId: string, formId: string, format: ResponseExportFormat, locale: AppLocale = DEFAULT_LOCALE) {
   const form = await loadOwnedFormResponsesForExport(userId, formId);
-  const dataset = buildResponseExportDataset(form);
+  const dataset = buildResponseExportDataset(form, locale);
   const filename = getResponseExportFilename(form.slug, format);
   const contentType = getResponseExportContentType(format);
-  const body = format === "csv" ? createCsvExportBuffer(dataset) : createXlsxExportBuffer(dataset);
+  const body = format === "csv" ? createCsvExportBuffer(dataset) : createXlsxExportBuffer(dataset, locale);
 
   return {
     filename,

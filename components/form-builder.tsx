@@ -37,10 +37,12 @@ import {
   type ChoiceOptionDraft,
   type FormMetadataDraft,
 } from "@/components/form-builder-panels";
+import { useI18n } from "@/components/i18n-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
-import { blockTypeLabels, getBlockPreview, type ChoiceBlockConfig } from "@/lib/blocks";
+import { blockTypeTranslationKeys, getBlockPreview, type ChoiceBlockConfig } from "@/lib/blocks";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
@@ -89,12 +91,15 @@ function BlockRowInner({
   onSelect: (blockId: string) => void;
   dragHandle: React.ReactNode;
 }) {
+  const { t } = useI18n();
+  const preview = getBlockPreview(block, t(blockTypeTranslationKeys[block.type]));
+
   return (
     <>
       {dragHandle}
       <button className="min-w-0 flex-1 text-left" type="button" onClick={() => onSelect(block.id)}>
         <div className="min-w-0 flex-1 text-sm font-medium leading-5 text-[var(--ink)]">
-          <span className="block truncate">{getBlockPreview(block)}</span>
+          <span className="block truncate">{preview}</span>
         </div>
       </button>
     </>
@@ -110,8 +115,10 @@ function SortableBlockRow({
   selected: boolean;
   onSelect: (blockId: string) => void;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
   const Icon = blockIcons[block.type];
+  const preview = getBlockPreview(block, t(blockTypeTranslationKeys[block.type]));
 
   return (
     <div
@@ -134,7 +141,7 @@ function SortableBlockRow({
           <button
             className="relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)]"
             type="button"
-            aria-label={`Drag ${getBlockPreview(block)}`}
+            aria-label={t("builder.dragBlockAria", { label: preview })}
             {...attributes}
             {...listeners}
           >
@@ -182,6 +189,7 @@ function StaticBlockRow({
 }
 
 export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [selection, setSelection] = useState<Selection>(() =>
@@ -202,6 +210,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   });
 
   const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
+  const [isDeleteFormDialogOpen, setIsDeleteFormDialogOpen] = useState(false);
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedBlock = useMemo(
@@ -274,7 +283,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     try {
       await runner();
     } catch (caughtError) {
-      const nextError = caughtError instanceof Error ? caughtError.message : "Something went wrong.";
+      const nextError = caughtError instanceof Error ? caughtError.message : t("builder.toasts.genericError");
       showToast(nextError, "error");
     } finally {
       setBusy(null);
@@ -289,7 +298,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       });
 
       setForm(payload.form);
-      showToast("Saved form settings");
+      showToast(t("builder.toasts.savedFormSettings"));
     });
   }
 
@@ -306,7 +315,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       }));
       setSelection({ kind: "block", blockId: payload.block.id });
       setIsBlockMenuOpen(false);
-      showToast(`Added ${blockTypeLabels[type].toLowerCase()}`);
+      showToast(t("builder.toasts.addedBlock", { type: t(blockTypeTranslationKeys[type]) }));
     });
   }
 
@@ -333,7 +342,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         ...current,
         blocks: current.blocks.map((block) => (block.id === payload.block.id ? payload.block : block)),
       }));
-      showToast("Saved block");
+      showToast(t("builder.toasts.savedBlock"));
     });
   }
 
@@ -353,7 +362,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           })),
       }));
       setSelection({ kind: "form" });
-      showToast("Removed block");
+      showToast(t("builder.toasts.removedBlock"));
     });
   }
 
@@ -367,7 +376,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       });
 
       setForm(payload.form);
-      showToast(payload.form.status === "PUBLISHED" ? "Form published" : "Form moved back to draft");
+      showToast(payload.form.status === "PUBLISHED" ? t("builder.toasts.formPublished") : t("builder.toasts.formDrafted"));
       router.refresh();
     });
   }
@@ -375,23 +384,20 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   async function copyShareLink() {
     const url = `${window.location.origin}/f/${form.slug}`;
     await navigator.clipboard.writeText(url);
-    showToast("Copied share link");
+    showToast(t("builder.toasts.copiedShareLink"));
   }
 
-  async function deleteForm() {
-    const confirmed = window.confirm(
-      "Delete this form permanently? This will also delete all blocks and responses. This action cannot be undone.",
-    );
+  function deleteForm() {
+    setIsDeleteFormDialogOpen(true);
+  }
 
-    if (!confirmed) {
-      return;
-    }
-
+  async function confirmDeleteForm() {
     await withTask("delete-form", async () => {
       await fetchJson(`/api/forms/${form.id}`, {
         method: "DELETE",
       });
 
+      setIsDeleteFormDialogOpen(false);
       router.push("/dashboard");
       router.refresh();
     });
@@ -422,10 +428,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       });
 
       setForm(payload.form);
-      showToast("Updated block order");
+      showToast(t("builder.toasts.updatedBlockOrder"));
     } catch (caughtError) {
       setForm((current) => ({ ...current, blocks: previous }));
-      showToast(caughtError instanceof Error ? caughtError.message : "Could not reorder blocks.", "error");
+      showToast(caughtError instanceof Error ? caughtError.message : t("builder.toasts.reorderError"), "error");
     }
   }
 
@@ -434,6 +440,16 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   return (
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
+      <ConfirmDialog
+        open={isDeleteFormDialogOpen}
+        onClose={() => setIsDeleteFormDialogOpen(false)}
+        title={t("builder.deleteFormTitle")}
+        description={t("builder.deleteFormDescription")}
+        confirmLabel={t("ui.delete")}
+        cancelLabel={t("ui.cancel")}
+        pending={busy === "delete-form"}
+        onConfirm={confirmDeleteForm}
+      />
       <div className="space-y-6">
         <BuilderHeader
           form={form}
@@ -446,7 +462,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-3xl text-[var(--ink)]">Blocks</h2>
+              <h2 className="font-display text-3xl text-[var(--ink)]">{t("builder.blocks")}</h2>
               <div className="relative" ref={blockMenuRef}>
                 <Button
                   size="sm"
@@ -455,7 +471,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                   aria-haspopup="menu"
                 >
                   <Plus className="size-4" />
-                  New block
+                  {t("builder.newBlock")}
                 </Button>
                 {isBlockMenuOpen ? (
                   <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
@@ -471,7 +487,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                             onClick={() => addBlock(type)}
                           >
                             {busy === `add-${type}` ? <LoaderCircle className="size-4 animate-spin" /> : <Icon className="size-4" />}
-                            {blockTypeLabels[type]}
+                            {t(blockTypeTranslationKeys[type])}
                           </button>
                         );
                       })}

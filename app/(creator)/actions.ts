@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getServerAuthSession } from "@/lib/auth";
@@ -12,6 +13,7 @@ import {
   renameOrganization,
   revokeOrganizationInviteLink,
 } from "@/lib/organizations";
+import { updateProfileSettings } from "@/lib/users";
 import { parseWorkspaceValue, setActiveWorkspaceCookie, getActiveWorkspaceForUser } from "@/lib/workspaces";
 
 async function requireSessionUser() {
@@ -24,15 +26,31 @@ async function requireSessionUser() {
   return session.user.id;
 }
 
-function settingsRedirectTarget(formData: FormData, fallbackOrganizationId?: string | null) {
-  const rawValue = String(formData.get("returnOrganizationId") ?? fallbackOrganizationId ?? "").trim();
-  return rawValue ? `/settings?organization=${encodeURIComponent(rawValue)}` : "/settings";
+function settingsRedirectTarget(
+  formData: FormData,
+  fallback?: { organizationId?: string | null; section?: string | null },
+) {
+  const organizationId = String(formData.get("returnOrganizationId") ?? fallback?.organizationId ?? "").trim();
+  const section = String(formData.get("returnSection") ?? fallback?.section ?? "").trim();
+  const params = new URLSearchParams();
+
+  if (section) {
+    params.set("section", section);
+  }
+
+  if (organizationId) {
+    params.set("organization", organizationId);
+  }
+
+  const query = params.toString();
+  return query ? `/settings?${query}` : "/settings";
 }
 
 export async function createFormAction() {
   const userId = await requireSessionUser();
   const { activeWorkspace } = await getActiveWorkspaceForUser(userId);
-  const form = await createDraftForm(userId, activeWorkspace);
+  const session = await getServerAuthSession();
+  const form = await createDraftForm(userId, activeWorkspace, session?.user.locale);
 
   redirect(`/forms/${form.id}/edit`);
 }
@@ -51,28 +69,28 @@ export async function createOrganizationAction(formData: FormData) {
   const organization = await createOrganization(userId, { name: formData.get("name") });
 
   await setActiveWorkspaceCookie({ kind: "organization", organizationId: organization.id });
-  redirect(settingsRedirectTarget(formData, organization.id));
+  redirect(settingsRedirectTarget(formData, { organizationId: organization.id, section: "organizations" }));
 }
 
 export async function renameOrganizationAction(formData: FormData) {
   const userId = await requireSessionUser();
   const organizationId = String(formData.get("organizationId") ?? "");
   await renameOrganization(userId, organizationId, { name: formData.get("name") });
-  redirect(settingsRedirectTarget(formData, organizationId));
+  redirect(settingsRedirectTarget(formData, { organizationId, section: "organizations" }));
 }
 
 export async function deleteOrganizationAction(formData: FormData) {
   const userId = await requireSessionUser();
   await deleteOrganization(userId, String(formData.get("organizationId") ?? ""));
   await setActiveWorkspaceCookie({ kind: "personal" });
-  redirect("/settings");
+  redirect(settingsRedirectTarget(formData, { section: "organizations" }));
 }
 
 export async function createOrganizationInviteLinkAction(formData: FormData) {
   const userId = await requireSessionUser();
   const organizationId = String(formData.get("organizationId") ?? "");
   await createOrganizationInviteLink(userId, organizationId);
-  redirect(settingsRedirectTarget(formData, organizationId));
+  redirect(settingsRedirectTarget(formData, { organizationId, section: "organizations" }));
 }
 
 export async function revokeOrganizationInviteLinkAction(formData: FormData) {
@@ -83,7 +101,7 @@ export async function revokeOrganizationInviteLinkAction(formData: FormData) {
     organizationId,
     String(formData.get("inviteLinkId") ?? ""),
   );
-  redirect(settingsRedirectTarget(formData, organizationId));
+  redirect(settingsRedirectTarget(formData, { organizationId, section: "organizations" }));
 }
 
 export async function removeOrganizationMemberAction(formData: FormData) {
@@ -94,5 +112,18 @@ export async function removeOrganizationMemberAction(formData: FormData) {
     organizationId,
     String(formData.get("memberUserId") ?? ""),
   );
-  redirect(settingsRedirectTarget(formData, organizationId));
+  redirect(settingsRedirectTarget(formData, { organizationId, section: "organizations" }));
+}
+
+export async function updateProfileAction(formData: FormData) {
+  const userId = await requireSessionUser();
+  await updateProfileSettings(userId, {
+    firstName: formData.get("firstName"),
+    secondName: formData.get("secondName"),
+    locale: formData.get("locale"),
+    image: formData.get("image"),
+  });
+  revalidatePath("/settings");
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

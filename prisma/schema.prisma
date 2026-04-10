@@ -30,6 +30,7 @@ model User {
   name                    String?
   firstName               String?
   secondName              String?
+  locale                  String?
   email                   String?                @unique
   emailVerified           DateTime?
   image                   String?

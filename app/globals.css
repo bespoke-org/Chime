@@ -64,7 +64,7 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-manrope);
+  --font-sans: var(--font-inter);
   --font-display: var(--font-kurale);
 }
 
@@ -82,7 +82,7 @@ body {
   background-color: var(--bg-end);
   background-image: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
   color: var(--ink);
-  font-family: var(--font-manrope), sans-serif;
+  font-family: var(--font-inter), sans-serif;
 }
 
 main {

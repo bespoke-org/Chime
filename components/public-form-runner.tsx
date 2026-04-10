@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { useI18n } from "@/components/i18n-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,8 @@ async function submitResponse(slug: string, answers: Record<string, string | str
 
 export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [step, setStep] = useState(0);
+  const { t } = useI18n();
+  const appName = t("app.name");
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,10 +45,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
   const currentBlock = form.blocks[step];
   const progress = useMemo(() => ((step + 1) / form.blocks.length) * 100, [form.blocks.length, step]);
-  const completionTitle = form.completionTitle.trim() || "Thanks for taking the time.";
+  const completionTitle = form.completionTitle.trim() || t("publicRunner.defaultCompletionTitle");
   const completionMessage =
     form.completionMessage.trim() ||
-    "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.";
+    t("publicRunner.defaultCompletionMessage");
   const completionLinkLabel = form.completionLinkLabel?.trim() || null;
   const completionLinkUrl = form.completionLinkUrl?.trim() || null;
 
@@ -81,7 +84,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      showToast("Please answer before continuing.", "error");
+      showToast(t("publicRunner.answerRequired"), "error");
       return false;
     }
 
@@ -90,7 +93,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      showToast("Choose one option before continuing.", "error");
+      showToast(t("publicRunner.singleChoiceRequired"), "error");
       return false;
     }
 
@@ -99,7 +102,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      showToast("Choose at least one option before continuing.", "error");
+      showToast(t("publicRunner.multiChoiceRequired"), "error");
       return false;
     }
 
@@ -117,7 +120,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         await submitResponse(form.slug, answers);
         setIsComplete(true);
       } catch (caughtError) {
-        showToast(caughtError instanceof Error ? caughtError.message : "Could not submit response.", "error");
+        showToast(caughtError instanceof Error ? caughtError.message : t("publicRunner.submitError"), "error");
       } finally {
         setIsSubmitting(false);
       }
@@ -137,10 +140,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       <Card className="w-full max-w-3xl overflow-hidden">
         <div className="border-b border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-6 py-6 sm:px-8">
           <div className="flex items-center gap-4">
-            <Image src="/sproute.png" alt="Lively Forms" width={44} height={44} priority className="size-11" />
+            <Image src="/sproute.png" alt={appName} width={44} height={44} priority className="size-11" />
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Response received</p>
-              <p className="mt-1 text-sm text-[var(--muted)]">Lively Forms</p>
+              <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.responseReceived")}</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">{appName}</p>
             </div>
           </div>
         </div>
@@ -172,9 +175,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-4">
-              <Image src="/sproute.png" alt="Lively Forms" width={44} height={44} priority className="size-11 shrink-0" />
+              <Image src="/sproute.png" alt={appName} width={44} height={44} priority className="size-11 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Lively Forms</p>
+                <p className="text-xs font-semibold uppercase text-[var(--accent)]">{appName}</p>
                 <h1 className="mt-2 font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">{form.title}</h1>
               </div>
             </div>
@@ -184,7 +187,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           <div className="w-full max-w-sm shrink-0">
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
-                Step {step + 1} of {form.blocks.length}
+                {t("publicRunner.step", { current: step + 1, total: form.blocks.length })}
               </span>
               <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">{Math.round(progress)}%</span>
             </div>
@@ -211,9 +214,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           >
             {currentBlock.type === "TEXT" ? (
               <div className="flex min-h-[320px] flex-col justify-center rounded-[18px] bg-[var(--bg-strong)]/75 px-6 py-8 sm:px-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Context</p>
+                <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.context")}</p>
                 <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
-                  {currentBlock.title || "Take a breath before the next step."}
+                  {currentBlock.title || t("publicRunner.defaultTextTitle")}
                 </h2>
                 {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{currentBlock.description}</p> : null}
                 <p className="mt-6 max-w-3xl text-lg leading-9 text-[var(--ink)]/82">{(currentBlock.config as TextBlockConfig).body}</p>
@@ -221,10 +224,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
             ) : (
               <div className="flex min-h-[320px] flex-col justify-center">
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Question</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.question")}</p>
                   {currentBlock.required ? (
                     <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
-                      Required
+                      {t("publicRunner.required")}
                     </span>
                   ) : null}
                 </div>
@@ -236,11 +239,11 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                 <div className="mt-10 space-y-4">
                   {currentBlock.type === "SINGLE_CHOICE" ? (
-                    <p className="text-sm font-medium text-[var(--muted)]">Choose one option.</p>
+                    <p className="text-sm font-medium text-[var(--muted)]">{t("publicRunner.chooseOne")}</p>
                   ) : null}
 
                   {currentBlock.type === "MULTIPLE_CHOICE" ? (
-                    <p className="text-sm font-medium text-[var(--muted)]">Select all that apply.</p>
+                    <p className="text-sm font-medium text-[var(--muted)]">{t("publicRunner.selectAll")}</p>
                   ) : null}
                   {currentBlock.type === "SHORT_TEXT" ? (
                     <Input
@@ -333,11 +336,11 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         <div className="mt-8 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
           <Button variant="secondary" onClick={handleBack} disabled={step === 0 || isSubmitting}>
             <ArrowLeft className="size-4" />
-            Back
+            {t("publicRunner.back")}
           </Button>
           <Button onClick={handleContinue} disabled={isSubmitting}>
             {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
-            {step === form.blocks.length - 1 ? "Submit response" : "Continue"}
+            {step === form.blocks.length - 1 ? t("publicRunner.submit") : t("publicRunner.continue")}
             {!isSubmitting ? <ArrowRight className="size-4" /> : null}
           </Button>
         </div>

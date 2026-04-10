@@ -35,3 +35,14 @@ The system SHALL present a creator with their personal workspace and any organiz
 #### Scenario: User belongs to one or more organizations
 - **WHEN** an authenticated creator opens the creator experience
 - **THEN** the system shows the personal workspace plus each accessible organization as available workspace contexts
+
+### Requirement: Organization member lists display member identity avatars
+The system SHALL show each organization member with an avatar alongside their name and email in organization member lists.
+
+#### Scenario: Member has a profile image
+- **WHEN** an authenticated creator views an organization member list and a listed member has a stored profile image
+- **THEN** the system shows that member's profile image in the row
+
+#### Scenario: Member does not have a profile image
+- **WHEN** an authenticated creator views an organization member list and a listed member does not have a stored profile image
+- **THEN** the system shows a fallback avatar treatment while still displaying the member's name or email information

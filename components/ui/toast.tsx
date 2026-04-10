@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 
 export type ToastData = {
@@ -28,6 +29,7 @@ function ToastItem({
     return () => window.clearTimeout(timeout);
   }, [onDismiss, toast.duration, toast.id, toast.variant]);
 
+  const { t } = useI18n();
   const Icon = toast.variant === "error" ? AlertCircle : CheckCircle2;
 
   return (
@@ -55,7 +57,7 @@ function ToastItem({
           "rounded-full p-1 opacity-60 transition hover:opacity-100",
           toast.variant === "error" ? "hover:bg-[var(--danger-soft)]" : "hover:bg-[var(--accent-soft)]",
         )}
-        aria-label="Dismiss notification"
+        aria-label={t("ui.dismissNotification")}
       >
         <X className="size-4" />
       </button>

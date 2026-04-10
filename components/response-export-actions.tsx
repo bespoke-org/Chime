@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileSpreadsheet, LoaderCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, Download, FileSpreadsheet, LoaderCircle } from "lucide-react";
 
+import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
 
@@ -24,8 +25,11 @@ function getFilenameFromDisposition(disposition: string | null, fallback: string
 }
 
 export function ResponseExportActions({ formId }: { formId: string }) {
+  const { t } = useI18n();
   const [busyFormat, setBusyFormat] = useState<ResponseExportFormat | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastData[]>([]);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   function showToast(message: string, variant: ToastData["variant"] = "success") {
     const id = crypto.randomUUID();
@@ -36,6 +40,21 @@ export function ResponseExportActions({ formId }: { formId: string }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }
 
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+
+    if (!isMenuOpen) {
+      return;
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [isMenuOpen]);
+
   async function exportResponses(format: ResponseExportFormat) {
     try {
       setBusyFormat(format);
@@ -44,7 +63,7 @@ export function ResponseExportActions({ formId }: { formId: string }) {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(payload.error ?? "Could not export responses.");
+        throw new Error(payload.error ?? t("responseExport.error"));
       }
 
       const blob = await response.blob();
@@ -62,9 +81,10 @@ export function ResponseExportActions({ formId }: { formId: string }) {
       link.remove();
       URL.revokeObjectURL(url);
 
-      showToast(`Downloaded ${format.toUpperCase()} export.`);
+      setIsMenuOpen(false);
+      showToast(t("responseExport.downloaded", { format: format.toUpperCase() }));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not export responses.", "error");
+      showToast(error instanceof Error ? error.message : t("responseExport.error"), "error");
     } finally {
       setBusyFormat(null);
     }
@@ -72,15 +92,42 @@ export function ResponseExportActions({ formId }: { formId: string }) {
 
   return (
     <>
-      <div className="flex flex-wrap gap-3">
-        <Button variant="secondary" disabled={busyFormat !== null} onClick={() => exportResponses("csv")}>
-          {busyFormat === "csv" ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
-          Export CSV
+      <div className="relative" ref={menuRef}>
+        <Button
+          variant="secondary"
+          disabled={busyFormat !== null}
+          onClick={() => setIsMenuOpen((current) => !current)}
+          aria-expanded={isMenuOpen}
+          aria-haspopup="menu"
+        >
+          {busyFormat ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
+          {t("responseExport.export")}
+          <ChevronDown className="size-4 text-[var(--muted)]" />
         </Button>
-        <Button variant="secondary" disabled={busyFormat !== null} onClick={() => exportResponses("xlsx")}>
-          {busyFormat === "xlsx" ? <LoaderCircle className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />}
-          Export XLSX
-        </Button>
+        {isMenuOpen ? (
+          <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[180px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
+            <div className="grid gap-1">
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)] disabled:opacity-60"
+                onClick={() => exportResponses("csv")}
+                disabled={busyFormat !== null}
+              >
+                {busyFormat === "csv" ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
+                CSV
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)] disabled:opacity-60"
+                onClick={() => exportResponses("xlsx")}
+                disabled={busyFormat !== null}
+              >
+                {busyFormat === "xlsx" ? <LoaderCircle className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />}
+                XLSX
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
     </>

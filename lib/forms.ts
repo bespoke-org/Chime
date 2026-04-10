@@ -35,6 +35,7 @@ import {
   reorderBlocksSchema,
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
+import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
 import { assertOrganizationMember, workspaceAccessWhere, workspaceFilterWhere } from "@/lib/workspaces";
 
 const builderFormInclude = {
@@ -145,25 +146,75 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
   };
 }
 
-function initialBlocks(): Prisma.FormBlockCreateWithoutFormInput[] {
-  return [
-    {
-      type: FormBlockType.TEXT,
-      title: "Welcome",
-      description: "Set the scene before people start answering.",
-      position: 0,
-      required: false,
-      config: getDefaultBlockConfig(FormBlockType.TEXT),
+const defaultFormCopyByLocale: Record<AppLocale, {
+  untitledForm: string;
+  initialBlocks: Prisma.FormBlockCreateWithoutFormInput[];
+  newBlockTitles: Record<FormBlockType, string>;
+}> = {
+  en: {
+    untitledForm: "Untitled form",
+    initialBlocks: [
+      {
+        type: FormBlockType.TEXT,
+        title: "Welcome",
+        description: "Set the scene before people start answering.",
+        position: 0,
+        required: false,
+        config: getDefaultBlockConfig(FormBlockType.TEXT, "en"),
+      },
+      {
+        type: FormBlockType.SHORT_TEXT,
+        title: "What should we call you?",
+        description: "A simple first question keeps the flow moving.",
+        position: 1,
+        required: true,
+        config: getDefaultBlockConfig(FormBlockType.SHORT_TEXT, "en"),
+      },
+    ],
+    newBlockTitles: {
+      TEXT: "Section note",
+      SHORT_TEXT: "Short text question",
+      LONG_TEXT: "Long text question",
+      SINGLE_CHOICE: "Single choice question",
+      MULTIPLE_CHOICE: "Multiple choice question",
     },
-    {
-      type: FormBlockType.SHORT_TEXT,
-      title: "What should we call you?",
-      description: "A simple first question keeps the flow moving.",
-      position: 1,
-      required: true,
-      config: getDefaultBlockConfig(FormBlockType.SHORT_TEXT),
+  },
+  ru: {
+    untitledForm: "Форма без названия",
+    initialBlocks: [
+      {
+        type: FormBlockType.TEXT,
+        title: "Добро пожаловать",
+        description: "Задайте тон перед тем, как люди начнут отвечать.",
+        position: 0,
+        required: false,
+        config: getDefaultBlockConfig(FormBlockType.TEXT, "ru"),
+      },
+      {
+        type: FormBlockType.SHORT_TEXT,
+        title: "Как к вам обращаться?",
+        description: "Простой первый вопрос помогает сохранить ритм.",
+        position: 1,
+        required: true,
+        config: getDefaultBlockConfig(FormBlockType.SHORT_TEXT, "ru"),
+      },
+    ],
+    newBlockTitles: {
+      TEXT: "Текстовый блок",
+      SHORT_TEXT: "Вопрос с коротким ответом",
+      LONG_TEXT: "Вопрос с длинным ответом",
+      SINGLE_CHOICE: "Вопрос с одним выбором",
+      MULTIPLE_CHOICE: "Вопрос с несколькими вариантами",
     },
-  ];
+  },
+};
+
+function getDefaultFormCopy(locale: AppLocale = DEFAULT_LOCALE) {
+  return defaultFormCopyByLocale[locale] ?? defaultFormCopyByLocale[DEFAULT_LOCALE];
+}
+
+function initialBlocks(locale: AppLocale = DEFAULT_LOCALE): Prisma.FormBlockCreateWithoutFormInput[] {
+  return getDefaultFormCopy(locale).initialBlocks;
 }
 
 async function ensureUniqueSlug(slug: string, exceptFormId?: string) {
@@ -363,22 +414,24 @@ export async function listFormsForWorkspace(userId: string, workspace: ActiveWor
   }));
 }
 
-export async function createDraftForm(userId: string, workspace: ActiveWorkspace) {
+export async function createDraftForm(userId: string, workspace: ActiveWorkspace, locale: AppLocale = DEFAULT_LOCALE) {
   if (workspace.kind === "organization") {
     await assertOrganizationMember(userId, workspace.organizationId);
   }
 
   const slug = await createUniqueSlug(`untitled-form-${Math.random().toString(36).slice(2, 6)}`);
 
+  const copy = getDefaultFormCopy(locale);
+
   const form = await db.form.create({
     data: {
       userId,
       organizationId: workspace.kind === "organization" ? workspace.organizationId : null,
-      title: "Untitled form",
+      title: copy.untitledForm,
       description: "",
       slug,
       blocks: {
-        create: initialBlocks(),
+        create: initialBlocks(locale),
       },
     },
     include: builderFormInclude,
@@ -433,18 +486,12 @@ export async function setOwnedFormPublished(userId: string, formId: string, payl
   return toBuilderForm(updated);
 }
 
-export async function addOwnedBlock(userId: string, formId: string, payload: unknown) {
+export async function addOwnedBlock(userId: string, formId: string, payload: unknown, locale: AppLocale = DEFAULT_LOCALE) {
   const parsed = createBlockSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
   const position = form.blocks.length;
 
-  const titleByType: Record<FormBlockType, string> = {
-    TEXT: "Section note",
-    SHORT_TEXT: "Short text question",
-    LONG_TEXT: "Long text question",
-    SINGLE_CHOICE: "Single choice question",
-    MULTIPLE_CHOICE: "Multiple choice question",
-  };
+  const titleByType = getDefaultFormCopy(locale).newBlockTitles;
 
   const created = await db.formBlock.create({
     data: {
@@ -454,7 +501,7 @@ export async function addOwnedBlock(userId: string, formId: string, payload: unk
       description: "",
       required: false,
       position,
-      config: getDefaultBlockConfig(parsed.type),
+      config: getDefaultBlockConfig(parsed.type, locale),
     },
   });
 

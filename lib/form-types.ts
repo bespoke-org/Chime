@@ -98,10 +98,23 @@ export type ResponseReviewFormSummary = {
   workspace: WorkspaceReference;
 };
 
+export type ProfileSettingsUserSummary = {
+  id: string;
+  name: string | null;
+  firstName: string | null;
+  secondName: string | null;
+  locale: "en" | "ru";
+  email: string | null;
+  image: string | null;
+};
+
 export type OrganizationMemberSummary = {
   userId: string;
   name: string | null;
+  firstName: string | null;
+  secondName: string | null;
   email: string | null;
+  image: string | null;
   role: OrganizationMemberRole;
 };
 

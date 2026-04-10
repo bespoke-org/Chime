@@ -14,7 +14,7 @@ export async function POST(request: Request, context: { params: Promise<{ formId
   try {
     const payload = await request.json();
     const { formId } = await context.params;
-    const block = await addOwnedBlock(session.user.id, formId, payload);
+    const block = await addOwnedBlock(session.user.id, formId, payload, session.user.locale);
 
     return NextResponse.json({ block });
   } catch (error) {

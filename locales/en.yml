@@ -1,0 +1,236 @@
+app:
+  name: Lively Forms
+  description: Lively Forms is a conversational form builder for creating, publishing, and reviewing forms.
+  goToDashboardAria: Go to dashboard
+home:
+  description: "Like a seed in good soil, every thoughtful question has the power to make something grow. Build forms that feel alive—gentle invitations to reflect, respond, and uncover what matters most."
+  openDashboard: Open dashboard
+auth:
+  continueWithGoogle: Continue with Google
+workspace:
+  selectAria: Select workspace
+  personal: Personal workspace
+  ownerSuffix: Owner
+account:
+  openMenuAria: Open account menu
+  settings: Settings
+  logout: Log out
+statuses:
+  draft: Draft
+  published: Published
+loading:
+  page: "Loading {title}…"
+  titles:
+    dashboard: dashboard
+    publicForm: public form
+    formBuilder: form builder
+    responses: responses
+settings:
+  shell:
+    title: Settings
+    description: Manage your identity, shared workspaces, and how Lively Forms looks across creator pages and public forms.
+  sections:
+    profile:
+      title: Profile
+      description: Name, avatar, and account identity.
+    organizations:
+      title: Organizations
+      description: Members, invites, and owner controls.
+    appearance:
+      title: Appearance
+      description: Theme and visual preferences.
+  profile:
+    title: Your profile
+    description: Choose how your identity appears across creator surfaces, organization member lists, and the navbar menu.
+    profilePicture: Profile picture
+    profilePictureDescription: Paste a public image URL to set or replace your current avatar.
+    firstName: First name
+    secondName: Second name
+    imageUrl: Profile image URL
+    imageUrlHelp: Google can populate this initially. You can replace it with any public image URL.
+    locale: Language
+    localeHelp: Choose the language used across the app for your account.
+    save: Save
+    localeOptions:
+      en: English
+      ru: Russian
+  appearance:
+    title: Theme settings
+    description: Choose how Lively Forms looks across creator pages, public forms, and the home page.
+    options:
+      light:
+        title: Light
+        description: Always use the light theme.
+      dark:
+        title: Dark
+        description: Always use the dark theme.
+      system:
+        title: System
+        description: Follow your device theme automatically.
+  organizations:
+    title: Workspace settings
+    description: Create shared workspaces, manage members, and issue invite links. Inside an organization, every member can work with forms. Only the owner can manage the organization itself.
+    newOrganizationName: New organization name
+    newOrganizationPlaceholder: Alive Org
+    createOrganization: Create organization
+    noneYet: You are not part of any organizations yet.
+    organizationLabel: Organization
+    selectedOrgHelp: The settings below apply to the selected organization.
+    owner: Owner
+    member: Member
+    renameOrganization: Rename organization
+    members: Members
+    removeMember: Remove
+    inviteLinks: Invite links
+    newInviteLink: New invite link
+    noInviteLinks: No invite links yet.
+    inviteCreated: "Created {date}"
+    revokeInvite: Revoke
+    dangerZone: Danger zone
+    deleteOrgHelp: Deleting an organization also deletes its forms, responses, and invite links.
+    deleteOrganization: Delete organization
+    deleteOrganizationTitle: Delete organization?
+    deleteOrganizationConfirmDescription: This will also delete its forms, responses, and invite links. This action cannot be undone.
+    copyInviteSuccess: Copied invite link.
+    copyInviteError: Could not copy invite link.
+dashboard:
+  description: Create a form, open a draft, or review responses in the active workspace.
+  newForm: New form
+  noFormsEyebrow: No forms yet
+  noFormsTitle: "Create the first form in {workspace}"
+  noFormsDescription: New forms start as drafts so you can edit before publishing.
+  viewGrid: Grid
+  viewTable: Table
+  noDescription: No description yet.
+  shareUrl: Share URL
+  titleColumn: Title
+  statusColumn: Status
+  responses: Responses
+  updated: Updated
+  open: Open
+builder:
+  description: Edit blocks, update settings, and review responses.
+  settings: Settings
+  responses: "Responses ({count})"
+  publish: Publish form
+  unpublish: Unpublish
+  blocks: Blocks
+  newBlock: New block
+  settingsTitle: Settings
+  titleField: Title
+  descriptionField: Description
+  shareSlug: Public URL address
+  afterSubmission: After submission
+  afterSubmissionDescription: Customize what respondents see after they finish the form, including an optional next-step link.
+  completionTitle: Completion title
+  completionMessage: Completion message
+  followUpLabel: Follow-up link label
+  followUpUrl: Follow-up link URL
+  followUpLabelPlaceholder: Read next steps
+  followUpUrlPlaceholder: https://example.com/next
+  publicRoute: Public route
+  publicRouteHelp: Published forms accept anonymous submissions. Changes to a published form go live immediately.
+  copyLink: Copy link
+  openRunner: Open runner
+  deleteForm: Delete form
+  deleteFormTitle: Delete form?
+  deleteFormDescription: This will also delete all blocks and responses. This action cannot be undone.
+  saveFormSettings: Save form settings
+  dragBlockAria: "Drag {label}"
+  prompt: Prompt
+  supportText: Support text
+  bodyCopy: Body copy
+  placeholder: Placeholder
+  choiceOptions: Choice options
+  addOption: Add option
+  option: "Option {number}"
+  dragOptionAria: "Drag option {number}"
+  removeOptionAria: "Remove option {number}"
+  optionsHelp: Drag to reorder, rename in place, and keep between 2 and 10 options.
+  requiredToggle: Mark this question as required
+  deleteBlock: Delete block
+  saveBlock: Save block
+  nothingSelected: Nothing selected
+  nothingSelectedTitle: Select a block or open form settings.
+  nothingSelectedDescription: Use the left panel to choose what you want to edit.
+  addShortTextQuestion: Add a short text question
+  toasts:
+    genericError: Something went wrong.
+    savedFormSettings: Saved form settings
+    addedBlock: "Added {type}"
+    savedBlock: Saved block
+    removedBlock: Removed block
+    formPublished: Form published
+    formDrafted: Form moved back to draft
+    copiedShareLink: Copied share link
+    deleteFormConfirm: Delete this form permanently? This will also delete all blocks and responses. This action cannot be undone.
+    updatedBlockOrder: Updated block order
+    reorderError: Could not reorder blocks.
+blocks:
+  types:
+    TEXT: Text block
+    SHORT_TEXT: Short text
+    LONG_TEXT: Long text
+    SINGLE_CHOICE: Single choice
+    MULTIPLE_CHOICE: Multiple choice
+publicRunner:
+  responseReceived: Response received
+  defaultCompletionTitle: Thanks for taking the time.
+  defaultCompletionMessage: Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.
+  step: "Step {current} of {total}"
+  context: Context
+  defaultTextTitle: Take a breath before the next step.
+  question: Question
+  required: Required
+  chooseOne: Choose one option.
+  selectAll: Select all that apply.
+  answerRequired: Please answer before continuing.
+  singleChoiceRequired: Choose one option before continuing.
+  multiChoiceRequired: Choose at least one option before continuing.
+  submitError: Could not submit response.
+  back: Back
+  continue: Continue
+  submit: Submit
+responses:
+  description: Review anonymous submissions in form order.
+  submissionsCount: "{count} submissions"
+  backToBuilder: Back to builder
+  noSubmissionsEyebrow: No submissions yet
+  noSubmissionsTitle: Publish the form to start collecting responses.
+  noSubmissionsDescription: Only published forms are available on the public route, and every respondent stays anonymous on submission.
+  openBuilder: Open builder
+  submissionTitle: "Submission #{number} · {date}"
+  answersCount: "{count} answers"
+  open: Open
+responseDetail:
+  title: "Submission #{number} · {date}"
+  description: Review submitted answers in form order.
+  backToResponses: Back to responses
+  contextBlock: Context block
+  contextTitle: Context
+  required: Required
+  noAnswer: No answer provided.
+responseExport:
+  export: Export
+  exportCsv: Export CSV
+  exportXlsx: Export XLSX
+  downloaded: "Downloaded {format} export."
+  error: Could not export responses.
+join:
+  joinTitle: "Join {organization}"
+  alreadyMember: You already belong to this organization. You can switch to it from the workspace selector.
+  inviteDescription: Accept this invite to collaborate in the organization workspace.
+  openDashboard: Open dashboard
+  joinOrganization: Join organization
+  cancel: Cancel
+  unavailableTitle: Invite not available
+  unavailableDescription: This invite link is invalid or has been revoked.
+  backToDashboard: Back to dashboard
+notFound:
+  title: That page or form doesn’t exist.
+  description: If you were expecting a public form, it may still be in draft. If you were editing a creator form, you may not have access to it.
+  backHome: Back home
+ui:
+  cancel: Cancel
+  delete: Delete
+  dismissNotification: Dismiss notification

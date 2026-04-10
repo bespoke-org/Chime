@@ -26,12 +26,21 @@ function normalizeOrganizationName(value: unknown) {
 function toMemberSummary(member: {
   userId: string;
   role: OrganizationMemberRole;
-  user: { name: string | null; email: string | null };
+  user: {
+    name: string | null;
+    firstName: string | null;
+    secondName: string | null;
+    email: string | null;
+    image: string | null;
+  };
 }): OrganizationMemberSummary {
   return {
     userId: member.userId,
     name: member.user.name,
+    firstName: member.user.firstName,
+    secondName: member.user.secondName,
     email: member.user.email,
+    image: member.user.image,
     role: member.role,
   };
 }
@@ -61,7 +70,10 @@ export async function listOrganizationsForUser(userId: string): Promise<Organiza
               user: {
                 select: {
                   name: true,
+                  firstName: true,
+                  secondName: true,
                   email: true,
+                  image: true,
                 },
               },
             },
@@ -265,7 +277,10 @@ export async function getOrganizationDetailsForMember(userId: string, organizati
           user: {
             select: {
               name: true,
+              firstName: true,
+              secondName: true,
               email: true,
+              image: true,
             },
           },
         },

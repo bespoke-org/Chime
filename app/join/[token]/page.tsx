@@ -5,10 +5,12 @@ import { acceptOrganizationInviteAction } from "@/app/join/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getServerAuthSession } from "@/lib/auth";
+import { getRequestI18n } from "@/lib/i18n-server";
 import { getOrganizationInviteState } from "@/lib/organizations";
 
 export default async function JoinOrganizationPage({ params }: { params: Promise<{ token: string }> }) {
   const session = await getServerAuthSession();
+  const { t } = await getRequestI18n();
 
   if (!session?.user?.id) {
     redirect("/");
@@ -22,40 +24,36 @@ export default async function JoinOrganizationPage({ params }: { params: Promise
       <Card className="w-full p-8 lg:p-10">
         {invite ? (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Organization invite</p>
-            <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Join {invite.organizationName}</h1>
+            <h1 className="font-display text-4xl text-[var(--ink)]">{t("join.joinTitle", { organization: invite.organizationName })}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              {invite.alreadyMember
-                ? "You already belong to this organization. You can switch to it from the workspace selector."
-                : "Accept this invite to collaborate in the organization workspace."}
+              {invite.alreadyMember ? t("join.alreadyMember") : t("join.inviteDescription")}
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               {invite.alreadyMember ? (
                 <Link href="/dashboard">
-                  <Button>Open dashboard</Button>
+                  <Button>{t("join.openDashboard")}</Button>
                 </Link>
               ) : (
                 <form action={acceptOrganizationInviteAction}>
                   <input type="hidden" name="token" value={token} />
-                  <Button type="submit">Join organization</Button>
+                  <Button type="submit">{t("join.joinOrganization")}</Button>
                 </form>
               )}
               <Link href="/dashboard">
-                <Button variant="secondary">Cancel</Button>
+                <Button variant="secondary">{t("join.cancel")}</Button>
               </Link>
             </div>
           </>
         ) : (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Organization invite</p>
-            <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Invite not available</h1>
+            <h1 className="font-display text-4xl text-[var(--ink)]">{t("join.unavailableTitle")}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              This invite link is invalid or has been revoked.
+              {t("join.unavailableDescription")}
             </p>
             <div className="mt-8">
               <Link href="/dashboard">
-                <Button>Back to dashboard</Button>
+                <Button>{t("join.backToDashboard")}</Button>
               </Link>
             </div>
           </>

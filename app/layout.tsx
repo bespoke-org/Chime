@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { Kurale, Manrope } from "next/font/google";
+import { Inter, Kurale } from "next/font/google";
 
+import { I18nProvider } from "@/components/i18n-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { getRequestI18n } from "@/lib/i18n-server";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
@@ -11,28 +13,36 @@ const kurale = Kurale({
   subsets: ["latin"],
 });
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Lively Forms",
-  description: "Lively Forms is a conversational form builder for creating, publishing, and reviewing forms.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getRequestI18n();
 
-export default function RootLayout({
+  return {
+    title: t("app.name"),
+    description: t("app.description"),
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { locale, messages } = await getRequestI18n();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className={`${kurale.variable} ${manrope.variable}`}>
-        <ThemeProvider>{children}</ThemeProvider>
+      <body className={`${kurale.variable} ${inter.variable}`}>
+        <ThemeProvider>
+          <I18nProvider locale={locale} messages={messages}>{children}</I18nProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

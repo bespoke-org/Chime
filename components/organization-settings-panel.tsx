@@ -1,23 +1,26 @@
 "use client";
 
-import { Link2, Trash2 } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import {
   createOrganizationAction,
   createOrganizationInviteLinkAction,
-  deleteOrganizationAction,
   removeOrganizationMemberAction,
   renameOrganizationAction,
   revokeOrganizationInviteLinkAction,
 } from "@/app/(creator)/actions";
+import { DeleteOrganizationButton } from "@/components/delete-organization-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToastViewport, type ToastData } from "@/components/ui/toast";
+import { useI18n } from "@/components/i18n-provider";
+import { UserAvatar } from "@/components/user-avatar";
 import type { OrganizationSettingsSummary } from "@/lib/form-types";
+import { getUserDisplayName } from "@/lib/user-identity";
 import { formatDate } from "@/lib/utils";
 
 export function OrganizationSettingsPanel({
@@ -30,6 +33,7 @@ export function OrganizationSettingsPanel({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { locale, t } = useI18n();
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | null>(initialOrganizationId ?? organizations[0]?.id ?? null);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const selectedOrganization = useMemo(
@@ -50,9 +54,9 @@ export function OrganizationSettingsPanel({
     try {
       const url = `${window.location.origin}/join/${token}`;
       await navigator.clipboard.writeText(url);
-      showToast("Copied invite link.");
+      showToast(t("settings.organizations.copyInviteSuccess"));
     } catch {
-      showToast("Could not copy invite link.", "error");
+      showToast(t("settings.organizations.copyInviteError"), "error");
     }
   }
 
@@ -61,36 +65,35 @@ export function OrganizationSettingsPanel({
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Organizations</p>
-          <h1 className="mt-3 font-display text-4xl text-[var(--ink)]">Workspace settings</h1>
+          <h1 className="font-display text-4xl text-[var(--ink)]">{t("settings.organizations.title")}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-            Create shared workspaces, manage members, and issue invite links. Inside an organization, every member can work with forms. Only the owner can manage the organization itself.
+            {t("settings.organizations.description")}
           </p>
         </div>
 
       <div className="mt-8 border-t border-[color:var(--line)] pt-8">
         <form action={createOrganizationAction} className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <input type="hidden" name="returnOrganizationId" value={selectedOrganizationId ?? ""} />
-          <label className="flex-1 space-y-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">New organization name</span>
-            <Input name="name" placeholder="Acme Studio" />
+          <label className="grid flex-1 gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">{t("settings.organizations.newOrganizationName")}</span>
+            <Input name="name" placeholder={t("settings.organizations.newOrganizationPlaceholder")} />
           </label>
-          <Button type="submit">Create organization</Button>
+          <Button type="submit">{t("settings.organizations.createOrganization")}</Button>
         </form>
       </div>
 
       <div className="mt-8 space-y-5">
         {organizations.length === 0 ? (
           <div className="border-t border-[color:var(--line)] py-6 text-sm text-[var(--muted)]">
-            You are not part of any organizations yet.
+            {t("settings.organizations.noneYet")}
           </div>
         ) : null}
 
         {selectedOrganization ? (
           <>
             <div className="max-w-md border-t border-[color:var(--line)] pt-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Organization</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">The settings below apply to the selected organization.</p>
+              <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("settings.organizations.organizationLabel")}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t("settings.organizations.selectedOrgHelp")}</p>
               <div className="mt-3">
               <Select
                 value={selectedOrganization.id}
@@ -109,7 +112,7 @@ export function OrganizationSettingsPanel({
                   {organizations.map((organization) => (
                     <SelectItem key={organization.id} value={organization.id}>
                       {organization.name}
-                      {organization.isOwner ? " · Owner" : ""}
+                      {organization.isOwner ? ` · ${t("settings.organizations.owner")}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -121,7 +124,7 @@ export function OrganizationSettingsPanel({
               <div className="border-b border-[color:var(--line)] pb-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="font-display text-3xl text-[var(--ink)]">{selectedOrganization.name}</h2>
-                  <Badge className="rounded-full">{selectedOrganization.isOwner ? "Owner" : "Member"}</Badge>
+                  <Badge className="rounded-full">{selectedOrganization.isOwner ? t("settings.organizations.owner") : t("settings.organizations.member")}</Badge>
                 </div>
 
                 {selectedOrganization.isOwner ? (
@@ -132,7 +135,7 @@ export function OrganizationSettingsPanel({
                       <Input name="name" defaultValue={selectedOrganization.name} />
                     </div>
                     <Button type="submit" variant="secondary">
-                      Rename organization
+                      {t("settings.organizations.renameOrganization")}
                     </Button>
                   </form>
                 ) : null}
@@ -140,14 +143,17 @@ export function OrganizationSettingsPanel({
 
               <div className="mt-6 space-y-8">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Members</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("settings.organizations.members")}</p>
                   <div className="mt-4 space-y-4">
                     {selectedOrganization.members.map((member) => (
                       <div key={member.userId} className="flex flex-col gap-3 py-1 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                          <p className="font-medium text-[var(--ink)]">{member.name || member.email || "Unnamed member"}</p>
-                          {member.email ? <p className="text-sm text-[var(--muted)]">{member.email}</p> : null}
-                          <Badge className="rounded-full">{member.role === "OWNER" ? "Owner" : "Member"}</Badge>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <UserAvatar user={member} className="size-9" initialsClassName="text-[11px]" />
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                            <p className="font-medium text-[var(--ink)]">{getUserDisplayName(member)}</p>
+                            {member.email ? <p className="text-sm text-[var(--muted)]">{member.email}</p> : null}
+                            <Badge className="rounded-full">{member.role === "OWNER" ? t("settings.organizations.owner") : t("settings.organizations.member")}</Badge>
+                          </div>
                         </div>
                         {selectedOrganization.isOwner && member.role !== "OWNER" ? (
                           <form action={removeOrganizationMemberAction}>
@@ -155,7 +161,7 @@ export function OrganizationSettingsPanel({
                             <input type="hidden" name="memberUserId" value={member.userId} />
                             <input type="hidden" name="returnOrganizationId" value={selectedOrganization.id} />
                             <Button variant="secondary" size="sm" type="submit">
-                              Remove
+                              {t("settings.organizations.removeMember")}
                             </Button>
                           </form>
                         ) : null}
@@ -166,14 +172,14 @@ export function OrganizationSettingsPanel({
 
                 <div className="border-t border-[color:var(--line)] pt-8">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Invite links</p>
+                    <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("settings.organizations.inviteLinks")}</p>
                     {selectedOrganization.isOwner ? (
                       <form action={createOrganizationInviteLinkAction}>
                         <input type="hidden" name="organizationId" value={selectedOrganization.id} />
                         <input type="hidden" name="returnOrganizationId" value={selectedOrganization.id} />
                         <Button variant="secondary" size="sm" type="submit">
                           <Link2 className="size-4" />
-                          New invite link
+                          {t("settings.organizations.newInviteLink")}
                         </Button>
                       </form>
                     ) : null}
@@ -181,7 +187,7 @@ export function OrganizationSettingsPanel({
                   <div className="mt-4 space-y-4">
                     {selectedOrganization.inviteLinks.length === 0 ? (
                       <div className="py-4 text-sm text-[var(--muted)]">
-                        No invite links yet.
+                        {t("settings.organizations.noInviteLinks")}
                       </div>
                     ) : null}
                     {selectedOrganization.inviteLinks.map((inviteLink) => {
@@ -195,7 +201,7 @@ export function OrganizationSettingsPanel({
                             >
                               {`/join/${inviteLink.token}`}
                             </button>
-                            <p className="text-xs text-[var(--muted)]">Created {formatDate(inviteLink.createdAt)}</p>
+                            <p className="text-xs text-[var(--muted)]">{t("settings.organizations.inviteCreated", { date: formatDate(inviteLink.createdAt, locale) })}</p>
                           </div>
                           {selectedOrganization.isOwner ? (
                             <form action={revokeOrganizationInviteLinkAction}>
@@ -203,7 +209,7 @@ export function OrganizationSettingsPanel({
                               <input type="hidden" name="inviteLinkId" value={inviteLink.id} />
                               <input type="hidden" name="returnOrganizationId" value={selectedOrganization.id} />
                               <Button variant="secondary" size="sm" type="submit">
-                                Revoke
+                                {t("settings.organizations.revokeInvite")}
                               </Button>
                             </form>
                           ) : null}
@@ -215,16 +221,12 @@ export function OrganizationSettingsPanel({
 
                 {selectedOrganization.isOwner ? (
                   <div className="border-t border-[color:var(--line)] pt-8">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">Danger zone</p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Deleting an organization also deletes its forms, responses, memberships, and invite links.</p>
-                    <form action={deleteOrganizationAction} className="mt-4">
-                      <input type="hidden" name="organizationId" value={selectedOrganization.id} />
-                      <input type="hidden" name="returnOrganizationId" value={selectedOrganization.id} />
-                      <Button variant="danger" type="submit">
-                        <Trash2 className="size-4" />
-                        Delete organization
-                      </Button>
-                    </form>
+                    <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("settings.organizations.dangerZone")}</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t("settings.organizations.deleteOrgHelp")}</p>
+                    <DeleteOrganizationButton
+                      organizationId={selectedOrganization.id}
+                      returnOrganizationId={selectedOrganization.id}
+                    />
                   </div>
                 ) : null}
               </div>

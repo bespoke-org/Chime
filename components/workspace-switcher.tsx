@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import type { CreatorWorkspaceOption } from "@/lib/form-types";
 
@@ -23,6 +24,7 @@ export function WorkspaceSwitcher({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { t } = useI18n();
   const selectKey = options
     .map((option) => `${option.value}:${option.label}:${option.kind === "organization" && option.isOwner ? "owner" : "member"}`)
     .join("|");
@@ -43,7 +45,7 @@ export function WorkspaceSwitcher({
       }}
     >
       <SelectTrigger
-        aria-label="Select workspace"
+        aria-label={t("workspace.selectAria")}
         className={cn("min-w-[168px]", isPending && "opacity-70")}
       >
         <SelectValue />
@@ -51,8 +53,8 @@ export function WorkspaceSwitcher({
       <SelectContent align="end">
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {option.label}
-            {option.kind === "organization" && option.isOwner ? " · Owner" : ""}
+            {option.kind === "personal" ? t("workspace.personal") : option.label}
+            {option.kind === "organization" && option.isOwner ? ` · ${t("workspace.ownerSuffix")}` : ""}
           </SelectItem>
         ))}
       </SelectContent>

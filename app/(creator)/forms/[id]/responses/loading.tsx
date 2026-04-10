@@ -1,5 +1,8 @@
 import { LoadingShell } from "@/components/loading-shell";
+import { getRequestI18n } from "@/lib/i18n-server";
 
-export default function ResponsesLoading() {
-  return <LoadingShell title="responses" />;
+export default async function ResponsesLoading() {
+  const { t } = await getRequestI18n();
+
+  return <LoadingShell label={t("loading.page", { title: t("loading.titles.responses") })} />;
 }

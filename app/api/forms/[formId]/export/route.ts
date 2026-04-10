@@ -12,7 +12,7 @@ export async function GET(request: Request, context: { params: Promise<{ formId:
   try {
     const { formId } = await context.params;
     const format = parseResponseExportFormat(new URL(request.url).searchParams.get("format"));
-    const exportFile = await createOwnedFormResponseExport(session.user.id, formId, format);
+    const exportFile = await createOwnedFormResponseExport(session.user.id, formId, format, session.user.locale);
 
     return new Response(exportFile.body, {
       status: 200,
