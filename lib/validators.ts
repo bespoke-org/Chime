@@ -1,6 +1,6 @@
-import { FormBlockType } from "@prisma/client";
 import { z } from "zod";
 
+import { blockTypeSchema } from "@/lib/blocks";
 import { supportedLocales } from "@/lib/i18n";
 
 export const formMetadataSchema = z
@@ -59,7 +59,7 @@ export const formMetadataSchema = z
   }));
 
 export const createBlockSchema = z.object({
-  type: z.nativeEnum(FormBlockType),
+  type: blockTypeSchema,
 });
 
 export const blockUpdateSchema = z.object({

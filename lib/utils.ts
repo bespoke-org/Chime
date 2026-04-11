@@ -23,6 +23,15 @@ export function formatDate(value: Date | string, locale = "en") {
   }).format(date);
 }
 
+export function formatCalendarDate(value: Date | string, locale = "en") {
+  const date = typeof value === "string" ? new Date(`${value}T00:00:00.000Z`) : value;
+
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export function sentenceCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }

@@ -1,22 +1,35 @@
 import {
-  FormBlockType,
   FormStatus,
   type Form,
   type FormBlock,
+  type FormBlockType as PrismaFormBlockType,
   type Prisma,
 } from "@prisma/client";
 import { z } from "zod";
 
 import {
+  AGREEMENT_ANSWER_VALUES,
+  blockTypeSchema,
   getDefaultBlockConfig,
+  isAgreementAnswerValue,
+  isChoiceBlock,
   isQuestionBlock,
+  isTextAnswerBlock,
+  isValidDateAnswer,
+  isValidLinkAnswer,
   parseBlockConfig,
+  parseNumericAnswer,
   serializeBlock,
   type BlockConfig,
+  type ChoiceBlockConfig,
+  type LinkBlockConfig,
+  type NumberBlockConfig,
   type SerializedBlock,
+  type TextAnswerBlockConfig,
 } from "@/lib/blocks";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
+import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
 import type {
   ActiveWorkspace,
   BuilderForm,
@@ -37,6 +50,18 @@ import {
 import { slugify } from "@/lib/utils";
 import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
 import { assertOrganizationMember, workspaceAccessWhere, workspaceFilterWhere } from "@/lib/workspaces";
+
+const FORM_BLOCK_TYPES = {
+  TEXT: "TEXT",
+  SHORT_TEXT: "SHORT_TEXT",
+  LONG_TEXT: "LONG_TEXT",
+  SINGLE_CHOICE: "SINGLE_CHOICE",
+  MULTIPLE_CHOICE: "MULTIPLE_CHOICE",
+  NUMBER: "NUMBER",
+  LINK: "LINK",
+  AGREEMENT: "AGREEMENT",
+  DATE: "DATE",
+} as const satisfies Record<PrismaFormBlockType, PrismaFormBlockType>;
 
 const builderFormInclude = {
   organization: {
@@ -83,7 +108,7 @@ type ResponseRecord = Prisma.ResponseGetPayload<{
 
 const snapshotBlockSchema = z.object({
   id: z.string(),
-  type: z.nativeEnum(FormBlockType),
+  type: blockTypeSchema,
   title: z.string(),
   description: z.string(),
   required: z.boolean(),
@@ -148,27 +173,31 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
 
 const defaultFormCopyByLocale: Record<AppLocale, {
   untitledForm: string;
+  completionTitle: string;
+  completionMessage: string;
   initialBlocks: Prisma.FormBlockCreateWithoutFormInput[];
-  newBlockTitles: Record<FormBlockType, string>;
+  newBlockTitles: Record<PrismaFormBlockType, string>;
 }> = {
   en: {
     untitledForm: "Untitled form",
+    completionTitle: getLocalizedCompletionDefaults("en").title,
+    completionMessage: getLocalizedCompletionDefaults("en").message,
     initialBlocks: [
       {
-        type: FormBlockType.TEXT,
+        type: FORM_BLOCK_TYPES.TEXT,
         title: "Welcome",
         description: "Set the scene before people start answering.",
         position: 0,
         required: false,
-        config: getDefaultBlockConfig(FormBlockType.TEXT, "en"),
+        config: getDefaultBlockConfig(FORM_BLOCK_TYPES.TEXT, "en"),
       },
       {
-        type: FormBlockType.SHORT_TEXT,
+        type: FORM_BLOCK_TYPES.SHORT_TEXT,
         title: "What should we call you?",
         description: "A simple first question keeps the flow moving.",
         position: 1,
         required: true,
-        config: getDefaultBlockConfig(FormBlockType.SHORT_TEXT, "en"),
+        config: getDefaultBlockConfig(FORM_BLOCK_TYPES.SHORT_TEXT, "en"),
       },
     ],
     newBlockTitles: {
@@ -177,26 +206,32 @@ const defaultFormCopyByLocale: Record<AppLocale, {
       LONG_TEXT: "Long text question",
       SINGLE_CHOICE: "Single choice question",
       MULTIPLE_CHOICE: "Multiple choice question",
+      NUMBER: "Number question",
+      LINK: "Link question",
+      AGREEMENT: "Agreement question",
+      DATE: "Date question",
     },
   },
   ru: {
     untitledForm: "Форма без названия",
+    completionTitle: getLocalizedCompletionDefaults("ru").title,
+    completionMessage: getLocalizedCompletionDefaults("ru").message,
     initialBlocks: [
       {
-        type: FormBlockType.TEXT,
+        type: FORM_BLOCK_TYPES.TEXT,
         title: "Добро пожаловать",
         description: "Задайте тон перед тем, как люди начнут отвечать.",
         position: 0,
         required: false,
-        config: getDefaultBlockConfig(FormBlockType.TEXT, "ru"),
+        config: getDefaultBlockConfig(FORM_BLOCK_TYPES.TEXT, "ru"),
       },
       {
-        type: FormBlockType.SHORT_TEXT,
+        type: FORM_BLOCK_TYPES.SHORT_TEXT,
         title: "Как к вам обращаться?",
         description: "Простой первый вопрос помогает сохранить ритм.",
         position: 1,
         required: true,
-        config: getDefaultBlockConfig(FormBlockType.SHORT_TEXT, "ru"),
+        config: getDefaultBlockConfig(FORM_BLOCK_TYPES.SHORT_TEXT, "ru"),
       },
     ],
     newBlockTitles: {
@@ -205,6 +240,10 @@ const defaultFormCopyByLocale: Record<AppLocale, {
       LONG_TEXT: "Вопрос с длинным ответом",
       SINGLE_CHOICE: "Вопрос с одним выбором",
       MULTIPLE_CHOICE: "Вопрос с несколькими вариантами",
+      NUMBER: "Вопрос с числом",
+      LINK: "Вопрос со ссылкой",
+      AGREEMENT: "Вопрос с согласием",
+      DATE: "Вопрос с датой",
     },
   },
 };
@@ -273,82 +312,183 @@ function sanitizeOptions(options: string[]) {
     .slice(0, 10);
 }
 
-function normalizeBlockConfig(type: FormBlockType, value: unknown): BlockConfig {
-  if (type === FormBlockType.SINGLE_CHOICE || type === FormBlockType.MULTIPLE_CHOICE) {
+function normalizeBlockConfig(type: PrismaFormBlockType, value: unknown): BlockConfig {
+  if (isChoiceBlock(type)) {
     const rawOptions =
       typeof value === "object" && value && "options" in value && Array.isArray(value.options)
         ? value.options.filter((option): option is string => typeof option === "string")
         : [];
     const options = sanitizeOptions(rawOptions);
 
-    return {
+    return parseBlockConfig(type, {
       options: options.length >= 2 ? options : ["Option 1", "Option 2"],
-    };
+    });
   }
 
   return parseBlockConfig(type, value);
 }
 
+function getQuestionLabel(block: SerializedBlock) {
+  return block.title || "this question";
+}
+
 function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | string[] | undefined {
   const config = block.config;
+  const questionLabel = getQuestionLabel(block);
 
   if (!isQuestionBlock(block.type)) {
     return undefined;
   }
 
-  if (block.type === FormBlockType.SHORT_TEXT || block.type === FormBlockType.LONG_TEXT) {
+  if (isTextAnswerBlock(block.type)) {
     const value = typeof rawValue === "string" ? rawValue.trim() : "";
+    const validationRegex = (config as TextAnswerBlockConfig).validationRegex;
 
     if (!value) {
       if (block.required) {
-        throw new AppError(`Please answer “${block.title || "this question"}”.`, 422);
+        throw new AppError(`Please answer “${questionLabel}”.`, 422);
       }
 
       return undefined;
     }
 
+    if (validationRegex && !new RegExp(validationRegex).test(value)) {
+      throw new AppError(`Please use a valid format for “${questionLabel}”.`, 422);
+    }
+
     return value;
   }
 
-  if (block.type === FormBlockType.SINGLE_CHOICE) {
+  if (block.type === FORM_BLOCK_TYPES.SINGLE_CHOICE) {
     const value = typeof rawValue === "string" ? rawValue.trim() : "";
-    const options = "options" in config ? config.options : [];
+    const options = (config as ChoiceBlockConfig).options;
 
     if (!value) {
       if (block.required) {
-        throw new AppError(`Please choose an option for “${block.title || "this question"}”.`, 422);
+        throw new AppError(`Please choose an option for “${questionLabel}”.`, 422);
       }
 
       return undefined;
     }
 
     if (!options.includes(value)) {
-      throw new AppError(`Invalid option submitted for “${block.title || "this question"}”.`, 422);
+      throw new AppError(`Invalid option submitted for “${questionLabel}”.`, 422);
     }
 
     return value;
   }
 
-  if (block.type === FormBlockType.MULTIPLE_CHOICE) {
+  if (block.type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE) {
     const values = Array.isArray(rawValue)
       ? rawValue.filter((value): value is string => typeof value === "string")
       : [];
-    const options = "options" in config ? config.options : [];
+    const options = (config as ChoiceBlockConfig).options;
     const uniqueValues = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 
     if (!uniqueValues.length) {
       if (block.required) {
-        throw new AppError(`Please choose at least one option for “${block.title || "this question"}”.`, 422);
+        throw new AppError(`Please choose at least one option for “${questionLabel}”.`, 422);
       }
 
       return undefined;
     }
 
     if (!uniqueValues.every((value) => options.includes(value))) {
-      throw new AppError(`Invalid option submitted for “${block.title || "this question"}”.`, 422);
+      throw new AppError(`Invalid option submitted for “${questionLabel}”.`, 422);
     }
 
     return uniqueValues;
+  }
+
+  if (block.type === FORM_BLOCK_TYPES.NUMBER) {
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+    const numberConfig = config as NumberBlockConfig;
+
+    if (!value) {
+      if (block.required) {
+        throw new AppError(`Please enter a number for “${questionLabel}”.`, 422);
+      }
+
+      return undefined;
+    }
+
+    const numericValue = parseNumericAnswer(value);
+
+    if (numericValue === null) {
+      throw new AppError(`Please enter a valid number for “${questionLabel}”.`, 422);
+    }
+
+    if (!numberConfig.allowFloat && !Number.isInteger(numericValue)) {
+      throw new AppError(`Please enter a whole number for “${questionLabel}”.`, 422);
+    }
+
+    if (numberConfig.min !== null && numericValue < numberConfig.min) {
+      throw new AppError(`Please enter a number greater than or equal to ${numberConfig.min} for “${questionLabel}”.`, 422);
+    }
+
+    if (numberConfig.max !== null && numericValue > numberConfig.max) {
+      throw new AppError(`Please enter a number less than or equal to ${numberConfig.max} for “${questionLabel}”.`, 422);
+    }
+
+    return String(numericValue);
+  }
+
+  if (block.type === FORM_BLOCK_TYPES.LINK) {
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+
+    if (!value) {
+      if (block.required) {
+        throw new AppError(`Please enter a link for “${questionLabel}”.`, 422);
+      }
+
+      return undefined;
+    }
+
+    if (!isValidLinkAnswer(value)) {
+      throw new AppError(`Please enter a valid link for “${questionLabel}”.`, 422);
+    }
+
+    return new URL(value).toString();
+  }
+
+  if (block.type === FORM_BLOCK_TYPES.DATE) {
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+
+    if (!value) {
+      if (block.required) {
+        throw new AppError(`Please enter a date for “${questionLabel}”.`, 422);
+      }
+
+      return undefined;
+    }
+
+    if (!isValidDateAnswer(value)) {
+      throw new AppError(`Please enter a valid date for “${questionLabel}”.`, 422);
+    }
+
+    return value;
+  }
+
+  if (block.type === FORM_BLOCK_TYPES.AGREEMENT) {
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+
+    if (!value) {
+      if (block.required) {
+        throw new AppError(`Agreement is required for “${questionLabel}”.`, 422);
+      }
+
+      return undefined;
+    }
+
+    if (!isAgreementAnswerValue(value)) {
+      throw new AppError(`Invalid agreement value submitted for “${questionLabel}”.`, 422);
+    }
+
+    if (block.required && value !== AGREEMENT_ANSWER_VALUES.AGREED) {
+      throw new AppError(`Agreement is required for “${questionLabel}”.`, 422);
+    }
+
+    return value;
   }
 
   return undefined;
@@ -429,6 +569,8 @@ export async function createDraftForm(userId: string, workspace: ActiveWorkspace
       organizationId: workspace.kind === "organization" ? workspace.organizationId : null,
       title: copy.untitledForm,
       description: "",
+      completionTitle: copy.completionTitle,
+      completionMessage: copy.completionMessage,
       slug,
       blocks: {
         create: initialBlocks(locale),

@@ -1,18 +1,31 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Circle, LoaderCircle, Square } from "lucide-react";
-import Image from "next/image";
+import { Check, Circle, CornerDownLeft, LoaderCircle, Square } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChoiceBlockConfig, LongTextBlockConfig, ShortTextBlockConfig, TextBlockConfig } from "@/lib/blocks";
+import {
+  AGREEMENT_ANSWER_VALUES,
+  getTextValidationPattern,
+  isValidDateAnswer,
+  isValidLinkAnswer,
+  parseNumericAnswer,
+  type ChoiceBlockConfig,
+  type LinkBlockConfig,
+  type LongTextBlockConfig,
+  type NumberBlockConfig,
+  type ShortTextBlockConfig,
+  type TextBlockConfig,
+} from "@/lib/blocks";
+import { isLegacyDefaultCompletionMessage, isLegacyDefaultCompletionTitle } from "@/lib/form-defaults";
 import type { PublicForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +50,6 @@ async function submitResponse(slug: string, answers: Record<string, string | str
 export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [step, setStep] = useState(0);
   const { t } = useI18n();
-  const appName = t("app.name");
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,10 +57,14 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
   const currentBlock = form.blocks[step];
   const progress = useMemo(() => ((step + 1) / form.blocks.length) * 100, [form.blocks.length, step]);
-  const completionTitle = form.completionTitle.trim() || t("publicRunner.defaultCompletionTitle");
+  const completionTitle =
+    !form.completionTitle.trim() || isLegacyDefaultCompletionTitle(form.completionTitle)
+      ? t("publicRunner.defaultCompletionTitle")
+      : form.completionTitle.trim();
   const completionMessage =
-    form.completionMessage.trim() ||
-    t("publicRunner.defaultCompletionMessage");
+    !form.completionMessage.trim() || isLegacyDefaultCompletionMessage(form.completionMessage)
+      ? t("publicRunner.defaultCompletionMessage")
+      : form.completionMessage.trim();
   const completionLinkLabel = form.completionLinkLabel?.trim() || null;
   const completionLinkUrl = form.completionLinkUrl?.trim() || null;
 
@@ -68,24 +84,33 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }
 
-  function validateStep() {
+  function validateStep(answerSet: Record<string, string | string[]> = answers) {
     if (!currentBlock || currentBlock.type === "TEXT") {
       return true;
     }
 
-    const value = answers[currentBlock.id];
-
-    if (!currentBlock.required) {
-      return true;
-    }
+    const value = answerSet[currentBlock.id];
 
     if (currentBlock.type === "SHORT_TEXT" || currentBlock.type === "LONG_TEXT") {
-      if (typeof value === "string" && value.trim()) {
-        return true;
+      const textValue = typeof value === "string" ? value.trim() : "";
+
+      if (!textValue) {
+        if (!currentBlock.required) {
+          return true;
+        }
+
+        showToast(t("publicRunner.answerRequired"), "error");
+        return false;
       }
 
-      showToast(t("publicRunner.answerRequired"), "error");
-      return false;
+      const validationRegex = getTextValidationPattern(currentBlock.config as ShortTextBlockConfig | LongTextBlockConfig);
+
+      if (validationRegex && !new RegExp(validationRegex).test(textValue)) {
+        showToast(t("publicRunner.invalidTextFormat"), "error");
+        return false;
+      }
+
+      return true;
     }
 
     if (currentBlock.type === "SINGLE_CHOICE") {
@@ -93,8 +118,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      showToast(t("publicRunner.singleChoiceRequired"), "error");
-      return false;
+      if (currentBlock.required) {
+        showToast(t("publicRunner.singleChoiceRequired"), "error");
+        return false;
+      }
+
+      return true;
     }
 
     if (currentBlock.type === "MULTIPLE_CHOICE") {
@@ -102,22 +131,124 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      showToast(t("publicRunner.multiChoiceRequired"), "error");
-      return false;
+      if (currentBlock.required) {
+        showToast(t("publicRunner.multiChoiceRequired"), "error");
+        return false;
+      }
+
+      return true;
+    }
+
+    if (currentBlock.type === "NUMBER") {
+      const textValue = typeof value === "string" ? value.trim() : "";
+      const config = currentBlock.config as NumberBlockConfig;
+
+      if (!textValue) {
+        if (!currentBlock.required) {
+          return true;
+        }
+
+        showToast(t("publicRunner.answerRequired"), "error");
+        return false;
+      }
+
+      const numericValue = parseNumericAnswer(textValue);
+
+      if (numericValue === null) {
+        showToast(t("publicRunner.invalidNumber"), "error");
+        return false;
+      }
+
+      if (!config.allowFloat && !Number.isInteger(numericValue)) {
+        showToast(t("publicRunner.wholeNumberRequired"), "error");
+        return false;
+      }
+
+      if (config.min !== null && numericValue < config.min) {
+        showToast(t("publicRunner.numberAtLeast", { min: config.min }), "error");
+        return false;
+      }
+
+      if (config.max !== null && numericValue > config.max) {
+        showToast(t("publicRunner.numberAtMost", { max: config.max }), "error");
+        return false;
+      }
+
+      return true;
+    }
+
+    if (currentBlock.type === "LINK") {
+      const textValue = typeof value === "string" ? value.trim() : "";
+
+      if (!textValue) {
+        if (!currentBlock.required) {
+          return true;
+        }
+
+        showToast(t("publicRunner.answerRequired"), "error");
+        return false;
+      }
+
+      if (!isValidLinkAnswer(textValue)) {
+        showToast(t("publicRunner.invalidLink"), "error");
+        return false;
+      }
+
+      return true;
+    }
+
+    if (currentBlock.type === "DATE") {
+      const textValue = typeof value === "string" ? value.trim() : "";
+
+      if (!textValue) {
+        if (!currentBlock.required) {
+          return true;
+        }
+
+        showToast(t("publicRunner.answerRequired"), "error");
+        return false;
+      }
+
+      if (!isValidDateAnswer(textValue)) {
+        showToast(t("publicRunner.invalidDate"), "error");
+        return false;
+      }
+
+      return true;
+    }
+
+    if (currentBlock.type === "AGREEMENT") {
+      const textValue = typeof value === "string" ? value.trim() : "";
+
+      if (!textValue) {
+        if (!currentBlock.required) {
+          return true;
+        }
+
+        showToast(t("publicRunner.agreementRequired"), "error");
+        return false;
+      }
+
+      if (currentBlock.required && textValue !== AGREEMENT_ANSWER_VALUES.AGREED) {
+        showToast(t("publicRunner.agreementRequired"), "error");
+        return false;
+      }
+
+      return textValue === AGREEMENT_ANSWER_VALUES.AGREED || textValue === AGREEMENT_ANSWER_VALUES.NOT_AGREED;
     }
 
     return true;
   }
 
-  async function handleContinue() {
-    if (!validateStep()) {
+  async function handleContinue(answerSet: Record<string, string | string[]> = answers) {
+    if (!validateStep(answerSet)) {
       return;
     }
 
     if (step === form.blocks.length - 1) {
       try {
         setIsSubmitting(true);
-        await submitResponse(form.slug, answers);
+        await submitResponse(form.slug, answerSet);
         setIsComplete(true);
       } catch (caughtError) {
         showToast(caughtError instanceof Error ? caughtError.message : t("publicRunner.submitError"), "error");
@@ -135,17 +266,82 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     setStep((current) => Math.max(0, current - 1));
   }
 
+  function handleAdvanceKeyDown(
+    event: ReactKeyboardEvent<HTMLElement>,
+    options?: { allowShiftEnter?: boolean },
+  ) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || isSubmitting) {
+      return;
+    }
+
+    if (options?.allowShiftEnter && event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    void handleContinue();
+  }
+
+  function handleChoiceEnter(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    nextAnswer: string | string[],
+  ) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || isSubmitting) {
+      return;
+    }
+
+    event.preventDefault();
+    const nextAnswers = {
+      ...answers,
+      [currentBlock.id]: nextAnswer,
+    };
+    setAnswers(nextAnswers);
+    void handleContinue(nextAnswers);
+  }
+
+  useEffect(() => {
+    if (isComplete || isSubmitting || !currentBlock) {
+      return;
+    }
+
+    function handleWindowKeyDown(event: KeyboardEvent) {
+      if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "BUTTON" ||
+          target.tagName === "SELECT")
+      ) {
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleContinue();
+        return;
+      }
+
+      if (event.key === "Escape" && step > 0) {
+        event.preventDefault();
+        handleBack();
+      }
+    }
+
+    window.addEventListener("keydown", handleWindowKeyDown);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+  }, [currentBlock, handleContinue, isComplete, isSubmitting, step]);
+
   if (isComplete) {
     return (
       <Card className="w-full max-w-3xl overflow-hidden">
         <div className="border-b border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-6 py-6 sm:px-8">
-          <div className="flex items-center gap-4">
-            <Image src="/sproute.png" alt={appName} width={44} height={44} priority className="size-11" />
-            <div>
-              <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.responseReceived")}</p>
-              <p className="mt-1 text-sm text-[var(--muted)]">{appName}</p>
-            </div>
-          </div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.responseReceived")}</p>
         </div>
         <div className="px-6 py-8 sm:px-8 sm:py-10">
           <h2 className="max-w-2xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">{completionTitle}</h2>
@@ -171,20 +367,13 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <Card className="w-full max-w-5xl overflow-hidden">
-      <div className="border-b border-[color:var(--line)] px-6 py-6 sm:px-8 sm:py-7">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <div className="border-b border-[color:var(--line)] px-5 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-4">
-              <Image src="/sproute.png" alt={appName} width={44} height={44} priority className="size-11 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase text-[var(--accent)]">{appName}</p>
-                <h1 className="mt-2 font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">{form.title}</h1>
-              </div>
-            </div>
-            {form.description ? <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--muted)]">{form.description}</p> : null}
+            <h1 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">{form.title}</h1>
           </div>
 
-          <div className="w-full max-w-sm shrink-0">
+          <div className="w-full max-w-xs shrink-0">
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
                 {t("publicRunner.step", { current: step + 1, total: form.blocks.length })}
@@ -202,7 +391,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         </div>
       </div>
 
-      <div className="px-6 py-8 sm:px-8 sm:py-10">
+      <div className="px-5 py-6 sm:px-6 sm:py-7">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentBlock.id}
@@ -210,21 +399,18 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.24, ease: "easeOut" }}
-            className="min-h-[360px]"
+            className="min-h-[280px]"
           >
             {currentBlock.type === "TEXT" ? (
-              <div className="flex min-h-[320px] flex-col justify-center rounded-[18px] bg-[var(--bg-strong)]/75 px-6 py-8 sm:px-8">
-                <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.context")}</p>
-                <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
+              <div className="flex min-h-[240px] flex-col justify-center py-4">
+                <h2 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
                   {currentBlock.title || t("publicRunner.defaultTextTitle")}
                 </h2>
-                {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{currentBlock.description}</p> : null}
-                <p className="mt-6 max-w-3xl text-lg leading-9 text-[var(--ink)]/82">{(currentBlock.config as TextBlockConfig).body}</p>
+                <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[var(--ink)]/82">{(currentBlock.config as TextBlockConfig).body}</p>
               </div>
             ) : (
-              <div className="flex min-h-[320px] flex-col justify-center">
+              <div className="flex min-h-[240px] flex-col justify-center py-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("publicRunner.question")}</p>
                   {currentBlock.required ? (
                     <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
                       {t("publicRunner.required")}
@@ -232,12 +418,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   ) : null}
                 </div>
 
-                <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
+                <h2 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
                   {currentBlock.title}
                 </h2>
-                {currentBlock.description ? <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">{currentBlock.description}</p> : null}
+                {currentBlock.description ? <p className="mt-3 text-base leading-7 text-[var(--muted)]">{currentBlock.description}</p> : null}
 
-                <div className="mt-10 space-y-4">
+                <div className="mt-6 space-y-3">
                   {currentBlock.type === "SINGLE_CHOICE" ? (
                     <p className="text-sm font-medium text-[var(--muted)]">{t("publicRunner.chooseOne")}</p>
                   ) : null}
@@ -247,21 +433,62 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   ) : null}
                   {currentBlock.type === "SHORT_TEXT" ? (
                     <Input
-                      className="h-14 text-base placeholder:text-[var(--muted)]/65"
+                      className="h-12 text-base placeholder:text-[var(--muted)]/65"
                       placeholder={(currentBlock.config as ShortTextBlockConfig).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
+                      onKeyDown={handleAdvanceKeyDown}
                     />
                   ) : null}
 
                   {currentBlock.type === "LONG_TEXT" ? (
                     <Textarea
-                      className="min-h-[180px] text-base placeholder:text-[var(--muted)]/65"
+                      className="min-h-[140px] text-base placeholder:text-[var(--muted)]/65"
                       placeholder={(currentBlock.config as LongTextBlockConfig).placeholder}
                       value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
                       onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
+                      onKeyDown={(event) => handleAdvanceKeyDown(event, { allowShiftEnter: true })}
                     />
                   ) : null}
+
+                  {currentBlock.type === "NUMBER" ? (
+                    <Input
+                      type="number"
+                      step={(currentBlock.config as NumberBlockConfig).allowFloat ? "any" : "1"}
+                      className="h-12 text-base placeholder:text-[var(--muted)]/65"
+                      placeholder={(currentBlock.config as NumberBlockConfig).placeholder}
+                      value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
+                      onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
+                      onKeyDown={handleAdvanceKeyDown}
+                    />
+                  ) : null}
+
+                  {currentBlock.type === "LINK" ? (
+                    <Input
+                      type="url"
+                      className="h-12 text-base placeholder:text-[var(--muted)]/65"
+                      placeholder={(currentBlock.config as LinkBlockConfig).placeholder}
+                      value={typeof answers[currentBlock.id] === "string" ? answers[currentBlock.id] : ""}
+                      onChange={(event) => setAnswer(currentBlock.id, event.target.value)}
+                      onKeyDown={handleAdvanceKeyDown}
+                    />
+                  ) : null}
+
+                  {currentBlock.type === "DATE"
+                    ? (() => {
+                        const currentValue = answers[currentBlock.id];
+
+                        return (
+                          <DatePickerInput
+                            className="text-base"
+                            value={typeof currentValue === "string" ? currentValue : ""}
+                            onChange={(value) => setAnswer(currentBlock.id, value)}
+                            onKeyDown={handleAdvanceKeyDown}
+                            openCalendarLabel={t("publicRunner.openCalendar")}
+                          />
+                        );
+                      })()
+                    : null}
 
                   {currentBlock.type === "SINGLE_CHOICE" ? (
                     <div className="grid gap-3">
@@ -273,12 +500,13 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             key={option}
                             type="button"
                             className={cn(
-                              "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
+                              "flex items-center justify-between rounded-[16px] border px-4 py-3 text-left transition",
                               selected
                                 ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                 : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                             )}
                             onClick={() => setAnswer(currentBlock.id, option)}
+                            onKeyDown={(event) => handleChoiceEnter(event, option)}
                           >
                             <div className="flex items-center gap-3">
                               <span className="inline-flex size-5 items-center justify-center rounded-full border border-[color:var(--line)] bg-[var(--surface)]">
@@ -304,7 +532,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             key={option}
                             type="button"
                             className={cn(
-                              "flex items-center justify-between rounded-[18px] border px-5 py-4 text-left transition",
+                              "flex items-center justify-between rounded-[16px] border px-4 py-3 text-left transition",
                               selected
                                 ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                 : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -315,6 +543,14 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 : [...currentValues, option];
                               setAnswer(currentBlock.id, nextValues);
                             }}
+                            onKeyDown={(event) =>
+                              handleChoiceEnter(
+                                event,
+                                selected
+                                  ? currentValues.filter((value) => value !== option)
+                                  : [...currentValues, option],
+                              )
+                            }
                           >
                             <div className="flex items-center gap-3">
                               <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
@@ -327,21 +563,58 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                       })}
                     </div>
                   ) : null}
+
+                  {currentBlock.type === "AGREEMENT" ? (
+                    <div className="grid gap-3">
+                      {(() => {
+                        const selected = answers[currentBlock.id] === AGREEMENT_ANSWER_VALUES.AGREED;
+                        const label = "label" in currentBlock.config ? currentBlock.config.label : t("publicRunner.agree");
+                        const nextValue = selected ? "" : AGREEMENT_ANSWER_VALUES.AGREED;
+
+                        return (
+                          <button
+                            type="button"
+                            className={cn(
+                              "flex items-center justify-between rounded-[16px] border px-4 py-3 text-left transition",
+                              selected
+                                ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
+                                : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
+                            )}
+                            onClick={() => setAnswer(currentBlock.id, nextValue)}
+                            onKeyDown={(event) => handleChoiceEnter(event, nextValue)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
+                                {selected ? <Check className="size-3.5 text-[var(--accent)]" /> : <Square className="size-3.5 text-[var(--muted)]/55" />}
+                              </span>
+                              <span>{label}</span>
+                            </div>
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}
           </motion.div>
         </AnimatePresence>
 
-        <div className="mt-8 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-4">
           <Button variant="secondary" onClick={handleBack} disabled={step === 0 || isSubmitting}>
-            <ArrowLeft className="size-4" />
             {t("publicRunner.back")}
+            <span className="ml-1 inline-flex h-5 items-center rounded-md border border-current/20 bg-black/10 px-1.5 text-[10px] font-medium opacity-90 dark:bg-white/10">
+              Esc
+            </span>
           </Button>
-          <Button onClick={handleContinue} disabled={isSubmitting}>
+          <Button onClick={() => void handleContinue()} disabled={isSubmitting}>
             {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
             {step === form.blocks.length - 1 ? t("publicRunner.submit") : t("publicRunner.continue")}
-            {!isSubmitting ? <ArrowRight className="size-4" /> : null}
+            {!isSubmitting ? (
+              <span className="ml-1 inline-flex h-5 items-center gap-1 rounded-md border border-current/20 bg-black/10 px-1.5 text-[10px] opacity-90 dark:bg-white/10">
+                <CornerDownLeft className="size-3" />
+              </span>
+            ) : null}
           </Button>
         </div>
       </div>

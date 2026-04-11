@@ -1,6 +1,6 @@
 import { utils, write } from "xlsx";
 
-import { isQuestionBlock, serializeBlock, type SerializedBlock } from "@/lib/blocks";
+import { AGREEMENT_ANSWER_VALUES, isQuestionBlock, serializeBlock, type SerializedBlock } from "@/lib/blocks";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
@@ -32,6 +32,8 @@ const exportCopyByLocale: Record<AppLocale, {
   metadataColumns: ResponseExportColumn[];
   questionFallback: string;
   sheetName: string;
+  agreed: string;
+  notAgreed: string;
 }> = {
   en: {
     metadataColumns: [
@@ -41,6 +43,8 @@ const exportCopyByLocale: Record<AppLocale, {
     ],
     questionFallback: "Question {number}",
     sheetName: "Responses",
+    agreed: "Agree",
+    notAgreed: "Do not agree",
   },
   ru: {
     metadataColumns: [
@@ -50,6 +54,8 @@ const exportCopyByLocale: Record<AppLocale, {
     ],
     questionFallback: "Вопрос {number}",
     sheetName: "Ответы",
+    agreed: "Согласен",
+    notAgreed: "Не согласен",
   },
 };
 
@@ -97,12 +103,21 @@ function createQuestionColumnLabel(block: SerializedBlock, questionIndex: number
   return occurrence === 1 ? baseLabel : `${baseLabel} (${occurrence})`;
 }
 
-export function serializeExportAnswer(value: ExportAnswerValue) {
+export function serializeExportAnswer(value: ExportAnswerValue, block?: SerializedBlock, locale: AppLocale = DEFAULT_LOCALE) {
   if (Array.isArray(value)) {
     return value.join(" | ");
   }
 
-  return typeof value === "string" ? value : "";
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  if (block?.type === "AGREEMENT") {
+    const copy = getExportCopy(locale);
+    return value === AGREEMENT_ANSWER_VALUES.AGREED ? copy.agreed : copy.notAgreed;
+  }
+
+  return value;
 }
 
 export function buildResponseExportDataset(form: OwnedFormExportRecord, locale: AppLocale = DEFAULT_LOCALE): ResponseExportDataset {
@@ -118,6 +133,7 @@ export function buildResponseExportDataset(form: OwnedFormExportRecord, locale: 
       blockId: block.id,
     })),
   ];
+  const questionBlocksById = new Map(questionBlocks.map((block) => [block.id, block]));
 
   const rows = form.responses.map((response, index) => {
     const answers =
@@ -141,7 +157,7 @@ export function buildResponseExportDataset(form: OwnedFormExportRecord, locale: 
         return accumulator;
       }
 
-      accumulator[column.key] = serializeExportAnswer(answers[column.key]);
+      accumulator[column.key] = serializeExportAnswer(answers[column.key], questionBlocksById.get(column.key), locale);
       return accumulator;
     }, {});
 

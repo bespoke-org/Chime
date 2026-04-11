@@ -18,6 +18,10 @@ enum FormBlockType {
   LONG_TEXT
   SINGLE_CHOICE
   MULTIPLE_CHOICE
+  NUMBER
+  LINK
+  AGREEMENT
+  DATE
 }
 
 enum OrganizationMemberRole {
@@ -88,8 +92,8 @@ model Form {
   organizationId      String?
   title               String        @default("Untitled form")
   description         String        @default("")
-  completionTitle     String        @default("Thanks for taking the time.")
-  completionMessage   String        @default("Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.")
+  completionTitle     String        @default("")
+  completionMessage   String        @default("")
   completionLinkLabel String?
   completionLinkUrl   String?
   slug                String        @unique

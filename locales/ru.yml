@@ -101,7 +101,6 @@ dashboard:
   noFormsDescription: Новые формы создаются как черновики, чтобы вы могли отредактировать их перед публикацией.
   viewGrid: Сетка
   viewTable: Таблица
-  noDescription: Описание пока не добавлено.
   shareUrl: Публичный URL
   titleColumn: Название
   statusColumn: Статус
@@ -118,7 +117,6 @@ builder:
   newBlock: Новый блок
   settingsTitle: Настройки
   titleField: Название
-  descriptionField: Описание
   shareSlug: Адрес публичного URL
   afterSubmission: После отправки
   afterSubmissionDescription: Настройте то, что увидят респонденты после завершения формы, включая необязательную ссылку на следующий шаг.
@@ -138,9 +136,17 @@ builder:
   saveFormSettings: Сохранить настройки формы
   dragBlockAria: "Перетащить: {label}"
   prompt: Вопрос
+  headingField: Заголовок
   supportText: Дополнительный текст
   bodyCopy: Основной текст
   placeholder: Плейсхолдер
+  allowFloats: Разрешить дробные числа
+  minimumValue: Минимальное значение
+  maximumValue: Максимальное значение
+  regexValidation: Проверять регулярным выражением
+  regexPattern: Regex-шаблон
+  regexHelp: Используйте собственный regex, чтобы ограничить формат ответа в этом текстовом вопросе.
+  checkboxLabel: Текст галочки
   choiceOptions: Варианты ответа
   addOption: Добавить вариант
   option: "Вариант {number}"
@@ -173,6 +179,10 @@ blocks:
     LONG_TEXT: Длинный текст
     SINGLE_CHOICE: Один вариант
     MULTIPLE_CHOICE: Несколько вариантов
+    NUMBER: Число
+    LINK: Ссылка
+    AGREEMENT: Согласие
+    DATE: Дата
 publicRunner:
   responseReceived: Ответ получен
   defaultCompletionTitle: Спасибо, что уделили время.
@@ -180,13 +190,23 @@ publicRunner:
   step: "Шаг {current} из {total}"
   context: Контекст
   defaultTextTitle: Сделайте паузу перед следующим шагом.
-  question: Вопрос
   required: Обязательно
   chooseOne: Выберите один вариант.
   selectAll: Выберите все подходящие варианты.
   answerRequired: Пожалуйста, ответьте перед продолжением.
   singleChoiceRequired: Выберите один вариант перед продолжением.
   multiChoiceRequired: Выберите хотя бы один вариант перед продолжением.
+  invalidNumber: Введите корректное число перед продолжением.
+  wholeNumberRequired: Введите целое число перед продолжением.
+  numberAtLeast: "Введите число не меньше {min}."
+  numberAtMost: "Введите число не больше {max}."
+  invalidLink: Введите корректную ссылку перед продолжением.
+  invalidDate: Введите корректную дату перед продолжением.
+  openCalendar: Открыть календарь
+  agreementRequired: Чтобы продолжить, нужно согласиться.
+  invalidTextFormat: Используйте ожидаемый формат ответа перед продолжением.
+  agree: Согласен
+  doNotAgree: Не согласен
   submitError: Не удалось отправить ответ.
   back: Назад
   continue: Далее

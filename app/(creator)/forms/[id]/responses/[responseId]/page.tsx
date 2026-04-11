@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AGREEMENT_ANSWER_VALUES } from "@/lib/blocks";
 import { getServerAuthSession } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
-import { formatDate } from "@/lib/utils";
+import { formatCalendarDate, formatDate } from "@/lib/utils";
 
 export default async function ResponseDetailPage({
   params,
@@ -80,7 +81,19 @@ export default async function ResponseDetailPage({
                     ))}
                   </div>
                 ) : answer ? (
-                  <p className="whitespace-pre-wrap text-base leading-8">{answer}</p>
+                  block.type === "LINK" ? (
+                    <Link href={answer} target="_blank" rel="noreferrer" className="break-all text-base leading-8 text-[var(--accent)] hover:underline">
+                      {answer}
+                    </Link>
+                  ) : block.type === "DATE" ? (
+                    <p className="whitespace-pre-wrap text-base leading-8">{formatCalendarDate(answer, locale)}</p>
+                  ) : block.type === "AGREEMENT" ? (
+                    <p className="whitespace-pre-wrap text-base leading-8">
+                      {answer === AGREEMENT_ANSWER_VALUES.AGREED ? t("publicRunner.agree") : t("publicRunner.doNotAgree")}
+                    </p>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-base leading-8">{answer}</p>
+                  )
                 ) : (
                   <p className="text-sm text-[var(--muted)]">{t("responseDetail.noAnswer")}</p>
                 )}

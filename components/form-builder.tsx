@@ -17,7 +17,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  BadgeCheck,
+  CalendarDays,
   GripVertical,
+  Hash,
+  Link2,
   LoaderCircle,
   Plus,
   Radio,
@@ -56,9 +60,23 @@ const blockIcons: Record<BlockType, typeof Type> = {
   LONG_TEXT: Rows3,
   SINGLE_CHOICE: Radio,
   MULTIPLE_CHOICE: SquareCheck,
+  NUMBER: Hash,
+  LINK: Link2,
+  AGREEMENT: BadgeCheck,
+  DATE: CalendarDays,
 };
 
-const blockCreationOrder: BlockType[] = ["TEXT", "SHORT_TEXT", "LONG_TEXT", "SINGLE_CHOICE", "MULTIPLE_CHOICE"];
+const blockCreationOrder: BlockType[] = [
+  "TEXT",
+  "SHORT_TEXT",
+  "LONG_TEXT",
+  "NUMBER",
+  "LINK",
+  "DATE",
+  "SINGLE_CHOICE",
+  "MULTIPLE_CHOICE",
+  "AGREEMENT",
+];
 
 function createChoiceOptionDrafts(options: string[]): ChoiceOptionDraft[] {
   return options.map((value) => ({ id: crypto.randomUUID(), value }));
@@ -201,7 +219,6 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   const [metadataDraft, setMetadataDraft] = useState<FormMetadataDraft>({
     title: initialForm.title,
-    description: initialForm.description,
     completionTitle: initialForm.completionTitle,
     completionMessage: initialForm.completionMessage,
     completionLinkLabel: initialForm.completionLinkLabel ?? "",
@@ -231,14 +248,13 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   useEffect(() => {
     setMetadataDraft({
       title: form.title,
-      description: form.description,
       completionTitle: form.completionTitle,
       completionMessage: form.completionMessage,
       completionLinkLabel: form.completionLinkLabel ?? "",
       completionLinkUrl: form.completionLinkUrl ?? "",
       slug: form.slug,
     });
-  }, [form.title, form.description, form.completionTitle, form.completionMessage, form.completionLinkLabel, form.completionLinkUrl, form.slug]);
+  }, [form.title, form.completionTitle, form.completionMessage, form.completionLinkLabel, form.completionLinkUrl, form.slug]);
 
   useEffect(() => {
     setBlockDraft(selectedBlock);

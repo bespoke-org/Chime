@@ -22,8 +22,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   blockTypeTranslationKeys,
   isQuestionBlock,
+  type AgreementBlockConfig,
   type BlockConfig,
+  type LinkBlockConfig,
   type LongTextBlockConfig,
+  type NumberBlockConfig,
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
@@ -31,7 +34,6 @@ import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 
 export type FormMetadataDraft = {
   title: string;
-  description: string;
   completionTitle: string;
   completionMessage: string;
   completionLinkLabel: string;
@@ -120,14 +122,6 @@ export function FormSettingsPanel({
           <span className="font-medium text-[var(--ink)]">{t("builder.titleField")}</span>
           <Input value={metadataDraft.title} onChange={(event) => setMetadataDraft((current) => ({ ...current, title: event.target.value }))} />
         </label>
-        <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t("builder.descriptionField")}</span>
-          <Textarea value={metadataDraft.description} onChange={(event) => setMetadataDraft((current) => ({ ...current, description: event.target.value }))} />
-        </label>
-        <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t("builder.shareSlug")}</span>
-          <Input value={metadataDraft.slug} className="font-mono text-[13px]" onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))} />
-        </label>
       </div>
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
@@ -160,24 +154,38 @@ export function FormSettingsPanel({
         </div>
       </div>
 
-      <div className="grid gap-4 border-t border-[color:var(--line)] pt-6 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+      <div className="grid gap-5 border-t border-[color:var(--line)] pt-6">
         <div>
           <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("builder.publicRoute")}</p>
-          <p className="mt-2 truncate font-mono text-[13px] text-[var(--ink)]">{shareHref}</p>
           <p className="mt-1 text-xs text-[var(--muted)]">
             {t("builder.publicRouteHelp")}
           </p>
         </div>
-        <Button variant="secondary" onClick={copyShareLink}>
-          <Copy className="size-4" />
-          {t("builder.copyLink")}
-        </Button>
-        <Link href={shareHref} target="_blank">
-          <Button variant="secondary">
-            <LinkIcon className="size-4" />
-            {t("builder.openRunner")}
-          </Button>
-        </Link>
+        <div className="grid gap-2 text-sm text-[var(--muted)]">
+          <span className="font-medium text-[var(--ink)]">{t("builder.shareSlug")}</span>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-within:border-[color:var(--line-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+              <span className="shrink-0 border-r border-[color:var(--line)] px-4 font-mono text-[13px] text-[var(--muted)]">/f/</span>
+              <input
+                value={metadataDraft.slug}
+                className="h-full w-full min-w-0 bg-transparent px-4 font-mono text-[13px] text-[var(--ink)] outline-none"
+                onChange={(event) => setMetadataDraft((current) => ({ ...current, slug: event.target.value }))}
+              />
+            </div>
+            <div className="flex flex-wrap gap-3 lg:shrink-0">
+              <Button variant="secondary" onClick={copyShareLink}>
+                <Copy className="size-4" />
+                {t("builder.copyLink")}
+              </Button>
+              <Link href={shareHref} target="_blank">
+                <Button variant="secondary">
+                  <LinkIcon className="size-4" />
+                  {t("builder.openRunner")}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
@@ -264,16 +272,23 @@ export function BlockEditorPanel({
   const { t } = useI18n();
   const optionSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-  function syncChoiceOptions(nextOptions: ChoiceOptionDraft[]) {
-    setChoiceOptionsDraft(nextOptions);
+  function updateConfig(patch: Record<string, unknown>) {
     setBlockDraft((current) =>
       current
         ? {
             ...current,
-            config: { options: nextOptions.map((option) => option.value) } as BlockConfig,
+            config: {
+              ...(current.config as Record<string, unknown>),
+              ...patch,
+            } as BlockConfig,
           }
         : current,
     );
+  }
+
+  function syncChoiceOptions(nextOptions: ChoiceOptionDraft[]) {
+    setChoiceOptionsDraft(nextOptions);
+    updateConfig({ options: nextOptions.map((option) => option.value) });
   }
 
   function updateChoiceOption(optionId: string, value: string) {
@@ -324,37 +339,126 @@ export function BlockEditorPanel({
 
       <div className="grid gap-5">
         <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t("builder.prompt")}</span>
+          <span className="font-medium text-[var(--ink)]">{t(blockDraft.type === "TEXT" ? "builder.headingField" : "builder.prompt")}</span>
           <Input value={blockDraft.title} onChange={(event) => setBlockDraft((current) => (current ? { ...current, title: event.target.value } : current))} />
         </label>
-        <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t("builder.supportText")}</span>
-          <Textarea value={blockDraft.description} onChange={(event) => setBlockDraft((current) => (current ? { ...current, description: event.target.value } : current))} />
-        </label>
+
+        {blockDraft.type !== "TEXT" ? (
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">{t("builder.supportText")}</span>
+            <Textarea value={blockDraft.description} onChange={(event) => setBlockDraft((current) => (current ? { ...current, description: event.target.value } : current))} />
+          </label>
+        ) : null}
 
         {blockDraft.type === "TEXT" ? (
           <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">{t("builder.bodyCopy")}</span>
             <Textarea
               value={(blockDraft.config as TextBlockConfig).body}
-              onChange={(event) => setBlockDraft((current) => (current ? { ...current, config: { body: event.target.value } as BlockConfig } : current))}
+              onChange={(event) => updateConfig({ body: event.target.value })}
             />
           </label>
         ) : null}
 
         {(blockDraft.type === "SHORT_TEXT" || blockDraft.type === "LONG_TEXT") && (
+          <>
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]">{t("builder.placeholder")}</span>
+              <Input
+                value={blockDraft.type === "SHORT_TEXT" ? (blockDraft.config as ShortTextBlockConfig).placeholder : (blockDraft.config as LongTextBlockConfig).placeholder}
+                onChange={(event) => updateConfig({ placeholder: event.target.value })}
+              />
+            </label>
+
+            <div className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+              <label className="flex items-center gap-3 text-[var(--ink)]">
+                <input
+                  checked={(blockDraft.config as ShortTextBlockConfig | LongTextBlockConfig).validationRegex !== null}
+                  className="size-4 rounded border-[color:var(--line-strong)]"
+                  type="checkbox"
+                  onChange={(event) => updateConfig({ validationRegex: event.target.checked ? "" : null })}
+                />
+                {t("builder.regexValidation")}
+              </label>
+
+              {(blockDraft.config as ShortTextBlockConfig | LongTextBlockConfig).validationRegex !== null ? (
+                <label className="grid gap-2">
+                  <span className="font-medium text-[var(--ink)]">{t("builder.regexPattern")}</span>
+                  <Input
+                    value={(blockDraft.config as ShortTextBlockConfig | LongTextBlockConfig).validationRegex ?? ""}
+                    placeholder="^[A-Z0-9]+$"
+                    onChange={(event) => updateConfig({ validationRegex: event.target.value })}
+                  />
+                </label>
+              ) : null}
+
+              <p className="text-xs text-[var(--muted)]">{t("builder.regexHelp")}</p>
+            </div>
+          </>
+        )}
+
+        {blockDraft.type === "NUMBER" ? (
+          <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+            <label className="grid gap-2">
+              <span className="font-medium text-[var(--ink)]">{t("builder.placeholder")}</span>
+              <Input
+                value={(blockDraft.config as NumberBlockConfig).placeholder}
+                onChange={(event) => updateConfig({ placeholder: event.target.value })}
+              />
+            </label>
+
+            <label className="flex items-center gap-3 text-[var(--ink)]">
+              <input
+                checked={(blockDraft.config as NumberBlockConfig).allowFloat}
+                className="size-4 rounded border-[color:var(--line-strong)]"
+                type="checkbox"
+                onChange={(event) => updateConfig({ allowFloat: event.target.checked })}
+              />
+              {t("builder.allowFloats")}
+            </label>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">{t("builder.minimumValue")}</span>
+                <Input
+                  type="number"
+                  step={(blockDraft.config as NumberBlockConfig).allowFloat ? "any" : "1"}
+                  value={(blockDraft.config as NumberBlockConfig).min ?? ""}
+                  onChange={(event) => updateConfig({ min: event.target.value === "" ? null : Number(event.target.value) })}
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">{t("builder.maximumValue")}</span>
+                <Input
+                  type="number"
+                  step={(blockDraft.config as NumberBlockConfig).allowFloat ? "any" : "1"}
+                  value={(blockDraft.config as NumberBlockConfig).max ?? ""}
+                  onChange={(event) => updateConfig({ max: event.target.value === "" ? null : Number(event.target.value) })}
+                />
+              </label>
+            </div>
+          </div>
+        ) : null}
+
+        {blockDraft.type === "LINK" ? (
           <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">{t("builder.placeholder")}</span>
             <Input
-              value={blockDraft.type === "SHORT_TEXT" ? (blockDraft.config as ShortTextBlockConfig).placeholder : (blockDraft.config as LongTextBlockConfig).placeholder}
-              onChange={(event) =>
-                setBlockDraft((current) =>
-                  current ? { ...current, config: { placeholder: event.target.value } as BlockConfig } : current,
-                )
-              }
+              value={(blockDraft.config as LinkBlockConfig).placeholder}
+              onChange={(event) => updateConfig({ placeholder: event.target.value })}
             />
           </label>
-        )}
+        ) : null}
+
+        {blockDraft.type === "AGREEMENT" ? (
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">{t("builder.checkboxLabel")}</span>
+            <Input
+              value={(blockDraft.config as AgreementBlockConfig).label}
+              onChange={(event) => updateConfig({ label: event.target.value })}
+            />
+          </label>
+        ) : null}
 
         {(blockDraft.type === "SINGLE_CHOICE" || blockDraft.type === "MULTIPLE_CHOICE") && (
           <div className="grid gap-3 text-sm text-[var(--muted)]">

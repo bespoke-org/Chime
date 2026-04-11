@@ -158,7 +158,6 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
                     <h2 className="font-display text-3xl text-[var(--ink)]">{form.title}</h2>
                     <FormStatusBadge status={form.status} />
                   </div>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">{form.description || t("dashboard.noDescription")}</p>
                 </div>
                 <Link href={`/forms/${form.id}/edit`}>
                   <Button size="sm">{t("dashboard.open")}</Button>
@@ -223,7 +222,6 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
                         <Link href={`/forms/${form.id}/edit`} className="font-medium text-[var(--ink)] transition hover:text-[var(--accent)]">
                           {form.title}
                         </Link>
-                        <p className="mt-1 truncate text-sm text-[var(--muted)]">{form.description || t("dashboard.noDescription")}</p>
                       </div>
                     </td>
                     <td className="px-5 py-4">
