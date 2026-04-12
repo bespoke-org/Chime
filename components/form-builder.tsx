@@ -30,7 +30,6 @@ import {
   TextCursorInput,
   Type,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -42,7 +41,6 @@ import {
   type FormMetadataDraft,
 } from "@/components/form-builder-panels";
 import { useI18n } from "@/components/i18n-provider";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";

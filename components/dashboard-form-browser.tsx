@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, LayoutGrid, Plus, TableProperties } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
 import { useI18n } from "@/components/i18n-provider";
@@ -31,19 +31,12 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
   const { locale, t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const initialView = searchParams.get("view") === "table" ? "table" : "grid";
+  const view: DashboardView = searchParams.get("view") === "table" ? "table" : "grid";
 
-  const [view, setView] = useState<DashboardView>(initialView);
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  useEffect(() => {
-    setView(searchParams.get("view") === "table" ? "table" : "grid");
-  }, [searchParams]);
-
   function setDashboardView(nextView: DashboardView) {
-    setView(nextView);
-
     const nextParams = new URLSearchParams(searchParams.toString());
 
     if (nextView === "grid") {

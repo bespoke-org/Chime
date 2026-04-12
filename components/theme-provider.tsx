@@ -21,17 +21,28 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+function getInitialPreference(): ThemePreference {
+  if (typeof window === "undefined") {
+    return "system";
+  }
+
+  return readStoredThemePreference();
+}
+
+function getInitialResolvedTheme(): ResolvedTheme {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  return resolveTheme(readStoredThemePreference(), window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
+  const [preference, setPreferenceState] = useState<ThemePreference>(getInitialPreference);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(getInitialResolvedTheme);
 
   useEffect(() => {
-    const nextPreference = readStoredThemePreference();
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    setPreferenceState(nextPreference);
-    setResolvedTheme(resolveTheme(nextPreference, mediaQuery.matches));
-    applyThemePreference(nextPreference);
 
     const handleSystemChange = (event: MediaQueryListEvent) => {
       const currentPreference = readStoredThemePreference();
@@ -51,8 +62,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
       const next = readStoredThemePreference();
       setPreferenceState(next);
-      applyThemePreference(next);
       setResolvedTheme(resolveTheme(next, mediaQuery.matches));
+      applyThemePreference(next);
     };
 
     mediaQuery.addEventListener("change", handleSystemChange);
@@ -63,6 +74,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
+
+  useEffect(() => {
+    applyThemePreference(preference);
+  }, [preference]);
 
   function setPreference(nextPreference: ThemePreference) {
     setPreferenceState(nextPreference);

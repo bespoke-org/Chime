@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,11 +22,10 @@ const errorMessages: Record<AppLocale, { eyebrow: string; title: string; descrip
 };
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const [locale, setLocale] = useState<AppLocale>(DEFAULT_LOCALE);
+  const locale: AppLocale = typeof window === "undefined" ? DEFAULT_LOCALE : normalizeLocale(window.navigator.language);
 
   useEffect(() => {
     console.error(error);
-    setLocale(normalizeLocale(window.navigator.language));
   }, [error]);
 
   const copy = errorMessages[locale];

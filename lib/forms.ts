@@ -22,7 +22,6 @@ import {
   serializeBlock,
   type BlockConfig,
   type ChoiceBlockConfig,
-  type LinkBlockConfig,
   type NumberBlockConfig,
   type SerializedBlock,
   type TextAnswerBlockConfig,

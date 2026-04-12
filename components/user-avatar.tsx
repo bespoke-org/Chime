@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { getUserDisplayName, getUserImage, getUserInitials, type UserIdentityLike } from "@/lib/user-identity";
 import { cn } from "@/lib/utils";
@@ -15,11 +15,7 @@ export function UserAvatar({
   initialsClassName?: string;
 }) {
   const image = getUserImage(user);
-  const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [image]);
+  const [failedImage, setFailedImage] = useState<string | null>(null);
 
   const displayName = getUserDisplayName(user);
   const initials = getUserInitials(user);
@@ -33,13 +29,14 @@ export function UserAvatar({
       aria-label={displayName}
       title={displayName}
     >
-      {image && !imageFailed ? (
+      {image && failedImage !== image ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
           alt={displayName}
           className="size-full object-cover"
           referrerPolicy="no-referrer"
-          onError={() => setImageFailed(true)}
+          onError={() => setFailedImage(image)}
         />
       ) : (
         <span className={cn("text-sm font-semibold uppercase tracking-[0.08em]", initialsClassName)}>{initials}</span>

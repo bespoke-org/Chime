@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Circle, CornerDownLeft, LoaderCircle, Square } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -75,16 +75,16 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }));
   }
 
-  function showToast(message: string, variant: ToastData["variant"] = "success") {
+  const showToast = useCallback((message: string, variant: ToastData["variant"] = "success") => {
     const id = crypto.randomUUID();
     setToasts((current) => [...current, { id, message, variant }]);
-  }
+  }, []);
 
-  function dismissToast(id: string) {
+  const dismissToast = useCallback((id: string) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
-  }
+  }, []);
 
-  function validateStep(answerSet: Record<string, string | string[]> = answers) {
+  const validateStep = useCallback((answerSet: Record<string, string | string[]> = answers) => {
     if (!currentBlock || currentBlock.type === "TEXT") {
       return true;
     }
@@ -238,9 +238,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }
 
     return true;
-  }
+  }, [answers, currentBlock, showToast, t]);
 
-  async function handleContinue(answerSet: Record<string, string | string[]> = answers) {
+  const handleContinue = useCallback(async (answerSet: Record<string, string | string[]> = answers) => {
     if (!validateStep(answerSet)) {
       return;
     }
@@ -260,11 +260,11 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }
 
     setStep((current) => current + 1);
-  }
+  }, [answers, form.blocks.length, form.slug, showToast, step, t, validateStep]);
 
-  function handleBack() {
+  const handleBack = useCallback(() => {
     setStep((current) => Math.max(0, current - 1));
-  }
+  }, []);
 
   function handleAdvanceKeyDown(
     event: ReactKeyboardEvent<HTMLElement>,
@@ -335,7 +335,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
-  }, [currentBlock, handleContinue, isComplete, isSubmitting, step]);
+  }, [currentBlock, handleBack, handleContinue, isComplete, isSubmitting, step]);
 
   if (isComplete) {
     return (
