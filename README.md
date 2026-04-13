@@ -1,94 +1,90 @@
 # Lively Forms
 
-Lively Forms is a Typeform-inspired conversational form builder built with Next.js, Auth.js, Prisma, PostgreSQL, Tailwind, Framer Motion, and dnd-kit.
+Lively Forms is a conversational form builder inspired by Typeform. It lets creators build multi-step forms, publish them publicly, collect anonymous responses, and review/export submissions across personal or shared organization workspaces.
+
+## Features
+
+### Form building
+- Master-detail form builder with block reordering
+- Supported block types:
+  - text
+  - short text
+  - long text
+  - single choice
+  - multiple choice
+  - number
+  - link
+  - agreement
+  - date
+- Required questions
+- Type-specific validation:
+  - text regex validation
+  - number min/max and integer-only rules
+  - link validation
+  - date validation
+  - agreement validation
+- Publish / unpublish controls
+- Shareable public form slugs
+- Custom completion title, message, and optional follow-up link
+
+### Branching and flow logic
+- Forward-only branching between later blocks
+- Default next target when no branch rule matches
+- Operator-based conditions by block type:
+  - equals / not equals
+  - is empty / is not empty
+  - contains
+  - contains any
+  - greater / greater-or-equal / less / less-or-equal
+- Builder-side branching validation with publish blockers and advisory warnings
+- Branch-aware public runner with visited-path navigation and recalculated progress
+- Submission validation only for blocks actually visited in the chosen route
+
+### Responses
+- Anonymous public submissions
+- Response list and response detail views
+- Branched response review with visited and skipped route context
+- CSV and XLSX response export
+
+### Workspaces and collaboration
+- Personal workspace
+- Organization workspaces
+- Organization owner administration
+- Invite links for joining organizations
+- Shared form management inside organizations
+
+### Creator experience
+- Google sign-in for creators
+- Dashboard grid and table views with sorting
+- Profile settings for name, avatar, and locale
+- Light / dark / system theme preference
+- Localized UI in English and Russian
 
 ## Stack
 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- shadcn/ui-style local primitives
-- Framer Motion
-- dnd-kit
-- Auth.js (`next-auth`) with Google OAuth for creators
+- Auth.js (`next-auth`) with Google OAuth
 - Prisma + PostgreSQL
+- dnd-kit
+- Framer Motion
+- Bun for package management
 - Podman Compose for local Postgres
 
-## Local setup
-
-### 1. Install dependencies
+## Quick start
 
 ```bash
 bun install
-```
-
-### 2. Start Postgres with Podman
-
-```bash
-bun run db:up
-```
-
-This uses `compose.yaml` and starts a local Postgres container on `localhost:5432`.
-
-### 3. Create local env file
-
-```bash
 cp .env.example .env
-```
-
-Fill in:
-- `AUTH_SECRET`
-- `AUTH_GOOGLE_ID`
-- `AUTH_GOOGLE_SECRET`
-- `NEXTAUTH_URL` (keep `http://localhost:3000` for local dev)
-
-Generate a secret, for example:
-
-```bash
-openssl rand -base64 32
-```
-
-### 4. Configure Google OAuth for local development
-
-Yes — Google OAuth can work locally, but you must create your own OAuth client in Google Cloud and allow localhost.
-
-In Google Cloud Console:
-
-1. Open **APIs & Services → Credentials**
-2. Create an **OAuth 2.0 Client ID**
-3. Choose **Web application**
-4. Add these local settings:
-
-**Authorized JavaScript origins**
-- `http://localhost:3000`
-
-**Authorized redirect URIs**
-- `http://localhost:3000/api/auth/callback/google`
-
-Then copy the generated values into `.env`:
-
-```env
-AUTH_GOOGLE_ID="your-client-id"
-AUTH_GOOGLE_SECRET="your-client-secret"
-```
-
-If these values are missing or wrong, Google will show:
-- `Error 401: invalid_client`
-- `The OAuth client was not found`
-
-### 5. Run Prisma migration
-
-```bash
+bun run db:up
 bun run prisma:migrate
-```
-
-### 6. Start the app
-
-```bash
 bun run dev
 ```
 
 Open `http://localhost:3000`.
+
+You must also configure Google OAuth for local development. See [docs/deployment.md](docs/deployment.md).
 
 ## Useful commands
 
@@ -99,40 +95,20 @@ bun run lint
 bun run db:up
 bun run db:down
 bun run db:logs
+bun run db:reset
 bun run prisma:generate
 bun run prisma:migrate
 bun run prisma:studio
 ```
 
-## Product surfaces
+## Docs
 
-### Creator app
-- `/dashboard`
-- `/forms/[id]/edit`
-- `/forms/[id]/responses`
-- `/forms/[id]/responses/[responseId]`
-
-### Public app
-- `/f/[slug]`
-
-## Current v0 scope
-
-- Creator Google sign-in
-- Owned form dashboard
-- Master-detail builder
-- Block types:
-  - text
-  - short text
-  - long text
-  - single choice
-  - multiple choice
-- Publish / unpublish
-- Anonymous public submissions
-- Responses list and detail views
+- [Development](docs/development.md)
+- [Deployment and environment setup](docs/deployment.md)
 
 ## Notes
 
-- Creator auth is used only for creating, editing, publishing, and reviewing forms.
-- Public respondents do not log in.
+- Creator authentication is only required for building, publishing, and reviewing forms.
+- Public respondents do not sign in.
 - Responses are stored anonymously.
-- Editing a published form updates the live public form immediately in v0.
+- Editing a published form updates the live form immediately.
