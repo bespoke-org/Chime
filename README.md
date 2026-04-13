@@ -1,76 +1,24 @@
-# Lively Forms
+<h1 align="center">
+  <img src="https://codeberg.org/chernigin/lively-forms/raw/branch/main/public/sproute.png" alt="Lively Forms icon" width="64" height="64" align="center">
+  Lively Forms
+</h1>
+
+<p align="center">
+  <a href="https://codeberg.org/chernigin/lively-forms/actions?workflow=ci.yml&actor=0&status=0">
+    <img src="https://codeberg.org/chernigin/lively-forms/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status">
+  </a>
+</p>
 
 Lively Forms is a conversational form builder inspired by Typeform. It lets creators build multi-step forms, publish them publicly, collect anonymous responses, and review/export submissions across personal or shared organization workspaces.
 
 ## Features
 
-### Form building
-
-- Master-detail form builder with block reordering
-- Supported block types:
-  - text
-  - short text
-  - long text
-  - single choice
-  - multiple choice
-  - number
-  - link
-  - agreement
-  - date
-- Required questions
-- Type-specific validation:
-  - text regex validation
-  - number min/max and integer-only rules
-  - link validation
-  - date validation
-  - agreement validation
-- Publish / unpublish controls
-- Shareable public form slugs
-- Custom completion title, message, and optional follow-up link
-
-### Branching and flow logic
-
-- Forward-only branching between later blocks
-- Default next target when no branch rule matches
-- Operator-based conditions by block type:
-  - equals / not equals
-  - is empty / is not empty
-  - contains
-  - contains any
-  - greater / greater-or-equal / less / less-or-equal
-- Builder-side branching validation with publish blockers and advisory warnings
-- Branch-aware public runner with visited-path navigation and recalculated progress
-- Submission validation only for blocks actually visited in the chosen route
-
-### Responses
-
-- Anonymous public submissions
-- Response list and response detail views
-- Branched response review with visited and skipped route context
-- CSV and XLSX response export
-
-### Workspaces and collaboration
-
-- Personal workspace
-- Organization workspaces
-- Organization owner administration
-- Invite links for joining organizations
-- Shared form management inside organizations
-
-### Creator experience
-
-- Google sign-in for creators
-- Dashboard grid and table views with sorting
-- Profile settings for name, avatar, and locale
-- Light / dark / system theme preference
-- Localized UI in English and Russian
-
-## License
-
-Licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
-See [LICENSE](./LICENSE).
-
-Copyright (C) 2026 Michael Chernigin
+- Conversational multi-step form builder with reordering and polished public runner
+- Rich block set for text, choices, numbers, links, agreements, and dates
+- Conditional branching with builder-side validation and branch-aware submissions
+- Anonymous response collection with detailed review and CSV/XLSX export
+- Personal and organization workspaces with shared form management
+- Creator-focused experience with Google sign-in, localization, and theme settings
 
 ## Stack
 
@@ -124,3 +72,10 @@ bun run prisma:studio
 - Public respondents do not sign in.
 - Responses are stored anonymously.
 - Editing a published form updates the live form immediately.
+
+## License
+
+Licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
+See [LICENSE](./LICENSE).
+
+Copyright (C) 2026 Michael Chernigin
