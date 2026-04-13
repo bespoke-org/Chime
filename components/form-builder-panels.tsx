@@ -961,6 +961,9 @@ export function BlockEditorPanel({
                 )
               }
             />
+            <p className="text-xs text-[var(--muted)]">
+              {t("builder.markdownHelp")}
+            </p>
           </label>
         ) : null}
 
@@ -973,6 +976,9 @@ export function BlockEditorPanel({
               value={(blockDraft.config as TextBlockConfig).body}
               onChange={(event) => updateConfig({ body: event.target.value })}
             />
+            <p className="text-xs text-[var(--muted)]">
+              {t("builder.markdownHelp")}
+            </p>
           </label>
         ) : null}
 

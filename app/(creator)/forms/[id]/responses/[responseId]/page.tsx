@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { AGREEMENT_ANSWER_VALUES } from "@/lib/blocks";
 import { getServerAuthSession } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
@@ -145,14 +146,16 @@ export default async function ResponseDetailPage({
                   {block.title || t("responseDetail.contextTitle")}
                 </h2>
                 {block.description ? (
-                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                    {block.description}
-                  </p>
+                  <AuthoredMarkdown
+                    content={block.description}
+                    className="mt-3 text-sm leading-7 text-[var(--muted)]"
+                  />
                 ) : null}
                 {"body" in block.config ? (
-                  <p className="mt-4 text-base leading-8 text-[var(--ink)]/85">
-                    {block.config.body}
-                  </p>
+                  <AuthoredMarkdown
+                    content={block.config.body}
+                    className="mt-4 text-base leading-8 text-[var(--ink)]/85"
+                  />
                 ) : null}
               </Card>
             );
@@ -172,9 +175,10 @@ export default async function ResponseDetailPage({
                 {block.title}
               </h2>
               {block.description ? (
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                  {block.description}
-                </p>
+                <AuthoredMarkdown
+                  content={block.description}
+                  className="mt-3 text-sm leading-7 text-[var(--muted)]"
+                />
               ) : null}
               <div className="mt-6 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
                 {Array.isArray(answer) ? (

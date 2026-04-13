@@ -161,6 +161,7 @@ builder:
   regexValidation: Validate with regex
   regexPattern: Regex pattern
   regexHelp: Use a custom regex to constrain accepted answers for this text question.
+  markdownHelp: Supports basic Markdown
   checkboxLabel: Checkbox label
   choiceOptions: Choice options
   addOption: Add option

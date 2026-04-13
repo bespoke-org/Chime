@@ -8,6 +8,7 @@ import { ResponseExportActions } from "@/components/response-export-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { ScrollHintPanel } from "@/components/ui/scroll-hint-panel";
 import {
   AGREEMENT_ANSWER_VALUES,
@@ -225,9 +226,10 @@ export default async function ResponsesPage({
                 {summary.block.title}
               </h2>
               {summary.block.description ? (
-                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                  {summary.block.description}
-                </p>
+                <AuthoredMarkdown
+                  content={summary.block.description}
+                  className="mt-3 text-sm leading-7 text-[var(--muted)]"
+                />
               ) : null}
 
               <div className="mt-6 flex flex-wrap gap-2">

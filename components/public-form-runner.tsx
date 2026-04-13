@@ -22,6 +22,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { Input } from "@/components/ui/input";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
@@ -572,9 +573,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   <h2 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
                     {currentBlock.title || t("publicRunner.defaultTextTitle")}
                   </h2>
-                  <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[var(--ink)]/82">
-                    {(currentBlock.config as TextBlockConfig).body}
-                  </p>
+                  <AuthoredMarkdown
+                    content={(currentBlock.config as TextBlockConfig).body}
+                    className="mt-4 text-base leading-7 text-[var(--ink)]/82"
+                  />
                 </div>
               ) : (
                 <div className="flex min-h-[240px] flex-col justify-center py-2">
@@ -590,9 +592,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                     {currentBlock.title}
                   </h2>
                   {currentBlock.description ? (
-                    <p className="mt-3 text-base leading-7 text-[var(--muted)]">
-                      {currentBlock.description}
-                    </p>
+                    <AuthoredMarkdown
+                      content={currentBlock.description}
+                      className="mt-3 text-base leading-7 text-[var(--muted)]"
+                    />
                   ) : null}
 
                   <div className="mt-6 space-y-3">

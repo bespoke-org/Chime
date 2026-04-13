@@ -161,6 +161,7 @@ builder:
   regexValidation: Проверять регулярным выражением
   regexPattern: Regex-шаблон
   regexHelp: Используйте собственный regex, чтобы ограничить формат ответа в этом текстовом вопросе.
+  markdownHelp: Поддерживается базовый Markdown
   checkboxLabel: Текст галочки
   choiceOptions: Варианты ответа
   addOption: Добавить вариант
