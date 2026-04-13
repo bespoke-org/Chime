@@ -231,6 +231,7 @@ builder:
     formPublished: Form published
     formDrafted: Form moved back to draft
     copiedShareLink: Copied share link
+    shareUrlTaken: That share URL is already taken.
     deleteFormConfirm: Delete this form permanently? This will also delete all blocks and responses. This action cannot be undone.
     updatedBlockOrder: Updated block order
     reorderError: Could not reorder blocks.

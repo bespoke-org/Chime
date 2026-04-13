@@ -279,14 +279,22 @@ function initialBlocks(
   return getDefaultFormCopy(locale).initialBlocks;
 }
 
-async function ensureUniqueSlug(slug: string, exceptFormId?: string) {
+async function ensureUniqueSlug(
+  slug: string,
+  exceptFormId?: string,
+  locale: AppLocale = DEFAULT_LOCALE,
+) {
   const existing = await db.form.findUnique({
     where: { slug },
     select: { id: true },
   });
 
   if (existing && existing.id !== exceptFormId) {
-    throw new AppError("That share URL is already taken.", 409);
+    const messages = await getMessages(locale);
+    throw new AppError(
+      translate(messages, "builder.toasts.shareUrlTaken"),
+      409,
+    );
   }
 }
 
@@ -887,10 +895,11 @@ export async function updateOwnedFormMetadata(
   userId: string,
   formId: string,
   payload: unknown,
+  locale: AppLocale = DEFAULT_LOCALE,
 ) {
   const parsed = formMetadataSchema.parse(payload);
   await assertAccessibleForm(userId, formId);
-  await ensureUniqueSlug(parsed.slug, formId);
+  await ensureUniqueSlug(parsed.slug, formId, locale);
 
   const form = await db.form.update({
     where: { id: formId },

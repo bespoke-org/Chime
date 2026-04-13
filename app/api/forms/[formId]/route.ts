@@ -21,6 +21,7 @@ export async function PATCH(
       session.user.id,
       formId,
       payload,
+      session.user.locale,
     );
 
     return NextResponse.json({ form });

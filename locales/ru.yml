@@ -231,6 +231,7 @@ builder:
     formPublished: Форма опубликована
     formDrafted: Форма возвращена в черновик
     copiedShareLink: Ссылка скопирована
+    shareUrlTaken: Этот публичный URL уже занят.
     deleteFormConfirm: Удалить эту форму навсегда? Вместе с ней будут удалены все блоки и ответы. Это действие нельзя отменить.
     updatedBlockOrder: Порядок блоков обновлён
     reorderError: Не удалось изменить порядок блоков.
