@@ -4,7 +4,10 @@ import { handleRouteError } from "@/lib/api";
 import { getServerAuthSession } from "@/lib/auth";
 import { reorderOwnedBlocks } from "@/lib/forms";
 
-export async function POST(request: Request, context: { params: Promise<{ formId: string }> }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ formId: string }> },
+) {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {

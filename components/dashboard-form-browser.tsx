@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, LayoutGrid, Plus, TableProperties } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  LayoutGrid,
+  Plus,
+  TableProperties,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
@@ -26,12 +32,19 @@ function compareText(left: string, right: string) {
   return left.localeCompare(right, undefined, { sensitivity: "base" });
 }
 
-export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormListItem[]; workspaceLabel: string }) {
+export function DashboardFormBrowser({
+  forms,
+  workspaceLabel,
+}: {
+  forms: FormListItem[];
+  workspaceLabel: string;
+}) {
   const router = useRouter();
   const { locale, t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const view: DashboardView = searchParams.get("view") === "table" ? "table" : "grid";
+  const view: DashboardView =
+    searchParams.get("view") === "table" ? "table" : "grid";
 
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -46,7 +59,9 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
     }
 
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
   }
 
   const sortedForms = useMemo(() => {
@@ -66,7 +81,9 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
           comparison = left.responseCount - right.responseCount;
           break;
         case "updatedAt":
-          comparison = new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime();
+          comparison =
+            new Date(left.updatedAt).getTime() -
+            new Date(right.updatedAt).getTime();
           break;
       }
 
@@ -87,7 +104,9 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
     }
 
     setSortKey(nextKey);
-    setSortDirection(nextKey === "updatedAt" || nextKey === "responseCount" ? "desc" : "asc");
+    setSortDirection(
+      nextKey === "updatedAt" || nextKey === "responseCount" ? "desc" : "asc",
+    );
   }
 
   function renderSortIcon(key: SortKey) {
@@ -95,15 +114,23 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
       return <ArrowDown className="size-3.5 opacity-35" />;
     }
 
-    return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
+    return sortDirection === "asc" ? (
+      <ArrowUp className="size-3.5" />
+    ) : (
+      <ArrowDown className="size-3.5" />
+    );
   }
 
   return (
     <div className="space-y-8">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
-          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">{workspaceLabel}</h1>
-          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">{t("dashboard.description")}</p>
+          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">
+            {workspaceLabel}
+          </h1>
+          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">
+            {t("dashboard.description")}
+          </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
@@ -112,7 +139,9 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
               onClick={() => setDashboardView("grid")}
               className={cn(
                 "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
-                view === "grid" ? "bg-[var(--ink)] text-[var(--bg)]" : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+                view === "grid"
+                  ? "bg-[var(--ink)] text-[var(--bg)]"
+                  : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
               )}
               aria-pressed={view === "grid"}
             >
@@ -124,7 +153,9 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
               onClick={() => setDashboardView("table")}
               className={cn(
                 "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
-                view === "table" ? "bg-[var(--ink)] text-[var(--bg)]" : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+                view === "table"
+                  ? "bg-[var(--ink)] text-[var(--bg)]"
+                  : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
               )}
               aria-pressed={view === "table"}
             >
@@ -148,7 +179,9 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="font-display text-3xl text-[var(--ink)]">{form.title}</h2>
+                    <h2 className="font-display text-3xl text-[var(--ink)]">
+                      {form.title}
+                    </h2>
                     <FormStatusBadge status={form.status} />
                   </div>
                 </div>
@@ -159,19 +192,26 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
 
               <div className="mt-6 grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("dashboard.shareUrl")}</p>
-                  <p className="mt-2 truncate font-mono text-[13px]">/{form.slug}</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                    {t("dashboard.shareUrl")}
+                  </p>
+                  <p className="mt-2 truncate font-mono text-[13px]">
+                    /{form.slug}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("dashboard.responses")}</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                    {t("dashboard.responses")}
+                  </p>
                   <p className="mt-2">{form.responseCount}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("dashboard.updated")}</p>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                    {t("dashboard.updated")}
+                  </p>
                   <p className="mt-2">{formatDate(form.updatedAt, locale)}</p>
                 </div>
               </div>
-
             </Card>
           ))}
         </section>
@@ -182,25 +222,41 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
               <thead className="bg-[var(--bg-strong)] border-b border-[color:var(--line)] shadow-[inset_0_-1px_0_rgba(23,23,23,0.06)]">
                 <tr className="text-xs uppercase text-[var(--muted)]">
                   <th className="px-5 py-4">
-                    <button type="button" onClick={() => handleSort("title")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("title")}
+                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                    >
                       {t("dashboard.titleColumn")}
                       {renderSortIcon("title")}
                     </button>
                   </th>
                   <th className="px-5 py-4">
-                    <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("status")}
+                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                    >
                       {t("dashboard.statusColumn")}
                       {renderSortIcon("status")}
                     </button>
                   </th>
                   <th className="px-5 py-4">
-                    <button type="button" onClick={() => handleSort("responseCount")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("responseCount")}
+                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                    >
                       {t("dashboard.responses")}
                       {renderSortIcon("responseCount")}
                     </button>
                   </th>
                   <th className="px-5 py-4">
-                    <button type="button" onClick={() => handleSort("updatedAt")} className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("updatedAt")}
+                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                    >
                       {t("dashboard.updated")}
                       {renderSortIcon("updatedAt")}
                     </button>
@@ -212,7 +268,10 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
                   <tr key={form.id} className="align-top">
                     <td className="px-5 py-4">
                       <div className="min-w-[220px]">
-                        <Link href={`/forms/${form.id}/edit`} className="font-medium text-[var(--ink)] transition hover:text-[var(--accent)]">
+                        <Link
+                          href={`/forms/${form.id}/edit`}
+                          className="font-medium text-[var(--ink)] transition hover:text-[var(--accent)]"
+                        >
                           {form.title}
                         </Link>
                       </div>
@@ -220,8 +279,12 @@ export function DashboardFormBrowser({ forms, workspaceLabel }: { forms: FormLis
                     <td className="px-5 py-4">
                       <FormStatusBadge status={form.status} />
                     </td>
-                    <td className="px-5 py-4 text-[var(--muted)]">{form.responseCount}</td>
-                    <td className="px-5 py-4 text-[var(--muted)]">{formatDate(form.updatedAt, locale)}</td>
+                    <td className="px-5 py-4 text-[var(--muted)]">
+                      {form.responseCount}
+                    </td>
+                    <td className="px-5 py-4 text-[var(--muted)]">
+                      {formatDate(form.updatedAt, locale)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

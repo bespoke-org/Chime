@@ -22,9 +22,12 @@ function ToastItem({
   onDismiss: (id: string) => void;
 }) {
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      onDismiss(toast.id);
-    }, toast.duration ?? (toast.variant === "error" ? 5000 : 2600));
+    const timeout = window.setTimeout(
+      () => {
+        onDismiss(toast.id);
+      },
+      toast.duration ?? (toast.variant === "error" ? 5000 : 2600),
+    );
 
     return () => window.clearTimeout(timeout);
   }, [onDismiss, toast.duration, toast.id, toast.variant]);
@@ -55,7 +58,9 @@ function ToastItem({
         onClick={() => onDismiss(toast.id)}
         className={cn(
           "rounded-full p-1 opacity-60 transition hover:opacity-100",
-          toast.variant === "error" ? "hover:bg-[var(--danger-soft)]" : "hover:bg-[var(--accent-soft)]",
+          toast.variant === "error"
+            ? "hover:bg-[var(--danger-soft)]"
+            : "hover:bg-[var(--accent-soft)]",
         )}
         aria-label={t("ui.dismissNotification")}
       >

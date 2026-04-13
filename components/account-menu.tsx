@@ -41,16 +41,30 @@ export function AccountMenu({ user }: { user: UserIdentityLike }) {
         aria-expanded={isOpen}
         aria-label={t("account.openMenuAria")}
       >
-        <UserAvatar user={user} className="size-11" initialsClassName="text-xs" />
+        <UserAvatar
+          user={user}
+          className="size-11"
+          initialsClassName="text-xs"
+        />
       </button>
 
       {isOpen ? (
         <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 min-w-[240px] overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-3 rounded-[12px] px-3 py-3">
-            <UserAvatar user={user} className="size-10" initialsClassName="text-xs" />
+            <UserAvatar
+              user={user}
+              className="size-10"
+              initialsClassName="text-xs"
+            />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[var(--ink)]">{displayName}</p>
-              {user.email ? <p className="truncate text-xs text-[var(--muted)]">{user.email}</p> : null}
+              <p className="truncate text-sm font-semibold text-[var(--ink)]">
+                {displayName}
+              </p>
+              {user.email ? (
+                <p className="truncate text-xs text-[var(--muted)]">
+                  {user.email}
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="mt-1 grid gap-1">
@@ -72,7 +86,11 @@ export function AccountMenu({ user }: { user: UserIdentityLike }) {
                 })
               }
             >
-              {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+              {isPending ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <LogOut className="size-4" />
+              )}
               {t("account.logout")}
             </button>
           </div>

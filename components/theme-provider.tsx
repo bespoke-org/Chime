@@ -34,12 +34,18 @@ function getInitialResolvedTheme(): ResolvedTheme {
     return "light";
   }
 
-  return resolveTheme(readStoredThemePreference(), window.matchMedia("(prefers-color-scheme: dark)").matches);
+  return resolveTheme(
+    readStoredThemePreference(),
+    window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>(getInitialPreference);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(getInitialResolvedTheme);
+  const [preference, setPreferenceState] =
+    useState<ThemePreference>(getInitialPreference);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(
+    getInitialResolvedTheme,
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -51,7 +57,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const nextResolved = applyResolvedTheme(document.documentElement, currentPreference, event.matches);
+      const nextResolved = applyResolvedTheme(
+        document.documentElement,
+        currentPreference,
+        event.matches,
+      );
       setResolvedTheme(nextResolved);
     };
 
@@ -83,7 +93,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setPreferenceState(nextPreference);
     persistThemePreference(nextPreference);
     applyThemePreference(nextPreference);
-    setResolvedTheme(resolveTheme(nextPreference, window.matchMedia("(prefers-color-scheme: dark)").matches));
+    setResolvedTheme(
+      resolveTheme(
+        nextPreference,
+        window.matchMedia("(prefers-color-scheme: dark)").matches,
+      ),
+    );
   }
 
   const value = useMemo(
@@ -91,7 +106,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [preference, resolvedTheme],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useThemePreference() {

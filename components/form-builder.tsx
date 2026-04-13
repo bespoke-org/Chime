@@ -52,7 +52,10 @@ import {
   type BranchRule,
   type ChoiceBlockConfig,
 } from "@/lib/blocks";
-import { analyzeBranchingGraph, getBranchValidationIssueI18n } from "@/lib/branching";
+import {
+  analyzeBranchingGraph,
+  getBranchValidationIssueI18n,
+} from "@/lib/branching";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
@@ -105,7 +108,9 @@ async function fetchJson<T>(url: string, init?: RequestInit) {
     },
   });
 
-  const payload = (await response.json().catch(() => ({}))) as { error?: string } & T;
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+  } & T;
 
   if (!response.ok) {
     throw new Error(payload.error ?? "Request failed.");
@@ -124,12 +129,19 @@ function BlockRowInner({
   dragHandle: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const preview = getBlockPreview(block, t(blockTypeTranslationKeys[block.type]));
+  const preview = getBlockPreview(
+    block,
+    t(blockTypeTranslationKeys[block.type]),
+  );
 
   return (
     <>
       {dragHandle}
-      <button className="min-w-0 flex-1 text-left" type="button" onClick={() => onSelect(block.id)}>
+      <button
+        className="min-w-0 flex-1 text-left"
+        type="button"
+        onClick={() => onSelect(block.id)}
+      >
         <div className="min-w-0 flex-1 text-sm font-medium leading-5 text-[var(--ink)]">
           <span className="block truncate">{preview}</span>
         </div>
@@ -148,9 +160,13 @@ function SortableBlockRow({
   onSelect: (blockId: string) => void;
 }) {
   const { t } = useI18n();
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: block.id });
   const Icon = blockIcons[block.type];
-  const preview = getBlockPreview(block, t(blockTypeTranslationKeys[block.type]));
+  const preview = getBlockPreview(
+    block,
+    t(blockTypeTranslationKeys[block.type]),
+  );
 
   return (
     <div
@@ -228,7 +244,9 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [selection, setSelection] = useState<Selection>(() =>
-    initialForm.blocks[0] ? { kind: "block", blockId: initialForm.blocks[0].id } : { kind: "form" },
+    initialForm.blocks[0]
+      ? { kind: "block", blockId: initialForm.blocks[0].id }
+      : { kind: "form" },
   );
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -248,14 +266,25 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedBlock = useMemo(
-    () => (selection.kind === "block" ? form.blocks.find((block) => block.id === selection.blockId) ?? null : null),
+    () =>
+      selection.kind === "block"
+        ? (form.blocks.find((block) => block.id === selection.blockId) ?? null)
+        : null,
     [form.blocks, selection],
   );
 
-  const [blockDraft, setBlockDraft] = useState<BuilderBlock | null>(selectedBlock);
-  const [choiceOptionsDraft, setChoiceOptionsDraft] = useState<ChoiceOptionDraft[]>(
-    selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
-      ? createChoiceOptionDrafts((selectedBlock.config as ChoiceBlockConfig).options)
+  const [blockDraft, setBlockDraft] = useState<BuilderBlock | null>(
+    selectedBlock,
+  );
+  const [choiceOptionsDraft, setChoiceOptionsDraft] = useState<
+    ChoiceOptionDraft[]
+  >(
+    selectedBlock &&
+      (selectedBlock.type === "SINGLE_CHOICE" ||
+        selectedBlock.type === "MULTIPLE_CHOICE")
+      ? createChoiceOptionDrafts(
+          (selectedBlock.config as ChoiceBlockConfig).options,
+        )
       : [],
   );
   const [branchRulesDraft, setBranchRulesDraft] = useState<BranchRuleDraft[]>(
@@ -265,8 +294,13 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   );
   const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-  const branchingAnalysis = useMemo(() => analyzeBranchingGraph(form.blocks), [form.blocks]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+  const branchingAnalysis = useMemo(
+    () => analyzeBranchingGraph(form.blocks),
+    [form.blocks],
+  );
 
   useEffect(() => {
     setMetadataDraft({
@@ -277,13 +311,24 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       completionLinkUrl: form.completionLinkUrl ?? "",
       slug: form.slug,
     });
-  }, [form.title, form.completionTitle, form.completionMessage, form.completionLinkLabel, form.completionLinkUrl, form.slug]);
+  }, [
+    form.title,
+    form.completionTitle,
+    form.completionMessage,
+    form.completionLinkLabel,
+    form.completionLinkUrl,
+    form.slug,
+  ]);
 
   useEffect(() => {
     setBlockDraft(selectedBlock);
     setChoiceOptionsDraft(
-      selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
-        ? createChoiceOptionDrafts((selectedBlock.config as ChoiceBlockConfig).options)
+      selectedBlock &&
+        (selectedBlock.type === "SINGLE_CHOICE" ||
+          selectedBlock.type === "MULTIPLE_CHOICE")
+        ? createChoiceOptionDrafts(
+            (selectedBlock.config as ChoiceBlockConfig).options,
+          )
         : [],
     );
     setBranchRulesDraft(
@@ -312,7 +357,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [isBlockMenuOpen]);
 
-  function showToast(message: string, variant: ToastData["variant"] = "success") {
+  function showToast(
+    message: string,
+    variant: ToastData["variant"] = "success",
+  ) {
     const id = crypto.randomUUID();
     setToasts((current) => [...current, { id, message, variant }]);
   }
@@ -327,7 +375,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     try {
       await runner();
     } catch (caughtError) {
-      const nextError = caughtError instanceof Error ? caughtError.message : t("builder.toasts.genericError");
+      const nextError =
+        caughtError instanceof Error
+          ? caughtError.message
+          : t("builder.toasts.genericError");
       showToast(nextError, "error");
     } finally {
       setBusy(null);
@@ -336,10 +387,13 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   async function saveMetadata() {
     await withTask("metadata", async () => {
-      const payload = await fetchJson<{ form: BuilderForm }>(`/api/forms/${form.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(metadataDraft),
-      });
+      const payload = await fetchJson<{ form: BuilderForm }>(
+        `/api/forms/${form.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(metadataDraft),
+        },
+      );
 
       setForm(payload.form);
       showToast(t("builder.toasts.savedFormSettings"));
@@ -348,10 +402,13 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   async function addBlock(type: BlockType) {
     await withTask(`add-${type}`, async () => {
-      const payload = await fetchJson<{ block: BuilderBlock }>(`/api/forms/${form.id}/blocks`, {
-        method: "POST",
-        body: JSON.stringify({ type }),
-      });
+      const payload = await fetchJson<{ block: BuilderBlock }>(
+        `/api/forms/${form.id}/blocks`,
+        {
+          method: "POST",
+          body: JSON.stringify({ type }),
+        },
+      );
 
       setForm((current) => ({
         ...current,
@@ -359,7 +416,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       }));
       setSelection({ kind: "block", blockId: payload.block.id });
       setIsBlockMenuOpen(false);
-      showToast(t("builder.toasts.addedBlock", { type: t(blockTypeTranslationKeys[type]) }));
+      showToast(
+        t("builder.toasts.addedBlock", {
+          type: t(blockTypeTranslationKeys[type]),
+        }),
+      );
     });
   }
 
@@ -374,31 +435,37 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         value: rule.value,
         targetBlockId: rule.targetBlockId,
       }));
-      const payload = await fetchJson<{ block: BuilderBlock }>(`/api/forms/${form.id}/blocks/${blockDraft.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          title: blockDraft.title,
-          description: blockDraft.description,
-          required: blockDraft.required,
-          config:
-            blockDraft.type === "SINGLE_CHOICE" || blockDraft.type === "MULTIPLE_CHOICE"
-              ? {
-                  ...blockDraft.config,
-                  options: choiceOptionsDraft.map((option) => option.value),
-                  branchRules: serializedBranchRules,
-                }
-              : isQuestionBlock(blockDraft.type)
+      const payload = await fetchJson<{ block: BuilderBlock }>(
+        `/api/forms/${form.id}/blocks/${blockDraft.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: blockDraft.title,
+            description: blockDraft.description,
+            required: blockDraft.required,
+            config:
+              blockDraft.type === "SINGLE_CHOICE" ||
+              blockDraft.type === "MULTIPLE_CHOICE"
                 ? {
                     ...blockDraft.config,
+                    options: choiceOptionsDraft.map((option) => option.value),
                     branchRules: serializedBranchRules,
                   }
-                : blockDraft.config,
-        }),
-      });
+                : isQuestionBlock(blockDraft.type)
+                  ? {
+                      ...blockDraft.config,
+                      branchRules: serializedBranchRules,
+                    }
+                  : blockDraft.config,
+          }),
+        },
+      );
 
       setForm((current) => ({
         ...current,
-        blocks: current.blocks.map((block) => (block.id === payload.block.id ? payload.block : block)),
+        blocks: current.blocks.map((block) =>
+          block.id === payload.block.id ? payload.block : block,
+        ),
       }));
       showToast(t("builder.toasts.savedBlock"));
     });
@@ -426,13 +493,20 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   async function setPublished(published: boolean) {
     await withTask("publish", async () => {
-      const payload = await fetchJson<{ form: BuilderForm }>(`/api/forms/${form.id}/publish`, {
-        method: "POST",
-        body: JSON.stringify({ published }),
-      });
+      const payload = await fetchJson<{ form: BuilderForm }>(
+        `/api/forms/${form.id}/publish`,
+        {
+          method: "POST",
+          body: JSON.stringify({ published }),
+        },
+      );
 
       setForm(payload.form);
-      showToast(payload.form.status === "PUBLISHED" ? t("builder.toasts.formPublished") : t("builder.toasts.formDrafted"));
+      showToast(
+        payload.form.status === "PUBLISHED"
+          ? t("builder.toasts.formPublished")
+          : t("builder.toasts.formDrafted"),
+      );
       router.refresh();
     });
   }
@@ -474,20 +548,32 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       return;
     }
 
-    const reordered = arrayMove(previous, oldIndex, newIndex).map((block, index) => ({ ...block, position: index }));
+    const reordered = arrayMove(previous, oldIndex, newIndex).map(
+      (block, index) => ({ ...block, position: index }),
+    );
     setForm((current) => ({ ...current, blocks: reordered }));
 
     try {
-      const payload = await fetchJson<{ form: BuilderForm }>(`/api/forms/${form.id}/blocks/reorder`, {
-        method: "POST",
-        body: JSON.stringify({ blockIds: reordered.map((block) => block.id) }),
-      });
+      const payload = await fetchJson<{ form: BuilderForm }>(
+        `/api/forms/${form.id}/blocks/reorder`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            blockIds: reordered.map((block) => block.id),
+          }),
+        },
+      );
 
       setForm(payload.form);
       showToast(t("builder.toasts.updatedBlockOrder"));
     } catch (caughtError) {
       setForm((current) => ({ ...current, blocks: previous }));
-      showToast(caughtError instanceof Error ? caughtError.message : t("builder.toasts.reorderError"), "error");
+      showToast(
+        caughtError instanceof Error
+          ? caughtError.message
+          : t("builder.toasts.reorderError"),
+        "error",
+      );
     }
   }
 
@@ -520,13 +606,26 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
         {branchingAnalysis.blockers.length ? (
           <div className="rounded-[18px] border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-[var(--ink)]">
-            <p className="font-medium">{t("builder.branchingBlockersTitle", { count: branchingAnalysis.blockers.length })}</p>
-            <p className="mt-1 text-[var(--muted)]">{t("builder.branchingBlockersDescription")}</p>
+            <p className="font-medium">
+              {t("builder.branchingBlockersTitle", {
+                count: branchingAnalysis.blockers.length,
+              })}
+            </p>
+            <p className="mt-1 text-[var(--muted)]">
+              {t("builder.branchingBlockersDescription")}
+            </p>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-[var(--muted)]">
               {branchingAnalysis.blockers.slice(0, 5).map((issue, index) => {
-                const issueI18n = getBranchValidationIssueI18n(issue, form.blocks);
+                const issueI18n = getBranchValidationIssueI18n(
+                  issue,
+                  form.blocks,
+                );
                 return (
-                  <li key={`${issue.blockId}-${issue.code}-${issue.ruleIndex ?? index}`}>{t(issueI18n.key, issueI18n.values)}</li>
+                  <li
+                    key={`${issue.blockId}-${issue.code}-${issue.ruleIndex ?? index}`}
+                  >
+                    {t(issueI18n.key, issueI18n.values)}
+                  </li>
                 );
               })}
             </ul>
@@ -535,13 +634,26 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
         {branchingAnalysis.warnings.length ? (
           <div className="rounded-[18px] border border-sky-500/30 bg-sky-500/10 px-4 py-4 text-sm text-[var(--ink)]">
-            <p className="font-medium">{t("builder.branchingWarningsTitle", { count: branchingAnalysis.warnings.length })}</p>
-            <p className="mt-1 text-[var(--muted)]">{t("builder.branchingWarningsDescription")}</p>
+            <p className="font-medium">
+              {t("builder.branchingWarningsTitle", {
+                count: branchingAnalysis.warnings.length,
+              })}
+            </p>
+            <p className="mt-1 text-[var(--muted)]">
+              {t("builder.branchingWarningsDescription")}
+            </p>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-[var(--muted)]">
               {branchingAnalysis.warnings.slice(0, 5).map((issue, index) => {
-                const issueI18n = getBranchValidationIssueI18n(issue, form.blocks);
+                const issueI18n = getBranchValidationIssueI18n(
+                  issue,
+                  form.blocks,
+                );
                 return (
-                  <li key={`${issue.blockId}-${issue.code}-${issue.ruleIndex ?? index}`}>{t(issueI18n.key, issueI18n.values)}</li>
+                  <li
+                    key={`${issue.blockId}-${issue.code}-${issue.ruleIndex ?? index}`}
+                  >
+                    {t(issueI18n.key, issueI18n.values)}
+                  </li>
                 );
               })}
             </ul>
@@ -551,7 +663,9 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-3xl text-[var(--ink)]">{t("builder.blocks")}</h2>
+              <h2 className="font-display text-3xl text-[var(--ink)]">
+                {t("builder.blocks")}
+              </h2>
               <div className="relative" ref={blockMenuRef}>
                 <Button
                   size="sm"
@@ -575,7 +689,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                             className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
                             onClick={() => addBlock(type)}
                           >
-                            {busy === `add-${type}` ? <LoaderCircle className="size-4 animate-spin" /> : <Icon className="size-4" />}
+                            {busy === `add-${type}` ? (
+                              <LoaderCircle className="size-4 animate-spin" />
+                            ) : (
+                              <Icon className="size-4" />
+                            )}
                             {t(blockTypeTranslationKeys[type])}
                           </button>
                         );
@@ -589,14 +707,26 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
             <div className="mt-5 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
               <div className="space-y-1.5">
                 {isDndReady ? (
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={form.blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={form.blocks.map((block) => block.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
                       {form.blocks.map((block) => (
                         <SortableBlockRow
                           key={block.id}
                           block={block}
-                          selected={selection.kind === "block" && selection.blockId === block.id}
-                          onSelect={(blockId) => setSelection({ kind: "block", blockId })}
+                          selected={
+                            selection.kind === "block" &&
+                            selection.blockId === block.id
+                          }
+                          onSelect={(blockId) =>
+                            setSelection({ kind: "block", blockId })
+                          }
                         />
                       ))}
                     </SortableContext>
@@ -606,14 +736,18 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                     <StaticBlockRow
                       key={block.id}
                       block={block}
-                      selected={selection.kind === "block" && selection.blockId === block.id}
-                      onSelect={(blockId) => setSelection({ kind: "block", blockId })}
+                      selected={
+                        selection.kind === "block" &&
+                        selection.blockId === block.id
+                      }
+                      onSelect={(blockId) =>
+                        setSelection({ kind: "block", blockId })
+                      }
                     />
                   ))
                 )}
               </div>
             </div>
-
           </aside>
 
           <section className="min-w-0 border-t border-[color:var(--line)] pt-6 lg:min-h-full lg:border-t-0 lg:pt-0">
@@ -634,7 +768,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 selectedBlockIcon={SelectedBlockIcon}
                 choiceOptionsDraft={choiceOptionsDraft}
                 branchRulesDraft={branchRulesDraft}
-                branchValidationIssues={[...branchingAnalysis.blockers, ...branchingAnalysis.warnings]}
+                branchValidationIssues={[
+                  ...branchingAnalysis.blockers,
+                  ...branchingAnalysis.warnings,
+                ]}
                 setChoiceOptionsDraft={setChoiceOptionsDraft}
                 setBranchRulesDraft={setBranchRulesDraft}
                 setBlockDraft={setBlockDraft}

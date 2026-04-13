@@ -5,7 +5,11 @@ import { getServerAuthSession } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { getOwnedFormForBuilder } from "@/lib/forms";
 
-export default async function EditFormPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditFormPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await getServerAuthSession();
   const { id } = await params;
 

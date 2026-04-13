@@ -6,7 +6,10 @@ export const legacyCompletionDefaults = {
     "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.",
 } as const;
 
-export const completionDefaultsByLocale: Record<AppLocale, { title: string; message: string }> = {
+export const completionDefaultsByLocale: Record<
+  AppLocale,
+  { title: string; message: string }
+> = {
   en: {
     title: "Thanks for taking the time.",
     message:
@@ -19,14 +22,23 @@ export const completionDefaultsByLocale: Record<AppLocale, { title: string; mess
   },
 };
 
-export function getLocalizedCompletionDefaults(locale: AppLocale = DEFAULT_LOCALE) {
-  return completionDefaultsByLocale[locale] ?? completionDefaultsByLocale[DEFAULT_LOCALE];
+export function getLocalizedCompletionDefaults(
+  locale: AppLocale = DEFAULT_LOCALE,
+) {
+  return (
+    completionDefaultsByLocale[locale] ??
+    completionDefaultsByLocale[DEFAULT_LOCALE]
+  );
 }
 
-export function isLegacyDefaultCompletionTitle(value: string | null | undefined) {
+export function isLegacyDefaultCompletionTitle(
+  value: string | null | undefined,
+) {
   return (value ?? "").trim() === legacyCompletionDefaults.title;
 }
 
-export function isLegacyDefaultCompletionMessage(value: string | null | undefined) {
+export function isLegacyDefaultCompletionMessage(
+  value: string | null | undefined,
+) {
   return (value ?? "").trim() === legacyCompletionDefaults.message;
 }

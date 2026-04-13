@@ -1,16 +1,28 @@
 "use client";
 
 import { CalendarIcon } from "lucide-react";
-import { useMemo, useState, type InputHTMLAttributes, type KeyboardEventHandler } from "react";
+import {
+  useMemo,
+  useState,
+  type InputHTMLAttributes,
+  type KeyboardEventHandler,
+} from "react";
 
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { isValidDateAnswer } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 
-type DatePickerInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
+type DatePickerInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange"
+> & {
   value: string;
   onChange: (value: string) => void;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
@@ -33,10 +45,19 @@ function formatDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function DatePickerInput({ className, onChange, onKeyDown, openCalendarLabel, value, ...props }: DatePickerInputProps) {
+export function DatePickerInput({
+  className,
+  onChange,
+  onKeyDown,
+  openCalendarLabel,
+  value,
+  ...props
+}: DatePickerInputProps) {
   const [open, setOpen] = useState(false);
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
-  const [visibleMonth, setVisibleMonth] = useState<Date>(selectedDate ?? new Date());
+  const [visibleMonth, setVisibleMonth] = useState<Date>(
+    selectedDate ?? new Date(),
+  );
 
   return (
     <div className="relative">
@@ -50,7 +71,10 @@ export function DatePickerInput({ className, onChange, onKeyDown, openCalendarLa
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
-        className={cn("h-12 pr-14 text-base tabular-nums placeholder:text-[var(--muted)]/65", className)}
+        className={cn(
+          "h-12 pr-14 text-base tabular-nums placeholder:text-[var(--muted)]/65",
+          className,
+        )}
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>

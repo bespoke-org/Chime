@@ -63,13 +63,19 @@ export function ConfirmDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="font-display text-3xl text-[var(--ink)]">{title}</h2>
-        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{description}</p>
+        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+          {description}
+        </p>
         {actions ?? (
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <Button variant="secondary" onClick={onClose} disabled={pending}>
               {cancelLabel}
             </Button>
-            <Button variant={confirmVariant} onClick={onConfirm} disabled={pending}>
+            <Button
+              variant={confirmVariant}
+              onClick={onConfirm}
+              disabled={pending}
+            >
               {confirmLabel}
             </Button>
           </div>

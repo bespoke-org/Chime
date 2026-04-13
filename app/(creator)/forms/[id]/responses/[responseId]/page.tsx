@@ -32,19 +32,33 @@ export default async function ResponseDetailPage({
     throw error;
   }
 
-  const workspaceLabel = response.workspace.kind === "personal" ? t("workspace.personal") : response.workspace.label;
+  const workspaceLabel =
+    response.workspace.kind === "personal"
+      ? t("workspace.personal")
+      : response.workspace.label;
   const blockTypeLabel = (type: string) => t(`blocks.types.${type}`);
 
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">{t("responseDetail.title", { number: response.submissionNumber, date: formatDate(response.submittedAt, locale) })}</h1>
-          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">{workspaceLabel}</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t("responseDetail.description")}</p>
+          <h1 className="font-display text-4xl text-[var(--ink)]">
+            {t("responseDetail.title", {
+              number: response.submissionNumber,
+              date: formatDate(response.submittedAt, locale),
+            })}
+          </h1>
+          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
+            {workspaceLabel}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("responseDetail.description")}
+          </p>
         </div>
         <Link href={`/forms/${id}/responses`}>
-          <Button variant="secondary">{t("responseDetail.backToResponses")}</Button>
+          <Button variant="secondary">
+            {t("responseDetail.backToResponses")}
+          </Button>
         </Link>
       </section>
 
@@ -54,30 +68,44 @@ export default async function ResponseDetailPage({
         </div>
         <div className="mt-5 grid gap-6 lg:grid-cols-2">
           <div>
-            <h2 className="font-display text-2xl text-[var(--ink)]">{t("responseDetail.visitedPath")}</h2>
+            <h2 className="font-display text-2xl text-[var(--ink)]">
+              {t("responseDetail.visitedPath")}
+            </h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {response.routeBlocks
                 .filter((entry) => entry.status === "visited")
                 .map((entry) => (
-                  <Badge key={entry.block.id} className="bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+                  <Badge
+                    key={entry.block.id}
+                    className="bg-[var(--accent-soft)] text-[var(--accent-ink)]"
+                  >
                     {entry.block.title || blockTypeLabel(entry.block.type)}
                   </Badge>
                 ))}
             </div>
           </div>
           <div>
-            <h2 className="font-display text-2xl text-[var(--ink)]">{t("responseDetail.skippedPath")}</h2>
+            <h2 className="font-display text-2xl text-[var(--ink)]">
+              {t("responseDetail.skippedPath")}
+            </h2>
             <div className="mt-3 flex flex-wrap gap-2">
-              {response.routeBlocks.filter((entry) => entry.status === "skipped").length ? (
+              {response.routeBlocks.filter(
+                (entry) => entry.status === "skipped",
+              ).length ? (
                 response.routeBlocks
                   .filter((entry) => entry.status === "skipped")
                   .map((entry) => (
-                    <Badge key={entry.block.id} className="bg-[var(--surface-strong)] text-[var(--muted)]">
+                    <Badge
+                      key={entry.block.id}
+                      className="bg-[var(--surface-strong)] text-[var(--muted)]"
+                    >
                       {entry.block.title || blockTypeLabel(entry.block.type)}
                     </Badge>
                   ))
               ) : (
-                <p className="text-sm text-[var(--muted)]">{t("responseDetail.nothingSkipped")}</p>
+                <p className="text-sm text-[var(--muted)]">
+                  {t("responseDetail.nothingSkipped")}
+                </p>
               )}
             </div>
           </div>
@@ -90,11 +118,24 @@ export default async function ResponseDetailPage({
 
           if (block.type === "TEXT") {
             return (
-              <Card key={block.id} className="border-dashed bg-[var(--bg-strong)] p-6">
+              <Card
+                key={block.id}
+                className="border-dashed bg-[var(--bg-strong)] p-6"
+              >
                 <Badge>{t("responseDetail.contextBlock")}</Badge>
-                <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">{block.title || t("responseDetail.contextTitle")}</h2>
-                {block.description ? <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{block.description}</p> : null}
-                {"body" in block.config ? <p className="mt-4 text-base leading-8 text-[var(--ink)]/85">{block.config.body}</p> : null}
+                <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">
+                  {block.title || t("responseDetail.contextTitle")}
+                </h2>
+                {block.description ? (
+                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+                    {block.description}
+                  </p>
+                ) : null}
+                {"body" in block.config ? (
+                  <p className="mt-4 text-base leading-8 text-[var(--ink)]/85">
+                    {block.config.body}
+                  </p>
+                ) : null}
               </Card>
             );
           }
@@ -103,35 +144,61 @@ export default async function ResponseDetailPage({
             <Card key={block.id} className="p-6">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge>{blockTypeLabel(block.type)}</Badge>
-                {block.required ? <Badge className="bg-[var(--accent-soft)] text-[var(--accent-ink)]">{t("responseDetail.required")}</Badge> : null}
+                {block.required ? (
+                  <Badge className="bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+                    {t("responseDetail.required")}
+                  </Badge>
+                ) : null}
               </div>
-              <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">{block.title}</h2>
-              {block.description ? <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{block.description}</p> : null}
+              <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">
+                {block.title}
+              </h2>
+              {block.description ? (
+                <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+                  {block.description}
+                </p>
+              ) : null}
               <div className="mt-6 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
                 {Array.isArray(answer) ? (
                   <div className="flex flex-wrap gap-2">
                     {answer.map((value) => (
-                      <Badge key={value} className="bg-[var(--surface-strong)] text-[var(--ink)]">
+                      <Badge
+                        key={value}
+                        className="bg-[var(--surface-strong)] text-[var(--ink)]"
+                      >
                         {value}
                       </Badge>
                     ))}
                   </div>
                 ) : answer ? (
                   block.type === "LINK" ? (
-                    <Link href={answer} target="_blank" rel="noreferrer" className="break-all text-base leading-8 text-[var(--accent)] hover:underline">
+                    <Link
+                      href={answer}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="break-all text-base leading-8 text-[var(--accent)] hover:underline"
+                    >
                       {answer}
                     </Link>
                   ) : block.type === "DATE" ? (
-                    <p className="whitespace-pre-wrap text-base leading-8">{formatCalendarDate(answer, locale)}</p>
+                    <p className="whitespace-pre-wrap text-base leading-8">
+                      {formatCalendarDate(answer, locale)}
+                    </p>
                   ) : block.type === "AGREEMENT" ? (
                     <p className="whitespace-pre-wrap text-base leading-8">
-                      {answer === AGREEMENT_ANSWER_VALUES.AGREED ? t("publicRunner.agree") : t("publicRunner.doNotAgree")}
+                      {answer === AGREEMENT_ANSWER_VALUES.AGREED
+                        ? t("publicRunner.agree")
+                        : t("publicRunner.doNotAgree")}
                     </p>
                   ) : (
-                    <p className="whitespace-pre-wrap text-base leading-8">{answer}</p>
+                    <p className="whitespace-pre-wrap text-base leading-8">
+                      {answer}
+                    </p>
                   )
                 ) : (
-                  <p className="text-sm text-[var(--muted)]">{t("responseDetail.noAnswer")}</p>
+                  <p className="text-sm text-[var(--muted)]">
+                    {t("responseDetail.noAnswer")}
+                  </p>
                 )}
               </div>
             </Card>

@@ -26,7 +26,11 @@ import {
   type SerializedBlock,
   type TextAnswerBlockConfig,
 } from "@/lib/blocks";
-import { getBranchValidationIssueI18n, validateBranchingGraph, resolveNextBlockId } from "@/lib/branching";
+import {
+  getBranchValidationIssueI18n,
+  validateBranchingGraph,
+  resolveNextBlockId,
+} from "@/lib/branching";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
@@ -50,7 +54,11 @@ import {
 import { slugify } from "@/lib/utils";
 import { DEFAULT_LOCALE, translate, type AppLocale } from "@/lib/i18n";
 import { getMessages } from "@/lib/i18n-server";
-import { assertOrganizationMember, workspaceAccessWhere, workspaceFilterWhere } from "@/lib/workspaces";
+import {
+  assertOrganizationMember,
+  workspaceAccessWhere,
+  workspaceFilterWhere,
+} from "@/lib/workspaces";
 
 const FORM_BLOCK_TYPES = {
   TEXT: "TEXT",
@@ -125,7 +133,10 @@ export type {
   ResponseListItem,
 } from "@/lib/form-types";
 
-function toWorkspaceReference(form: { organizationId: string | null; organization: { id: string; name: string } | null }): WorkspaceReference {
+function toWorkspaceReference(form: {
+  organizationId: string | null;
+  organization: { id: string; name: string } | null;
+}): WorkspaceReference {
   if (form.organizationId && form.organization) {
     return {
       kind: "organization",
@@ -172,13 +183,16 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
   };
 }
 
-const defaultFormCopyByLocale: Record<AppLocale, {
-  untitledForm: string;
-  completionTitle: string;
-  completionMessage: string;
-  initialBlocks: Prisma.FormBlockCreateWithoutFormInput[];
-  newBlockTitles: Record<PrismaFormBlockType, string>;
-}> = {
+const defaultFormCopyByLocale: Record<
+  AppLocale,
+  {
+    untitledForm: string;
+    completionTitle: string;
+    completionMessage: string;
+    initialBlocks: Prisma.FormBlockCreateWithoutFormInput[];
+    newBlockTitles: Record<PrismaFormBlockType, string>;
+  }
+> = {
   en: {
     untitledForm: "Untitled form",
     completionTitle: getLocalizedCompletionDefaults("en").title,
@@ -250,10 +264,14 @@ const defaultFormCopyByLocale: Record<AppLocale, {
 };
 
 function getDefaultFormCopy(locale: AppLocale = DEFAULT_LOCALE) {
-  return defaultFormCopyByLocale[locale] ?? defaultFormCopyByLocale[DEFAULT_LOCALE];
+  return (
+    defaultFormCopyByLocale[locale] ?? defaultFormCopyByLocale[DEFAULT_LOCALE]
+  );
 }
 
-function initialBlocks(locale: AppLocale = DEFAULT_LOCALE): Prisma.FormBlockCreateWithoutFormInput[] {
+function initialBlocks(
+  locale: AppLocale = DEFAULT_LOCALE,
+): Prisma.FormBlockCreateWithoutFormInput[] {
   return getDefaultFormCopy(locale).initialBlocks;
 }
 
@@ -313,21 +331,38 @@ function sanitizeOptions(options: string[]) {
     .slice(0, 10);
 }
 
-function normalizeBlockConfig(type: PrismaFormBlockType, value: unknown): BlockConfig {
+function normalizeBlockConfig(
+  type: PrismaFormBlockType,
+  value: unknown,
+): BlockConfig {
   if (isChoiceBlock(type)) {
     const rawOptions =
-      typeof value === "object" && value && "options" in value && Array.isArray(value.options)
-        ? value.options.filter((option): option is string => typeof option === "string")
+      typeof value === "object" &&
+      value &&
+      "options" in value &&
+      Array.isArray(value.options)
+        ? value.options.filter(
+            (option): option is string => typeof option === "string",
+          )
         : [];
     const options = sanitizeOptions(rawOptions);
     const branchRules =
-      typeof value === "object" && value && "branchRules" in value && Array.isArray(value.branchRules)
+      typeof value === "object" &&
+      value &&
+      "branchRules" in value &&
+      Array.isArray(value.branchRules)
         ? value.branchRules
         : undefined;
     const defaultNextBlockId =
-      typeof value === "object" && value && "defaultNextBlockId" in value && typeof value.defaultNextBlockId === "string"
+      typeof value === "object" &&
+      value &&
+      "defaultNextBlockId" in value &&
+      typeof value.defaultNextBlockId === "string"
         ? value.defaultNextBlockId
-        : value && typeof value === "object" && "defaultNextBlockId" in value && value.defaultNextBlockId === null
+        : value &&
+            typeof value === "object" &&
+            "defaultNextBlockId" in value &&
+            value.defaultNextBlockId === null
           ? null
           : undefined;
 
@@ -345,7 +380,10 @@ function getQuestionLabel(block: SerializedBlock) {
   return block.title || "this question";
 }
 
-function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | string[] | undefined {
+function normalizeAnswer(
+  block: SerializedBlock,
+  rawValue: unknown,
+): string | string[] | undefined {
   const config = block.config;
   const questionLabel = getQuestionLabel(block);
 
@@ -366,7 +404,10 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
     }
 
     if (validationRegex && !new RegExp(validationRegex).test(value)) {
-      throw new AppError(`Please use a valid format for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please use a valid format for “${questionLabel}”.`,
+        422,
+      );
     }
 
     return value;
@@ -378,14 +419,20 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
 
     if (!value) {
       if (block.required) {
-        throw new AppError(`Please choose an option for “${questionLabel}”.`, 422);
+        throw new AppError(
+          `Please choose an option for “${questionLabel}”.`,
+          422,
+        );
       }
 
       return undefined;
     }
 
     if (!options.includes(value)) {
-      throw new AppError(`Invalid option submitted for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Invalid option submitted for “${questionLabel}”.`,
+        422,
+      );
     }
 
     return value;
@@ -396,18 +443,26 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
       ? rawValue.filter((value): value is string => typeof value === "string")
       : [];
     const options = (config as ChoiceBlockConfig).options;
-    const uniqueValues = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+    const uniqueValues = [
+      ...new Set(values.map((value) => value.trim()).filter(Boolean)),
+    ];
 
     if (!uniqueValues.length) {
       if (block.required) {
-        throw new AppError(`Please choose at least one option for “${questionLabel}”.`, 422);
+        throw new AppError(
+          `Please choose at least one option for “${questionLabel}”.`,
+          422,
+        );
       }
 
       return undefined;
     }
 
     if (!uniqueValues.every((value) => options.includes(value))) {
-      throw new AppError(`Invalid option submitted for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Invalid option submitted for “${questionLabel}”.`,
+        422,
+      );
     }
 
     return uniqueValues;
@@ -419,7 +474,10 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
 
     if (!value) {
       if (block.required) {
-        throw new AppError(`Please enter a number for “${questionLabel}”.`, 422);
+        throw new AppError(
+          `Please enter a number for “${questionLabel}”.`,
+          422,
+        );
       }
 
       return undefined;
@@ -428,19 +486,31 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
     const numericValue = parseNumericAnswer(value);
 
     if (numericValue === null) {
-      throw new AppError(`Please enter a valid number for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please enter a valid number for “${questionLabel}”.`,
+        422,
+      );
     }
 
     if (!numberConfig.allowFloat && !Number.isInteger(numericValue)) {
-      throw new AppError(`Please enter a whole number for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please enter a whole number for “${questionLabel}”.`,
+        422,
+      );
     }
 
     if (numberConfig.min !== null && numericValue < numberConfig.min) {
-      throw new AppError(`Please enter a number greater than or equal to ${numberConfig.min} for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please enter a number greater than or equal to ${numberConfig.min} for “${questionLabel}”.`,
+        422,
+      );
     }
 
     if (numberConfig.max !== null && numericValue > numberConfig.max) {
-      throw new AppError(`Please enter a number less than or equal to ${numberConfig.max} for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please enter a number less than or equal to ${numberConfig.max} for “${questionLabel}”.`,
+        422,
+      );
     }
 
     return String(numericValue);
@@ -458,7 +528,10 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
     }
 
     if (!isValidLinkAnswer(value)) {
-      throw new AppError(`Please enter a valid link for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please enter a valid link for “${questionLabel}”.`,
+        422,
+      );
     }
 
     return new URL(value).toString();
@@ -476,7 +549,10 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
     }
 
     if (!isValidDateAnswer(value)) {
-      throw new AppError(`Please enter a valid date for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Please enter a valid date for “${questionLabel}”.`,
+        422,
+      );
     }
 
     return value;
@@ -487,14 +563,20 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
 
     if (!value) {
       if (block.required) {
-        throw new AppError(`Agreement is required for “${questionLabel}”.`, 422);
+        throw new AppError(
+          `Agreement is required for “${questionLabel}”.`,
+          422,
+        );
       }
 
       return undefined;
     }
 
     if (!isAgreementAnswerValue(value)) {
-      throw new AppError(`Invalid agreement value submitted for “${questionLabel}”.`, 422);
+      throw new AppError(
+        `Invalid agreement value submitted for “${questionLabel}”.`,
+        422,
+      );
     }
 
     if (block.required && value !== AGREEMENT_ANSWER_VALUES.AGREED) {
@@ -508,7 +590,9 @@ function normalizeAnswer(block: SerializedBlock, rawValue: unknown): string | st
 }
 
 function parseSnapshotBlocks(response: ResponseRecord): SerializedBlock[] {
-  const parsed = z.array(snapshotBlockSchema).safeParse(response.formSnapshotJson);
+  const parsed = z
+    .array(snapshotBlockSchema)
+    .safeParse(response.formSnapshotJson);
 
   if (!parsed.success) {
     return response.form.blocks.map(serializeBlock);
@@ -530,7 +614,10 @@ function parseSnapshotBlocks(response: ResponseRecord): SerializedBlock[] {
     }));
 }
 
-export async function listFormsForWorkspace(userId: string, workspace: ActiveWorkspace): Promise<FormListItem[]> {
+export async function listFormsForWorkspace(
+  userId: string,
+  workspace: ActiveWorkspace,
+): Promise<FormListItem[]> {
   if (workspace.kind === "organization") {
     await assertOrganizationMember(userId, workspace.organizationId);
   }
@@ -567,19 +654,26 @@ export async function listFormsForWorkspace(userId: string, workspace: ActiveWor
   }));
 }
 
-export async function createDraftForm(userId: string, workspace: ActiveWorkspace, locale: AppLocale = DEFAULT_LOCALE) {
+export async function createDraftForm(
+  userId: string,
+  workspace: ActiveWorkspace,
+  locale: AppLocale = DEFAULT_LOCALE,
+) {
   if (workspace.kind === "organization") {
     await assertOrganizationMember(userId, workspace.organizationId);
   }
 
-  const slug = await createUniqueSlug(`untitled-form-${Math.random().toString(36).slice(2, 6)}`);
+  const slug = await createUniqueSlug(
+    `untitled-form-${Math.random().toString(36).slice(2, 6)}`,
+  );
 
   const copy = getDefaultFormCopy(locale);
 
   const form = await db.form.create({
     data: {
       userId,
-      organizationId: workspace.kind === "organization" ? workspace.organizationId : null,
+      organizationId:
+        workspace.kind === "organization" ? workspace.organizationId : null,
       title: copy.untitledForm,
       description: "",
       completionTitle: copy.completionTitle,
@@ -600,7 +694,11 @@ export async function getOwnedFormForBuilder(userId: string, formId: string) {
   return toBuilderForm(form);
 }
 
-export async function updateOwnedFormMetadata(userId: string, formId: string, payload: unknown) {
+export async function updateOwnedFormMetadata(
+  userId: string,
+  formId: string,
+  payload: unknown,
+) {
   const parsed = formMetadataSchema.parse(payload);
   await assertAccessibleForm(userId, formId);
   await ensureUniqueSlug(parsed.slug, formId);
@@ -622,7 +720,12 @@ export async function deleteOwnedForm(userId: string, formId: string) {
   });
 }
 
-export async function setOwnedFormPublished(userId: string, formId: string, payload: unknown, locale: AppLocale = DEFAULT_LOCALE) {
+export async function setOwnedFormPublished(
+  userId: string,
+  formId: string,
+  payload: unknown,
+  locale: AppLocale = DEFAULT_LOCALE,
+) {
   const parsed = publishFormSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
 
@@ -631,12 +734,20 @@ export async function setOwnedFormPublished(userId: string, formId: string, payl
   }
 
   if (parsed.published) {
-    const branchValidationIssues = validateBranchingGraph(form.blocks.map(serializeBlock));
+    const branchValidationIssues = validateBranchingGraph(
+      form.blocks.map(serializeBlock),
+    );
 
     if (branchValidationIssues.length > 0) {
       const messages = await getMessages(locale);
-      const issueI18n = getBranchValidationIssueI18n(branchValidationIssues[0], form.blocks.map(serializeBlock));
-      throw new AppError(translate(messages, issueI18n.key, issueI18n.values), 422);
+      const issueI18n = getBranchValidationIssueI18n(
+        branchValidationIssues[0],
+        form.blocks.map(serializeBlock),
+      );
+      throw new AppError(
+        translate(messages, issueI18n.key, issueI18n.values),
+        422,
+      );
     }
   }
 
@@ -651,7 +762,12 @@ export async function setOwnedFormPublished(userId: string, formId: string, payl
   return toBuilderForm(updated);
 }
 
-export async function addOwnedBlock(userId: string, formId: string, payload: unknown, locale: AppLocale = DEFAULT_LOCALE) {
+export async function addOwnedBlock(
+  userId: string,
+  formId: string,
+  payload: unknown,
+  locale: AppLocale = DEFAULT_LOCALE,
+) {
   const parsed = createBlockSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
   const position = form.blocks.length;
@@ -673,7 +789,12 @@ export async function addOwnedBlock(userId: string, formId: string, payload: unk
   return serializeBlock(created);
 }
 
-export async function updateOwnedBlock(userId: string, formId: string, blockId: string, payload: unknown) {
+export async function updateOwnedBlock(
+  userId: string,
+  formId: string,
+  blockId: string,
+  payload: unknown,
+) {
   const parsed = blockUpdateSchema.parse(payload);
   await assertAccessibleForm(userId, formId);
 
@@ -702,7 +823,11 @@ export async function updateOwnedBlock(userId: string, formId: string, blockId: 
   return serializeBlock(updated);
 }
 
-export async function deleteOwnedBlock(userId: string, formId: string, blockId: string) {
+export async function deleteOwnedBlock(
+  userId: string,
+  formId: string,
+  blockId: string,
+) {
   await assertAccessibleForm(userId, formId);
 
   const block = await db.formBlock.findFirst({
@@ -737,15 +862,25 @@ export async function deleteOwnedBlock(userId: string, formId: string, blockId: 
   });
 }
 
-export async function reorderOwnedBlocks(userId: string, formId: string, payload: unknown) {
+export async function reorderOwnedBlocks(
+  userId: string,
+  formId: string,
+  payload: unknown,
+) {
   const parsed = reorderBlocksSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
 
   const currentIds = form.blocks.map((block) => block.id).sort();
   const nextIds = [...parsed.blockIds].sort();
 
-  if (currentIds.length !== nextIds.length || currentIds.some((id, index) => id !== nextIds[index])) {
-    throw new AppError("Block reorder payload is out of sync with the current form.", 409);
+  if (
+    currentIds.length !== nextIds.length ||
+    currentIds.some((id, index) => id !== nextIds[index])
+  ) {
+    throw new AppError(
+      "Block reorder payload is out of sync with the current form.",
+      409,
+    );
   }
 
   await db.$transaction(
@@ -783,7 +918,9 @@ export async function getPublicFormBySlug(slug: string) {
 }
 
 export async function createAnonymousResponse(slug: string, payload: unknown) {
-  const answersInput = z.record(z.string(), z.union([z.string(), z.array(z.string())])).parse(payload);
+  const answersInput = z
+    .record(z.string(), z.union([z.string(), z.array(z.string())]))
+    .parse(payload);
   const form = await db.form.findFirst({
     where: {
       slug,
@@ -819,7 +956,11 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
       normalizedAnswers[currentBlock.id] = answer;
     }
 
-    const nextBlockId = resolveNextBlockId(blocks, currentBlock.id, normalizedAnswers);
+    const nextBlockId = resolveNextBlockId(
+      blocks,
+      currentBlock.id,
+      normalizedAnswers,
+    );
     currentBlock = nextBlockId ? blocksById.get(nextBlockId) : undefined;
     safetyCounter += 1;
   }
@@ -843,7 +984,10 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
   return response;
 }
 
-export async function listResponsesForOwnedForm(userId: string, formId: string) {
+export async function listResponsesForOwnedForm(
+  userId: string,
+  formId: string,
+) {
   const form = await assertAccessibleForm(userId, formId);
   const responses = await db.response.findMany({
     where: {
@@ -863,8 +1007,11 @@ export async function listResponsesForOwnedForm(userId: string, formId: string) 
         id: response.id,
         submittedAt: response.submittedAt.toISOString(),
         answerCount:
-          typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
-            ? Object.keys(response.answersJson as Record<string, unknown>).length
+          typeof response.answersJson === "object" &&
+          response.answersJson &&
+          !Array.isArray(response.answersJson)
+            ? Object.keys(response.answersJson as Record<string, unknown>)
+                .length
             : 0,
         submissionNumber: index + 1,
       }))
@@ -872,7 +1019,11 @@ export async function listResponsesForOwnedForm(userId: string, formId: string) 
   };
 }
 
-export async function getOwnedResponseDetail(userId: string, formId: string, responseId: string): Promise<ResponseDetail> {
+export async function getOwnedResponseDetail(
+  userId: string,
+  formId: string,
+  responseId: string,
+): Promise<ResponseDetail> {
   await assertAccessibleForm(userId, formId);
 
   const response = await db.response.findFirst({
@@ -934,7 +1085,9 @@ export async function getOwnedResponseDetail(userId: string, formId: string, res
     formTitle: response.form.title,
     workspace: toWorkspaceReference(response.form),
     answers:
-      typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
+      typeof response.answersJson === "object" &&
+      response.answersJson &&
+      !Array.isArray(response.answersJson)
         ? (response.answersJson as Record<string, string | string[]>)
         : {},
     blocks: visitedBlocks,

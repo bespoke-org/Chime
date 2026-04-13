@@ -167,7 +167,7 @@ builder:
   branchOtherwise: Иначе продолжить к
   branchDefaultLinear: Следующему блоку в сохранённом порядке
   branchNoValueNeeded: Для этого оператора значение не требуется.
-  branchingHelp: "Если ни одно правило не совпало, форма использует маршрут по умолчанию. Пример значения: \"{value}\"."
+  branchingHelp: 'Если ни одно правило не совпало, форма использует маршрут по умолчанию. Пример значения: "{value}".'
   branchingNoTargets: Добавьте более поздний блок, прежде чем создавать правила ветвления для этого вопроса.
   dragBranchRuleAria: "Перетащить правило ветвления {number}"
   removeBranchRuleAria: "Удалить правило ветвления {number}"
@@ -240,17 +240,17 @@ blocks:
     DATE: Дата
 branching:
   issueMessages:
-    invalid-target: "Правило в \"{blockLabel}\" ссылается на отсутствующий блок."
-    backward-target: "Правило в \"{blockLabel}\" должно вести только к более позднему блоку."
-    invalid-default-target: "Маршрут по умолчанию в \"{blockLabel}\" ссылается на отсутствующий блок."
-    backward-default-target: "Маршрут по умолчанию в \"{blockLabel}\" должен вести только к более позднему блоку."
-    invalid-condition: "В \"{blockLabel}\" задано некорректное значение условия."
-    duplicate-condition: "В \"{blockLabel}\" условие дублирует более раннее правило."
-    unsupported-operator: "В \"{blockLabel}\" используется оператор, который не подходит этому типу блока."
-    unreachable-block: "Блок \"{blockLabel}\" недостижим от начала формы."
-    fragile-text-match: "Точное текстовое совпадение в \"{blockLabel}\" может быть хрупким, если респонденты вводят разную пунктуацию или регистр."
-    overlapping-rule: "Более позднее правило в \"{blockLabel}\" может никогда не сработать, потому что раньше срабатывает более широкое условие."
-    partial-choice-coverage: "Часть ответов в \"{blockLabel}\" уходит по маршруту по умолчанию. Проверьте, что это сделано намеренно."
+    invalid-target: 'Правило в "{blockLabel}" ссылается на отсутствующий блок.'
+    backward-target: 'Правило в "{blockLabel}" должно вести только к более позднему блоку.'
+    invalid-default-target: 'Маршрут по умолчанию в "{blockLabel}" ссылается на отсутствующий блок.'
+    backward-default-target: 'Маршрут по умолчанию в "{blockLabel}" должен вести только к более позднему блоку.'
+    invalid-condition: 'В "{blockLabel}" задано некорректное значение условия.'
+    duplicate-condition: 'В "{blockLabel}" условие дублирует более раннее правило.'
+    unsupported-operator: 'В "{blockLabel}" используется оператор, который не подходит этому типу блока.'
+    unreachable-block: 'Блок "{blockLabel}" недостижим от начала формы.'
+    fragile-text-match: 'Точное текстовое совпадение в "{blockLabel}" может быть хрупким, если респонденты вводят разную пунктуацию или регистр.'
+    overlapping-rule: 'Более позднее правило в "{blockLabel}" может никогда не сработать, потому что раньше срабатывает более широкое условие.'
+    partial-choice-coverage: 'Часть ответов в "{blockLabel}" уходит по маршруту по умолчанию. Проверьте, что это сделано намеренно.'
 publicRunner:
   responseReceived: Ответ получен
   defaultCompletionTitle: Спасибо, что уделили время.

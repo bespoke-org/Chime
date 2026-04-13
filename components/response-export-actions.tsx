@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Download, FileSpreadsheet, LoaderCircle } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  FileSpreadsheet,
+  LoaderCircle,
+} from "lucide-react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
@@ -9,7 +14,10 @@ import { ToastViewport, type ToastData } from "@/components/ui/toast";
 
 type ResponseExportFormat = "csv" | "xlsx";
 
-function getFilenameFromDisposition(disposition: string | null, fallback: string) {
+function getFilenameFromDisposition(
+  disposition: string | null,
+  fallback: string,
+) {
   if (!disposition) {
     return fallback;
   }
@@ -26,12 +34,17 @@ function getFilenameFromDisposition(disposition: string | null, fallback: string
 
 export function ResponseExportActions({ formId }: { formId: string }) {
   const { t } = useI18n();
-  const [busyFormat, setBusyFormat] = useState<ResponseExportFormat | null>(null);
+  const [busyFormat, setBusyFormat] = useState<ResponseExportFormat | null>(
+    null,
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  function showToast(message: string, variant: ToastData["variant"] = "success") {
+  function showToast(
+    message: string,
+    variant: ToastData["variant"] = "success",
+  ) {
     const id = crypto.randomUUID();
     setToasts((current) => [...current, { id, message, variant }]);
   }
@@ -59,10 +72,14 @@ export function ResponseExportActions({ formId }: { formId: string }) {
     try {
       setBusyFormat(format);
 
-      const response = await fetch(`/api/forms/${formId}/export?format=${format}`);
+      const response = await fetch(
+        `/api/forms/${formId}/export?format=${format}`,
+      );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
         throw new Error(payload.error ?? t("responseExport.error"));
       }
 
@@ -82,9 +99,14 @@ export function ResponseExportActions({ formId }: { formId: string }) {
       URL.revokeObjectURL(url);
 
       setIsMenuOpen(false);
-      showToast(t("responseExport.downloaded", { format: format.toUpperCase() }));
+      showToast(
+        t("responseExport.downloaded", { format: format.toUpperCase() }),
+      );
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t("responseExport.error"), "error");
+      showToast(
+        error instanceof Error ? error.message : t("responseExport.error"),
+        "error",
+      );
     } finally {
       setBusyFormat(null);
     }
@@ -100,7 +122,11 @@ export function ResponseExportActions({ formId }: { formId: string }) {
           aria-expanded={isMenuOpen}
           aria-haspopup="menu"
         >
-          {busyFormat ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
+          {busyFormat ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <Download className="size-4" />
+          )}
           {t("responseExport.export")}
           <ChevronDown className="size-4 text-[var(--muted)]" />
         </Button>
@@ -113,7 +139,11 @@ export function ResponseExportActions({ formId }: { formId: string }) {
                 onClick={() => exportResponses("csv")}
                 disabled={busyFormat !== null}
               >
-                {busyFormat === "csv" ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
+                {busyFormat === "csv" ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
                 CSV
               </button>
               <button
@@ -122,7 +152,11 @@ export function ResponseExportActions({ formId }: { formId: string }) {
                 onClick={() => exportResponses("xlsx")}
                 disabled={busyFormat !== null}
               >
-                {busyFormat === "xlsx" ? <LoaderCircle className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />}
+                {busyFormat === "xlsx" ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="size-4" />
+                )}
                 XLSX
               </button>
             </div>

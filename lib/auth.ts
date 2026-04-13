@@ -51,19 +51,23 @@ export const authOptions: NextAuthOptions = {
       await syncGoogleProfileFields(user.id, {
         name: typeof profile?.name === "string" ? profile.name : null,
         given_name:
-          profile && typeof (profile as { given_name?: unknown }).given_name === "string"
+          profile &&
+          typeof (profile as { given_name?: unknown }).given_name === "string"
             ? ((profile as { given_name?: string }).given_name ?? null)
             : null,
         family_name:
-          profile && typeof (profile as { family_name?: unknown }).family_name === "string"
+          profile &&
+          typeof (profile as { family_name?: unknown }).family_name === "string"
             ? ((profile as { family_name?: string }).family_name ?? null)
             : null,
         picture:
-          profile && typeof (profile as { picture?: unknown }).picture === "string"
+          profile &&
+          typeof (profile as { picture?: unknown }).picture === "string"
             ? ((profile as { picture?: string }).picture ?? null)
             : null,
         locale:
-          profile && typeof (profile as { locale?: unknown }).locale === "string"
+          profile &&
+          typeof (profile as { locale?: unknown }).locale === "string"
             ? normalizeLocale((profile as { locale?: string }).locale ?? null)
             : null,
       });

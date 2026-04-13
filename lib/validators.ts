@@ -16,7 +16,10 @@ export const formMetadataSchema = z
       .trim()
       .min(2)
       .max(64)
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only."),
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        "Use lowercase letters, numbers, and hyphens only.",
+      ),
   })
   .superRefine((value, context) => {
     const hasLabel = Boolean(value.completionLinkLabel);
@@ -26,7 +29,8 @@ export const formMetadataSchema = z
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: [hasLabel ? "completionLinkUrl" : "completionLinkLabel"],
-        message: "Add both a follow-up link label and URL, or leave both empty.",
+        message:
+          "Add both a follow-up link label and URL, or leave both empty.",
       });
     }
 

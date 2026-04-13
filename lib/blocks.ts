@@ -1,4 +1,7 @@
-import type { FormBlock, FormBlockType as PrismaFormBlockType } from "@prisma/client";
+import type {
+  FormBlock,
+  FormBlockType as PrismaFormBlockType,
+} from "@prisma/client";
 import { z } from "zod";
 
 import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
@@ -86,7 +89,9 @@ const defaultBlockCopyByLocale: Record<
 };
 
 function getDefaultBlockCopy(locale: AppLocale = DEFAULT_LOCALE) {
-  return defaultBlockCopyByLocale[locale] ?? defaultBlockCopyByLocale[DEFAULT_LOCALE];
+  return (
+    defaultBlockCopyByLocale[locale] ?? defaultBlockCopyByLocale[DEFAULT_LOCALE]
+  );
 }
 
 function normalizeRegexPattern(value: unknown) {
@@ -188,21 +193,32 @@ const rawBranchRuleSchema = z
 export const branchRuleSchema = rawBranchRuleSchema;
 
 const branchRulesSchema = z.array(branchRuleSchema).max(50).default([]);
-const defaultNextBlockIdSchema = z.string().trim().min(1).nullable().default(null);
+const defaultNextBlockIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .nullable()
+  .default(null);
 
 const textConfigSchema = z.object({
   body: z.string().max(2400).default(defaultBlockCopyByLocale.en.textBody),
 });
 
 const shortTextConfigSchema = z.object({
-  placeholder: z.string().max(120).default(defaultBlockCopyByLocale.en.shortPlaceholder),
+  placeholder: z
+    .string()
+    .max(120)
+    .default(defaultBlockCopyByLocale.en.shortPlaceholder),
   validationRegex: regexPatternSchema.default(null),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
 const longTextConfigSchema = z.object({
-  placeholder: z.string().max(240).default(defaultBlockCopyByLocale.en.longPlaceholder),
+  placeholder: z
+    .string()
+    .max(240)
+    .default(defaultBlockCopyByLocale.en.longPlaceholder),
   validationRegex: regexPatternSchema.default(null),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
@@ -210,7 +226,10 @@ const longTextConfigSchema = z.object({
 
 const numberConfigSchema = z
   .object({
-    placeholder: z.string().max(120).default(defaultBlockCopyByLocale.en.numberPlaceholder),
+    placeholder: z
+      .string()
+      .max(120)
+      .default(defaultBlockCopyByLocale.en.numberPlaceholder),
     allowFloat: z.boolean().default(false),
     min: numericLimitSchema.default(null),
     max: numericLimitSchema.default(null),
@@ -246,13 +265,20 @@ const numberConfigSchema = z
   });
 
 const linkConfigSchema = z.object({
-  placeholder: z.string().max(2048).default(defaultBlockCopyByLocale.en.linkPlaceholder),
+  placeholder: z
+    .string()
+    .max(2048)
+    .default(defaultBlockCopyByLocale.en.linkPlaceholder),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
 const agreementConfigSchema = z.object({
-  label: z.string().trim().max(160).default(defaultBlockCopyByLocale.en.agreementLabel),
+  label: z
+    .string()
+    .trim()
+    .max(160)
+    .default(defaultBlockCopyByLocale.en.agreementLabel),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
 });
@@ -263,12 +289,17 @@ const dateConfigSchema = z.object({
 });
 
 const optionListSchema = z.object({
-  options: z.array(z.string().min(1).max(120)).min(2).max(10).default(defaultBlockCopyByLocale.en.options),
+  options: z
+    .array(z.string().min(1).max(120))
+    .min(2)
+    .max(10)
+    .default(defaultBlockCopyByLocale.en.options),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
-export type AgreementAnswerValue = (typeof AGREEMENT_ANSWER_VALUES)[keyof typeof AGREEMENT_ANSWER_VALUES];
+export type AgreementAnswerValue =
+  (typeof AGREEMENT_ANSWER_VALUES)[keyof typeof AGREEMENT_ANSWER_VALUES];
 export type BranchOperator = z.infer<typeof branchOperatorSchema>;
 export type BranchRule = z.infer<typeof branchRuleSchema>;
 export type TextBlockConfig = z.infer<typeof textConfigSchema>;
@@ -299,19 +330,29 @@ export function isQuestionBlock(type: PrismaFormBlockType) {
 }
 
 export function isTextAnswerBlock(type: PrismaFormBlockType) {
-  return type === FORM_BLOCK_TYPES.SHORT_TEXT || type === FORM_BLOCK_TYPES.LONG_TEXT;
+  return (
+    type === FORM_BLOCK_TYPES.SHORT_TEXT || type === FORM_BLOCK_TYPES.LONG_TEXT
+  );
 }
 
 export function isChoiceBlock(type: PrismaFormBlockType) {
-  return type === FORM_BLOCK_TYPES.SINGLE_CHOICE || type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE;
+  return (
+    type === FORM_BLOCK_TYPES.SINGLE_CHOICE ||
+    type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE
+  );
 }
 
 export function getTextValidationPattern(config: TextAnswerBlockConfig) {
   return config.validationRegex ?? null;
 }
 
-export function isAgreementAnswerValue(value: string): value is AgreementAnswerValue {
-  return value === AGREEMENT_ANSWER_VALUES.AGREED || value === AGREEMENT_ANSWER_VALUES.NOT_AGREED;
+export function isAgreementAnswerValue(
+  value: string,
+): value is AgreementAnswerValue {
+  return (
+    value === AGREEMENT_ANSWER_VALUES.AGREED ||
+    value === AGREEMENT_ANSWER_VALUES.NOT_AGREED
+  );
 }
 
 export function parseNumericAnswer(value: string) {
@@ -340,17 +381,30 @@ export function isValidDateAnswer(value: string) {
   }
 
   const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  return (
+    !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+  );
 }
 
-export function getSupportedBranchOperators(type: PrismaFormBlockType): BranchOperator[] {
+export function getSupportedBranchOperators(
+  type: PrismaFormBlockType,
+): BranchOperator[] {
   if (type === FORM_BLOCK_TYPES.TEXT) {
     return [];
   }
 
-  const common: BranchOperator[] = ["equals", "not_equals", "is_empty", "is_not_empty"];
+  const common: BranchOperator[] = [
+    "equals",
+    "not_equals",
+    "is_empty",
+    "is_not_empty",
+  ];
 
-  if (type === FORM_BLOCK_TYPES.SHORT_TEXT || type === FORM_BLOCK_TYPES.LONG_TEXT || type === FORM_BLOCK_TYPES.LINK) {
+  if (
+    type === FORM_BLOCK_TYPES.SHORT_TEXT ||
+    type === FORM_BLOCK_TYPES.LONG_TEXT ||
+    type === FORM_BLOCK_TYPES.LINK
+  ) {
     return [...common, "contains"];
   }
 
@@ -365,12 +419,18 @@ export function getSupportedBranchOperators(type: PrismaFormBlockType): BranchOp
   return common;
 }
 
-export function getVisibleBranchOperators(type: PrismaFormBlockType): BranchOperator[] {
+export function getVisibleBranchOperators(
+  type: PrismaFormBlockType,
+): BranchOperator[] {
   if (type === FORM_BLOCK_TYPES.TEXT) {
     return [];
   }
 
-  if (type === FORM_BLOCK_TYPES.SHORT_TEXT || type === FORM_BLOCK_TYPES.LONG_TEXT || type === FORM_BLOCK_TYPES.LINK) {
+  if (
+    type === FORM_BLOCK_TYPES.SHORT_TEXT ||
+    type === FORM_BLOCK_TYPES.LONG_TEXT ||
+    type === FORM_BLOCK_TYPES.LINK
+  ) {
     return ["is_empty", "is_not_empty", "contains"];
   }
 
@@ -383,7 +443,16 @@ export function getVisibleBranchOperators(type: PrismaFormBlockType): BranchOper
   }
 
   if (type === FORM_BLOCK_TYPES.NUMBER || type === FORM_BLOCK_TYPES.DATE) {
-    return ["equals", "not_equals", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty"];
+    return [
+      "equals",
+      "not_equals",
+      "gt",
+      "gte",
+      "lt",
+      "lte",
+      "is_empty",
+      "is_not_empty",
+    ];
   }
 
   if (type === FORM_BLOCK_TYPES.AGREEMENT) {
@@ -397,7 +466,10 @@ export function branchOperatorNeedsValue(operator: BranchOperator) {
   return operator !== "is_empty" && operator !== "is_not_empty";
 }
 
-export function parseBlockConfig(type: PrismaFormBlockType, value: unknown): BlockConfig {
+export function parseBlockConfig(
+  type: PrismaFormBlockType,
+  value: unknown,
+): BlockConfig {
   switch (type) {
     case FORM_BLOCK_TYPES.TEXT:
       return textConfigSchema.parse(value ?? {});
@@ -421,14 +493,19 @@ export function parseBlockConfig(type: PrismaFormBlockType, value: unknown): Blo
   }
 }
 
-export function getDefaultBlockConfig(type: PrismaFormBlockType, locale: AppLocale = DEFAULT_LOCALE): BlockConfig {
+export function getDefaultBlockConfig(
+  type: PrismaFormBlockType,
+  locale: AppLocale = DEFAULT_LOCALE,
+): BlockConfig {
   const copy = getDefaultBlockCopy(locale);
 
   switch (type) {
     case FORM_BLOCK_TYPES.TEXT:
       return textConfigSchema.parse({ body: copy.textBody });
     case FORM_BLOCK_TYPES.SHORT_TEXT:
-      return shortTextConfigSchema.parse({ placeholder: copy.shortPlaceholder });
+      return shortTextConfigSchema.parse({
+        placeholder: copy.shortPlaceholder,
+      });
     case FORM_BLOCK_TYPES.LONG_TEXT:
       return longTextConfigSchema.parse({ placeholder: copy.longPlaceholder });
     case FORM_BLOCK_TYPES.SINGLE_CHOICE:
@@ -462,7 +539,10 @@ export function serializeBlock(block: FormBlock): SerializedBlock {
   };
 }
 
-export function getBlockPreview(block: Pick<FormBlock, "type" | "title" | "description" | "config">, fallbackLabel?: string) {
+export function getBlockPreview(
+  block: Pick<FormBlock, "type" | "title" | "description" | "config">,
+  fallbackLabel?: string,
+) {
   const config = parseBlockConfig(block.type, block.config);
 
   if (block.title.trim()) {
@@ -488,7 +568,11 @@ export function getBlockPreview(block: Pick<FormBlock, "type" | "title" | "descr
     return config.options.join(" • ");
   }
 
-  if (block.type === FORM_BLOCK_TYPES.AGREEMENT && "label" in config && config.label.trim()) {
+  if (
+    block.type === FORM_BLOCK_TYPES.AGREEMENT &&
+    "label" in config &&
+    config.label.trim()
+  ) {
     return config.label;
   }
 

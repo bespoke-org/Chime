@@ -55,15 +55,27 @@ function compareDateValues(left: string, right: string) {
   return left.localeCompare(right);
 }
 
-export function getBlockDisplayLabel(block: Pick<SerializedBlock, "position" | "title" | "type">) {
+export function getBlockDisplayLabel(
+  block: Pick<SerializedBlock, "position" | "title" | "type">,
+) {
   const title = block.title.trim();
-  return title || `${isQuestionBlock(block.type) ? "Question" : "Block"} ${block.position + 1}`;
+  return (
+    title ||
+    `${isQuestionBlock(block.type) ? "Question" : "Block"} ${block.position + 1}`
+  );
 }
 
-export function getBranchValidationIssueI18n(issue: BranchValidationIssue, blocks: SerializedBlock[]): BranchValidationIssueI18n {
+export function getBranchValidationIssueI18n(
+  issue: BranchValidationIssue,
+  blocks: SerializedBlock[],
+): BranchValidationIssueI18n {
   const sourceBlock = blocks.find((block) => block.id === issue.blockId);
-  const targetBlock = issue.targetBlockId ? blocks.find((block) => block.id === issue.targetBlockId) : null;
-  const blockLabel = sourceBlock ? getBlockDisplayLabel(sourceBlock) : issue.blockId;
+  const targetBlock = issue.targetBlockId
+    ? blocks.find((block) => block.id === issue.targetBlockId)
+    : null;
+  const blockLabel = sourceBlock
+    ? getBlockDisplayLabel(sourceBlock)
+    : issue.blockId;
   const targetLabel = targetBlock ? getBlockDisplayLabel(targetBlock) : "";
 
   return {
@@ -76,7 +88,10 @@ export function getBranchValidationIssueI18n(issue: BranchValidationIssue, block
   };
 }
 
-export function normalizeBranchRuleOperand(block: SerializedBlock, rule: BranchRule) {
+export function normalizeBranchRuleOperand(
+  block: SerializedBlock,
+  rule: BranchRule,
+) {
   if (!branchOperatorNeedsValue(rule.operator)) {
     return null;
   }
@@ -116,7 +131,10 @@ export function normalizeBranchRuleOperand(block: SerializedBlock, rule: BranchR
   return null;
 }
 
-function normalizeComparableAnswer(block: SerializedBlock, answer: string | string[] | undefined) {
+function normalizeComparableAnswer(
+  block: SerializedBlock,
+  answer: string | string[] | undefined,
+) {
   if (!isQuestionBlock(block.type)) {
     return undefined;
   }
@@ -127,7 +145,13 @@ function normalizeComparableAnswer(block: SerializedBlock, answer: string | stri
     }
 
     const options = (block.config as ChoiceBlockConfig).options;
-    const normalized = [...new Set(answer.map((value) => value.trim()).filter((value) => options.includes(value)))];
+    const normalized = [
+      ...new Set(
+        answer
+          .map((value) => value.trim())
+          .filter((value) => options.includes(value)),
+      ),
+    ];
     return normalized.length ? normalized : undefined;
   }
 
@@ -169,11 +193,18 @@ function normalizeComparableAnswer(block: SerializedBlock, answer: string | stri
   return undefined;
 }
 
-function isRuleSupportedForBlock(block: SerializedBlock, operator: BranchOperator) {
+function isRuleSupportedForBlock(
+  block: SerializedBlock,
+  operator: BranchOperator,
+) {
   return getSupportedBranchOperators(block.type).includes(operator);
 }
 
-function isValidForwardTarget(blocks: SerializedBlock[], sourceIndex: number, targetBlockId: string) {
+function isValidForwardTarget(
+  blocks: SerializedBlock[],
+  sourceIndex: number,
+  targetBlockId: string,
+) {
   const targetIndex = blocks.findIndex((block) => block.id === targetBlockId);
   return targetIndex > sourceIndex;
 }
@@ -185,7 +216,9 @@ function compareRuleAgainstAnswer(
   operand: string | null,
 ) {
   const normalizedAnswer = normalizeComparableAnswer(block, answer);
-  const isEmpty = typeof normalizedAnswer === "undefined" || (Array.isArray(normalizedAnswer) && normalizedAnswer.length === 0);
+  const isEmpty =
+    typeof normalizedAnswer === "undefined" ||
+    (Array.isArray(normalizedAnswer) && normalizedAnswer.length === 0);
 
   switch (operator) {
     case "is_empty":
@@ -197,17 +230,25 @@ function compareRuleAgainstAnswer(
         return false;
       }
 
-      return Array.isArray(normalizedAnswer) ? normalizedAnswer.includes(operand) : normalizedAnswer === operand;
+      return Array.isArray(normalizedAnswer)
+        ? normalizedAnswer.includes(operand)
+        : normalizedAnswer === operand;
     case "not_equals":
       if (!operand || typeof normalizedAnswer === "undefined") {
         return false;
       }
 
-      return Array.isArray(normalizedAnswer) ? !normalizedAnswer.includes(operand) : normalizedAnswer !== operand;
+      return Array.isArray(normalizedAnswer)
+        ? !normalizedAnswer.includes(operand)
+        : normalizedAnswer !== operand;
     case "contains":
-      return typeof normalizedAnswer === "string" && typeof operand === "string" ? normalizedAnswer.includes(operand) : false;
+      return typeof normalizedAnswer === "string" && typeof operand === "string"
+        ? normalizedAnswer.includes(operand)
+        : false;
     case "contains_any":
-      return Array.isArray(normalizedAnswer) && typeof operand === "string" ? normalizedAnswer.includes(operand) : false;
+      return Array.isArray(normalizedAnswer) && typeof operand === "string"
+        ? normalizedAnswer.includes(operand)
+        : false;
     case "gt":
     case "gte":
     case "lt":
@@ -246,7 +287,11 @@ function compareRuleAgainstAnswer(
   }
 }
 
-export function branchRuleMatches(block: SerializedBlock, answer: string | string[] | undefined, rule: BranchRule) {
+export function branchRuleMatches(
+  block: SerializedBlock,
+  answer: string | string[] | undefined,
+  rule: BranchRule,
+) {
   const operand = normalizeBranchRuleOperand(block, rule);
   return compareRuleAgainstAnswer(block, rule.operator, answer, operand);
 }
@@ -283,10 +328,16 @@ export function resolveNextBlockId(
     }
   }
 
-  const configuredDefaultNextBlockId = getDefaultNextBlockId(currentBlock.config);
+  const configuredDefaultNextBlockId = getDefaultNextBlockId(
+    currentBlock.config,
+  );
 
   if (configuredDefaultNextBlockId) {
-    return isValidForwardTarget(blocks, currentIndex, configuredDefaultNextBlockId)
+    return isValidForwardTarget(
+      blocks,
+      currentIndex,
+      configuredDefaultNextBlockId,
+    )
       ? configuredDefaultNextBlockId
       : linearNextBlockId;
   }
@@ -305,13 +356,24 @@ function canUseDefaultPath(block: SerializedBlock) {
     return true;
   }
 
-  const supportedRules = rules.filter((rule) => isRuleSupportedForBlock(block, rule.operator));
+  const supportedRules = rules.filter((rule) =>
+    isRuleSupportedForBlock(block, rule.operator),
+  );
 
-  if (supportedRules.some((rule) => rule.operator === "is_empty") && supportedRules.some((rule) => rule.operator === "is_not_empty")) {
+  if (
+    supportedRules.some((rule) => rule.operator === "is_empty") &&
+    supportedRules.some((rule) => rule.operator === "is_not_empty")
+  ) {
     return false;
   }
 
-  if (block.type === "SHORT_TEXT" || block.type === "LONG_TEXT" || block.type === "NUMBER" || block.type === "LINK" || block.type === "DATE") {
+  if (
+    block.type === "SHORT_TEXT" ||
+    block.type === "LONG_TEXT" ||
+    block.type === "NUMBER" ||
+    block.type === "LINK" ||
+    block.type === "DATE"
+  ) {
     return !supportedRules.some((rule) => rule.operator === "is_not_empty");
   }
 
@@ -339,13 +401,19 @@ function canUseDefaultPath(block: SerializedBlock) {
         .filter((value): value is string => Boolean(value)),
     );
 
-    return !block.required || !explicitEqualsCoverage.has(AGREEMENT_ANSWER_VALUES.AGREED);
+    return (
+      !block.required ||
+      !explicitEqualsCoverage.has(AGREEMENT_ANSWER_VALUES.AGREED)
+    );
   }
 
   return true;
 }
 
-function getPossibleNextBlockIds(blocks: SerializedBlock[], block: SerializedBlock) {
+function getPossibleNextBlockIds(
+  blocks: SerializedBlock[],
+  block: SerializedBlock,
+) {
   const blockIndex = blocks.findIndex((candidate) => candidate.id === block.id);
 
   if (blockIndex < 0) {
@@ -365,7 +433,10 @@ function getPossibleNextBlockIds(blocks: SerializedBlock[], block: SerializedBlo
   }
 
   for (const rule of getBranchRules(block.config)) {
-    if (isRuleSupportedForBlock(block, rule.operator) && isValidForwardTarget(blocks, blockIndex, rule.targetBlockId)) {
+    if (
+      isRuleSupportedForBlock(block, rule.operator) &&
+      isValidForwardTarget(blocks, blockIndex, rule.targetBlockId)
+    ) {
       nextIds.add(rule.targetBlockId);
     }
   }
@@ -373,7 +444,9 @@ function getPossibleNextBlockIds(blocks: SerializedBlock[], block: SerializedBlo
   const configuredDefaultNextBlockId = getDefaultNextBlockId(block.config);
 
   if (configuredDefaultNextBlockId) {
-    if (isValidForwardTarget(blocks, blockIndex, configuredDefaultNextBlockId)) {
+    if (
+      isValidForwardTarget(blocks, blockIndex, configuredDefaultNextBlockId)
+    ) {
       nextIds.add(configuredDefaultNextBlockId);
     }
   } else if (canUseDefaultPath(block)) {
@@ -402,7 +475,12 @@ function isRuleConditionValid(block: SerializedBlock, rule: BranchRule) {
     return false;
   }
 
-  if (rule.operator === "contains" && (block.type === "SHORT_TEXT" || block.type === "LONG_TEXT" || block.type === "LINK")) {
+  if (
+    rule.operator === "contains" &&
+    (block.type === "SHORT_TEXT" ||
+      block.type === "LONG_TEXT" ||
+      block.type === "LINK")
+  ) {
     return true;
   }
 
@@ -410,21 +488,34 @@ function isRuleConditionValid(block: SerializedBlock, rule: BranchRule) {
     return true;
   }
 
-  if ((rule.operator === "gt" || rule.operator === "gte" || rule.operator === "lt" || rule.operator === "lte") && (block.type === "NUMBER" || block.type === "DATE")) {
+  if (
+    (rule.operator === "gt" ||
+      rule.operator === "gte" ||
+      rule.operator === "lt" ||
+      rule.operator === "lte") &&
+    (block.type === "NUMBER" || block.type === "DATE")
+  ) {
     return true;
   }
 
   return rule.operator === "equals" || rule.operator === "not_equals";
 }
 
-function createIssue(issue: Omit<BranchValidationIssue, "severity"> & { severity?: BranchValidationIssueSeverity }): BranchValidationIssue {
+function createIssue(
+  issue: Omit<BranchValidationIssue, "severity"> & {
+    severity?: BranchValidationIssueSeverity;
+  },
+): BranchValidationIssue {
   return {
     severity: issue.severity ?? "blocker",
     ...issue,
   };
 }
 
-function validateDefaultTarget(blocks: SerializedBlock[], block: SerializedBlock) {
+function validateDefaultTarget(
+  blocks: SerializedBlock[],
+  block: SerializedBlock,
+) {
   const issues: BranchValidationIssue[] = [];
   const defaultNextBlockId = getDefaultNextBlockId(block.config);
 
@@ -432,8 +523,12 @@ function validateDefaultTarget(blocks: SerializedBlock[], block: SerializedBlock
     return issues;
   }
 
-  const sourceIndex = blocks.findIndex((candidate) => candidate.id === block.id);
-  const targetIndex = blocks.findIndex((candidate) => candidate.id === defaultNextBlockId);
+  const sourceIndex = blocks.findIndex(
+    (candidate) => candidate.id === block.id,
+  );
+  const targetIndex = blocks.findIndex(
+    (candidate) => candidate.id === defaultNextBlockId,
+  );
 
   if (targetIndex < 0) {
     issues.push(
@@ -469,7 +564,12 @@ function collectRuleWarnings(block: SerializedBlock, rules: BranchRule[]) {
   const warnings: BranchValidationIssue[] = [];
 
   rules.forEach((rule, ruleIndex) => {
-    if ((block.type === "SHORT_TEXT" || block.type === "LONG_TEXT" || block.type === "LINK") && rule.operator === "equals") {
+    if (
+      (block.type === "SHORT_TEXT" ||
+        block.type === "LONG_TEXT" ||
+        block.type === "LINK") &&
+      rule.operator === "equals"
+    ) {
       warnings.push(
         createIssue({
           severity: "warning",
@@ -484,7 +584,9 @@ function collectRuleWarnings(block: SerializedBlock, rules: BranchRule[]) {
     }
   });
 
-  const firstIsNotEmptyIndex = rules.findIndex((rule) => rule.operator === "is_not_empty");
+  const firstIsNotEmptyIndex = rules.findIndex(
+    (rule) => rule.operator === "is_not_empty",
+  );
 
   if (firstIsNotEmptyIndex >= 0) {
     rules.slice(firstIsNotEmptyIndex + 1).forEach((rule, offset) => {
@@ -504,7 +606,10 @@ function collectRuleWarnings(block: SerializedBlock, rules: BranchRule[]) {
     });
   }
 
-  if ((block.type === "SINGLE_CHOICE" || block.type === "AGREEMENT") && getDefaultNextBlockId(block.config)) {
+  if (
+    (block.type === "SINGLE_CHOICE" || block.type === "AGREEMENT") &&
+    getDefaultNextBlockId(block.config)
+  ) {
     const explicitCoverage = new Set(
       rules
         .filter((rule) => rule.operator === "equals")
@@ -517,7 +622,10 @@ function collectRuleWarnings(block: SerializedBlock, rules: BranchRule[]) {
         ? (block.config as ChoiceBlockConfig).options
         : [AGREEMENT_ANSWER_VALUES.AGREED, AGREEMENT_ANSWER_VALUES.NOT_AGREED];
 
-    if (explicitCoverage.size > 0 && explicitCoverage.size < expectedValues.length) {
+    if (
+      explicitCoverage.size > 0 &&
+      explicitCoverage.size < expectedValues.length
+    ) {
       warnings.push(
         createIssue({
           severity: "warning",
@@ -534,7 +642,9 @@ function collectRuleWarnings(block: SerializedBlock, rules: BranchRule[]) {
 
 function validateBlockRules(blocks: SerializedBlock[], block: SerializedBlock) {
   const issues: BranchValidationIssue[] = [];
-  const sourceIndex = blocks.findIndex((candidate) => candidate.id === block.id);
+  const sourceIndex = blocks.findIndex(
+    (candidate) => candidate.id === block.id,
+  );
   const seenRuleIdentities = new Set<string>();
   const rules = getBranchRules(block.config);
 
@@ -584,7 +694,9 @@ function validateBlockRules(blocks: SerializedBlock[], block: SerializedBlock) {
 
     seenRuleIdentities.add(ruleIdentity);
 
-    const targetIndex = blocks.findIndex((candidate) => candidate.id === rule.targetBlockId);
+    const targetIndex = blocks.findIndex(
+      (candidate) => candidate.id === rule.targetBlockId,
+    );
 
     if (targetIndex < 0) {
       issues.push(
@@ -653,7 +765,9 @@ function getReachableBlockIds(blocks: SerializedBlock[]) {
   return reachable;
 }
 
-export function analyzeBranchingGraph(blocks: SerializedBlock[]): BranchValidationAnalysis {
+export function analyzeBranchingGraph(
+  blocks: SerializedBlock[],
+): BranchValidationAnalysis {
   const blockers: BranchValidationIssue[] = [];
   const warnings: BranchValidationIssue[] = [];
 
@@ -685,7 +799,10 @@ export function validateBranchingGraph(blocks: SerializedBlock[]) {
   return analyzeBranchingGraph(blocks).blockers;
 }
 
-export function resolveVisitedBlockIds(blocks: SerializedBlock[], answers: Record<string, string | string[]>) {
+export function resolveVisitedBlockIds(
+  blocks: SerializedBlock[],
+  answers: Record<string, string | string[]>,
+) {
   if (!blocks.length) {
     return [];
   }
@@ -703,7 +820,10 @@ export function resolveVisitedBlockIds(blocks: SerializedBlock[], answers: Recor
   return visitedBlockIds;
 }
 
-export function getBranchTargetBlocks(blocks: SerializedBlock[], sourceBlockId: string) {
+export function getBranchTargetBlocks(
+  blocks: SerializedBlock[],
+  sourceBlockId: string,
+) {
   const sourceBlock = blocks.find((block) => block.id === sourceBlockId);
 
   if (!sourceBlock) {
@@ -733,7 +853,9 @@ export function getBranchRuleValueHint(block: SerializedBlock) {
 
   if (block.type === "AGREEMENT") {
     const label = (block.config as AgreementBlockConfig).label.trim();
-    return label ? AGREEMENT_ANSWER_VALUES.AGREED : AGREEMENT_ANSWER_VALUES.AGREED;
+    return label
+      ? AGREEMENT_ANSWER_VALUES.AGREED
+      : AGREEMENT_ANSWER_VALUES.AGREED;
   }
 
   return "Exact answer value";

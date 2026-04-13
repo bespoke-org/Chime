@@ -5,6 +5,7 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 ## Features
 
 ### Form building
+
 - Master-detail form builder with block reordering
 - Supported block types:
   - text
@@ -28,6 +29,7 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Custom completion title, message, and optional follow-up link
 
 ### Branching and flow logic
+
 - Forward-only branching between later blocks
 - Default next target when no branch rule matches
 - Operator-based conditions by block type:
@@ -41,12 +43,14 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Submission validation only for blocks actually visited in the chosen route
 
 ### Responses
+
 - Anonymous public submissions
 - Response list and response detail views
 - Branched response review with visited and skipped route context
 - CSV and XLSX response export
 
 ### Workspaces and collaboration
+
 - Personal workspace
 - Organization workspaces
 - Organization owner administration
@@ -54,6 +58,7 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Shared form management inside organizations
 
 ### Creator experience
+
 - Google sign-in for creators
 - Dashboard grid and table views with sorting
 - Profile settings for name, avatar, and locale

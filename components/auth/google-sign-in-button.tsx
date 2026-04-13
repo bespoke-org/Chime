@@ -20,7 +20,11 @@ export function GoogleSignInButton() {
         })
       }
     >
-      {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn className="size-4" />}
+      {isPending ? (
+        <LoaderCircle className="size-4 animate-spin" />
+      ) : (
+        <LogIn className="size-4" />
+      )}
       {t("auth.continueWithGoogle")}
     </Button>
   );

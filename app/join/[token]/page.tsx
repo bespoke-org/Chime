@@ -8,7 +8,11 @@ import { getServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { getOrganizationInviteState } from "@/lib/organizations";
 
-export default async function JoinOrganizationPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function JoinOrganizationPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
   const session = await getServerAuthSession();
   const { t } = await getRequestI18n();
 
@@ -24,9 +28,13 @@ export default async function JoinOrganizationPage({ params }: { params: Promise
       <Card className="w-full p-8 lg:p-10">
         {invite ? (
           <>
-            <h1 className="font-display text-4xl text-[var(--ink)]">{t("join.joinTitle", { organization: invite.organizationName })}</h1>
+            <h1 className="font-display text-4xl text-[var(--ink)]">
+              {t("join.joinTitle", { organization: invite.organizationName })}
+            </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              {invite.alreadyMember ? t("join.alreadyMember") : t("join.inviteDescription")}
+              {invite.alreadyMember
+                ? t("join.alreadyMember")
+                : t("join.inviteDescription")}
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -47,7 +55,9 @@ export default async function JoinOrganizationPage({ params }: { params: Promise
           </>
         ) : (
           <>
-            <h1 className="font-display text-4xl text-[var(--ink)]">{t("join.unavailableTitle")}</h1>
+            <h1 className="font-display text-4xl text-[var(--ink)]">
+              {t("join.unavailableTitle")}
+            </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
               {t("join.unavailableDescription")}
             </p>

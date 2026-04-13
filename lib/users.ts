@@ -25,7 +25,9 @@ function toProfileSettingsUserSummary(user: {
   };
 }
 
-export async function getProfileSettingsUser(userId: string): Promise<ProfileSettingsUserSummary> {
+export async function getProfileSettingsUser(
+  userId: string,
+): Promise<ProfileSettingsUserSummary> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: {
@@ -46,7 +48,15 @@ export async function getProfileSettingsUser(userId: string): Promise<ProfileSet
   return toProfileSettingsUserSummary(user);
 }
 
-export async function updateProfileSettings(userId: string, payload: { firstName: unknown; secondName: unknown; locale: unknown; image: unknown }) {
+export async function updateProfileSettings(
+  userId: string,
+  payload: {
+    firstName: unknown;
+    secondName: unknown;
+    locale: unknown;
+    image: unknown;
+  },
+) {
   const parsed = profileSettingsSchema.parse(payload);
   const name = getComposedName(parsed.firstName, parsed.secondName);
 
@@ -129,10 +139,13 @@ export async function syncGoogleProfileFields(
 
   const parsedName = splitNameParts(clean(profile.name));
   const nextFirstName = clean(profile.given_name, 60) ?? parsedName.firstName;
-  const nextSecondName = clean(profile.family_name, 60) ?? parsedName.secondName;
-  const nextName = clean(profile.name) ?? getComposedName(nextFirstName, nextSecondName);
+  const nextSecondName =
+    clean(profile.family_name, 60) ?? parsedName.secondName;
+  const nextName =
+    clean(profile.name) ?? getComposedName(nextFirstName, nextSecondName);
   const nextImage = normalizeImageUrl(profile.picture);
-  const hasProvidedLocale = typeof profile.locale === "string" && profile.locale.trim().length > 0;
+  const hasProvidedLocale =
+    typeof profile.locale === "string" && profile.locale.trim().length > 0;
   const nextLocale = hasProvidedLocale ? normalizeLocale(profile.locale) : null;
 
   const data: {

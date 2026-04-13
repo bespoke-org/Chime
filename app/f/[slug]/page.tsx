@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { PublicFormRunner } from "@/components/public-form-runner";
 import { getPublicFormBySlug } from "@/lib/forms";
 
-export default async function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicFormPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   const form = await getPublicFormBySlug(slug);
 

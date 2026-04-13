@@ -8,7 +8,13 @@ import { useI18n } from "@/components/i18n-provider";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supportedLocales } from "@/lib/i18n";
 import type { ProfileSettingsUserSummary } from "@/lib/form-types";
 import { useRouter } from "next/navigation";
@@ -39,7 +45,9 @@ export function ProfileSettingsPanel({
   return (
     <div>
       <div>
-        <h1 className="font-display text-4xl text-[var(--ink)]">{t("settings.profile.title")}</h1>
+        <h1 className="font-display text-4xl text-[var(--ink)]">
+          {t("settings.profile.title")}
+        </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
           {t("settings.profile.description")}
         </p>
@@ -47,13 +55,23 @@ export function ProfileSettingsPanel({
 
       <form action={submitProfile} className="mt-8 space-y-8">
         <input type="hidden" name="returnSection" value="profile" />
-        <input type="hidden" name="returnOrganizationId" value={initialOrganizationId ?? ""} />
+        <input
+          type="hidden"
+          name="returnOrganizationId"
+          value={initialOrganizationId ?? ""}
+        />
         <input type="hidden" name="locale" value={locale} />
 
         <div className="flex flex-col gap-4 border-t border-[color:var(--line)] pt-8 sm:flex-row sm:items-center">
-          <UserAvatar user={user} className="size-18" initialsClassName="text-lg" />
+          <UserAvatar
+            user={user}
+            className="size-18"
+            initialsClassName="text-lg"
+          />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[var(--ink)]">{t("settings.profile.profilePicture")}</p>
+            <p className="text-sm font-medium text-[var(--ink)]">
+              {t("settings.profile.profilePicture")}
+            </p>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
               {t("settings.profile.profilePictureDescription")}
             </p>
@@ -62,24 +80,50 @@ export function ProfileSettingsPanel({
 
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">{t("settings.profile.firstName")}</span>
-            <Input name="firstName" defaultValue={user.firstName ?? ""} placeholder={t("settings.profile.firstName")} />
+            <span className="font-medium text-[var(--ink)]">
+              {t("settings.profile.firstName")}
+            </span>
+            <Input
+              name="firstName"
+              defaultValue={user.firstName ?? ""}
+              placeholder={t("settings.profile.firstName")}
+            />
           </label>
           <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">{t("settings.profile.secondName")}</span>
-            <Input name="secondName" defaultValue={user.secondName ?? ""} placeholder={t("settings.profile.secondName")} />
+            <span className="font-medium text-[var(--ink)]">
+              {t("settings.profile.secondName")}
+            </span>
+            <Input
+              name="secondName"
+              defaultValue={user.secondName ?? ""}
+              placeholder={t("settings.profile.secondName")}
+            />
           </label>
         </div>
 
         <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t("settings.profile.imageUrl")}</span>
-          <Input name="image" type="url" defaultValue={user.image ?? ""} placeholder="https://example.com/avatar.jpg" />
-          <span className="text-xs text-[var(--muted)]">{t("settings.profile.imageUrlHelp")}</span>
+          <span className="font-medium text-[var(--ink)]">
+            {t("settings.profile.imageUrl")}
+          </span>
+          <Input
+            name="image"
+            type="url"
+            defaultValue={user.image ?? ""}
+            placeholder="https://example.com/avatar.jpg"
+          />
+          <span className="text-xs text-[var(--muted)]">
+            {t("settings.profile.imageUrlHelp")}
+          </span>
         </label>
 
         <div className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t("settings.profile.locale")}</span>
-          <Select value={locale} onValueChange={(value) => setLocale(value as typeof user.locale)}>
+          <span className="font-medium text-[var(--ink)]">
+            {t("settings.profile.locale")}
+          </span>
+          <Select
+            value={locale}
+            onValueChange={(value) => setLocale(value as typeof user.locale)}
+          >
             <SelectTrigger className="h-11 px-4 text-sm font-medium">
               <SelectValue />
             </SelectTrigger>
@@ -91,12 +135,18 @@ export function ProfileSettingsPanel({
               ))}
             </SelectContent>
           </Select>
-          <span className="text-xs text-[var(--muted)]">{t("settings.profile.localeHelp")}</span>
+          <span className="text-xs text-[var(--muted)]">
+            {t("settings.profile.localeHelp")}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
           <Button type="submit" disabled={isPending}>
-            {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {isPending ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
             {t("settings.profile.save")}
           </Button>
         </div>

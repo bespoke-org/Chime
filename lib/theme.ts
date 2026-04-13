@@ -6,14 +6,20 @@ export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 export type ResolvedTheme = "light" | "dark";
 
 export function isThemePreference(value: unknown): value is ThemePreference {
-  return typeof value === "string" && THEME_PREFERENCES.includes(value as ThemePreference);
+  return (
+    typeof value === "string" &&
+    THEME_PREFERENCES.includes(value as ThemePreference)
+  );
 }
 
 export function normalizeThemePreference(value: unknown): ThemePreference {
   return isThemePreference(value) ? value : "system";
 }
 
-export function resolveTheme(preference: ThemePreference, systemPrefersDark: boolean): ResolvedTheme {
+export function resolveTheme(
+  preference: ThemePreference,
+  systemPrefersDark: boolean,
+): ResolvedTheme {
   if (preference === "system") {
     return systemPrefersDark ? "dark" : "light";
   }
@@ -21,7 +27,11 @@ export function resolveTheme(preference: ThemePreference, systemPrefersDark: boo
   return preference;
 }
 
-export function applyResolvedTheme(root: HTMLElement, preference: ThemePreference, systemPrefersDark: boolean) {
+export function applyResolvedTheme(
+  root: HTMLElement,
+  preference: ThemePreference,
+  systemPrefersDark: boolean,
+) {
   const resolved = resolveTheme(preference, systemPrefersDark);
 
   root.dataset.themePreference = preference;
@@ -32,12 +42,18 @@ export function applyResolvedTheme(root: HTMLElement, preference: ThemePreferenc
 }
 
 export function applyThemePreference(preference: ThemePreference) {
-  return applyResolvedTheme(document.documentElement, preference, window.matchMedia("(prefers-color-scheme: dark)").matches);
+  return applyResolvedTheme(
+    document.documentElement,
+    preference,
+    window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
 }
 
 export function readStoredThemePreference(): ThemePreference {
   try {
-    return normalizeThemePreference(window.localStorage.getItem(THEME_STORAGE_KEY));
+    return normalizeThemePreference(
+      window.localStorage.getItem(THEME_STORAGE_KEY),
+    );
   } catch {
     return "system";
   }

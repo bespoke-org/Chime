@@ -13,7 +13,11 @@ import { listResponsesForOwnedForm } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { formatDate } from "@/lib/utils";
 
-export default async function ResponsesPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ResponsesPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await getServerAuthSession();
   const { locale, t } = await getRequestI18n();
   const { id } = await params;
@@ -33,17 +37,26 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
     throw error;
   }
 
-  const workspaceLabel = form.workspace.kind === "personal" ? t("workspace.personal") : form.workspace.label;
+  const workspaceLabel =
+    form.workspace.kind === "personal"
+      ? t("workspace.personal")
+      : form.workspace.label;
 
   return (
     <div className="space-y-5">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
-          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">{workspaceLabel}</p>
+          <h1 className="font-display text-4xl text-[var(--ink)]">
+            {form.title}
+          </h1>
+          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
+            {workspaceLabel}
+          </p>
         </div>
         <div className="flex flex-wrap gap-3 lg:justify-end">
-          <Badge>{t("responses.submissionsCount", { count: responses.length })}</Badge>
+          <Badge>
+            {t("responses.submissionsCount", { count: responses.length })}
+          </Badge>
           <Link href={`/forms/${form.id}/edit`}>
             <Button variant="secondary">{t("responses.backToBuilder")}</Button>
           </Link>
@@ -66,11 +79,23 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
         <Card className="overflow-hidden p-0">
           <div className="divide-y divide-[color:var(--line)]">
             {responses.map((response) => (
-              <div key={response.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <div
+                key={response.id}
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
                 <div className="min-w-0">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                    <h2 className="font-display text-2xl text-[var(--ink)]">{t("responses.submissionTitle", { number: response.submissionNumber, date: formatDate(response.submittedAt, locale) })}</h2>
-                    <p className="text-sm text-[var(--muted)]">{t("responses.answersCount", { count: response.answerCount })}</p>
+                    <h2 className="font-display text-2xl text-[var(--ink)]">
+                      {t("responses.submissionTitle", {
+                        number: response.submissionNumber,
+                        date: formatDate(response.submittedAt, locale),
+                      })}
+                    </h2>
+                    <p className="text-sm text-[var(--muted)]">
+                      {t("responses.answersCount", {
+                        count: response.answerCount,
+                      })}
+                    </p>
                   </div>
                 </div>
                 <div className="sm:flex sm:justify-end">

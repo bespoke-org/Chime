@@ -6,7 +6,10 @@ import { getProfileSettingsUser } from "@/lib/users";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ organization?: string | string[]; section?: string | string[] }>;
+  searchParams: Promise<{
+    organization?: string | string[];
+    section?: string | string[];
+  }>;
 }) {
   const session = await getServerAuthSession();
   const [organizations, profileUser] = await Promise.all([
@@ -15,11 +18,11 @@ export default async function SettingsPage({
   ]);
   const resolvedSearchParams = await searchParams;
   const initialOrganizationId = Array.isArray(resolvedSearchParams.organization)
-    ? resolvedSearchParams.organization[0] ?? null
-    : resolvedSearchParams.organization ?? null;
+    ? (resolvedSearchParams.organization[0] ?? null)
+    : (resolvedSearchParams.organization ?? null);
   const initialSection = Array.isArray(resolvedSearchParams.section)
-    ? resolvedSearchParams.section[0] ?? "profile"
-    : resolvedSearchParams.section ?? "profile";
+    ? (resolvedSearchParams.section[0] ?? "profile")
+    : (resolvedSearchParams.section ?? "profile");
 
   return (
     <SettingsShell

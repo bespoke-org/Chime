@@ -19,8 +19,17 @@ export default async function HomePage() {
         <Card className="w-full max-w-3xl p-8 lg:p-10">
           <div className="max-w-2xl">
             <div className="flex items-center gap-4">
-              <Image src="/sproute.png" alt={appName} width={72} height={72} priority className="size-18" />
-              <h1 className="font-display text-5xl leading-none text-[var(--ink)] sm:text-6xl">{appName}</h1>
+              <Image
+                src="/sproute.png"
+                alt={appName}
+                width={72}
+                height={72}
+                priority
+                className="size-18"
+              />
+              <h1 className="font-display text-5xl leading-none text-[var(--ink)] sm:text-6xl">
+                {appName}
+              </h1>
             </div>
             <p className="mt-6 max-w-xl text-base leading-7 text-[var(--muted)] sm:text-lg">
               {t("home.description")}
@@ -38,7 +47,6 @@ export default async function HomePage() {
                 <GoogleSignInButton />
               )}
             </div>
-
           </div>
         </Card>
       </section>

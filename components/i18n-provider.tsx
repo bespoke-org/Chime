@@ -22,7 +22,12 @@ export function I18nProvider({
   children: React.ReactNode;
 }) {
   const value = useMemo(
-    () => ({ locale, messages, t: (key: string, values?: Record<string, string | number>) => translate(messages, key, values) }),
+    () => ({
+      locale,
+      messages,
+      t: (key: string, values?: Record<string, string | number>) =>
+        translate(messages, key, values),
+    }),
     [locale, messages],
   );
 

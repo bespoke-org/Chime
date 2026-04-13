@@ -8,7 +8,9 @@ export type TranslationTree = {
   [key: string]: string | TranslationTree;
 };
 
-export function isSupportedLocale(value: string | null | undefined): value is AppLocale {
+export function isSupportedLocale(
+  value: string | null | undefined,
+): value is AppLocale {
   return Boolean(value && supportedLocales.includes(value as AppLocale));
 }
 
@@ -18,7 +20,9 @@ export function normalizeLocale(value: string | null | undefined): AppLocale {
   return isSupportedLocale(base) ? base : DEFAULT_LOCALE;
 }
 
-export function resolveBrowserLocale(headerValue: string | null | undefined): AppLocale {
+export function resolveBrowserLocale(
+  headerValue: string | null | undefined,
+): AppLocale {
   if (!headerValue) {
     return DEFAULT_LOCALE;
   }
@@ -27,7 +31,10 @@ export function resolveBrowserLocale(headerValue: string | null | undefined): Ap
     const locale = rawPart.split(";")[0]?.trim() ?? "";
     const normalized = normalizeLocale(locale);
 
-    if (isSupportedLocale(locale) || isSupportedLocale(locale.split("-")[0] ?? "")) {
+    if (
+      isSupportedLocale(locale) ||
+      isSupportedLocale(locale.split("-")[0] ?? "")
+    ) {
       return normalized;
     }
   }
@@ -49,20 +56,32 @@ function getValue(messages: TranslationTree, key: string): string | null {
   return typeof current === "string" ? current : null;
 }
 
-export function interpolateMessage(template: string, values?: Record<string, ReactNode | string | number>) {
+export function interpolateMessage(
+  template: string,
+  values?: Record<string, ReactNode | string | number>,
+) {
   if (!values) {
     return template;
   }
 
-  return template.replace(/\{(.*?)\}/g, (_, key) => String(values[key.trim()] ?? `{${key}}`));
+  return template.replace(/\{(.*?)\}/g, (_, key) =>
+    String(values[key.trim()] ?? `{${key}}`),
+  );
 }
 
-export function translate(messages: TranslationTree, key: string, values?: Record<string, ReactNode | string | number>) {
+export function translate(
+  messages: TranslationTree,
+  key: string,
+  values?: Record<string, ReactNode | string | number>,
+) {
   const template = getValue(messages, key) ?? key;
   return interpolateMessage(template, values);
 }
 
-export function flattenTranslationTree(tree: TranslationTree, prefix = ""): Record<string, string> {
+export function flattenTranslationTree(
+  tree: TranslationTree,
+  prefix = "",
+): Record<string, string> {
   const entries: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(tree)) {

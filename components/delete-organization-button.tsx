@@ -21,7 +21,11 @@ export function DeleteOrganizationButton({
   return (
     <form id={formId} action={deleteOrganizationAction} className="mt-4">
       <input type="hidden" name="organizationId" value={organizationId} />
-      <input type="hidden" name="returnOrganizationId" value={returnOrganizationId} />
+      <input
+        type="hidden"
+        name="returnOrganizationId"
+        value={returnOrganizationId}
+      />
       <Button variant="danger" type="button" onClick={() => setOpen(true)}>
         {t("settings.organizations.deleteOrganization")}
       </Button>
@@ -29,12 +33,18 @@ export function DeleteOrganizationButton({
         open={open}
         onClose={() => setOpen(false)}
         title={t("settings.organizations.deleteOrganizationTitle")}
-        description={t("settings.organizations.deleteOrganizationConfirmDescription")}
+        description={t(
+          "settings.organizations.deleteOrganizationConfirmDescription",
+        )}
         confirmLabel={t("ui.delete")}
         cancelLabel={t("ui.cancel")}
         actions={
           <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setOpen(false)}
+            >
               {t("ui.cancel")}
             </Button>
             <Button variant="danger" type="submit" form={formId}>

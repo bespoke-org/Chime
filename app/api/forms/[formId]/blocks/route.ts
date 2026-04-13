@@ -4,7 +4,10 @@ import { handleRouteError } from "@/lib/api";
 import { getServerAuthSession } from "@/lib/auth";
 import { addOwnedBlock } from "@/lib/forms";
 
-export async function POST(request: Request, context: { params: Promise<{ formId: string }> }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ formId: string }> },
+) {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
@@ -14,7 +17,12 @@ export async function POST(request: Request, context: { params: Promise<{ formId
   try {
     const payload = await request.json();
     const { formId } = await context.params;
-    const block = await addOwnedBlock(session.user.id, formId, payload, session.user.locale);
+    const block = await addOwnedBlock(
+      session.user.id,
+      formId,
+      payload,
+      session.user.locale,
+    );
 
     return NextResponse.json({ block });
   } catch (error) {

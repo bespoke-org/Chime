@@ -26,7 +26,10 @@ export function WorkspaceSwitcher({
   const [isPending, startTransition] = useTransition();
   const { t } = useI18n();
   const selectKey = options
-    .map((option) => `${option.value}:${option.label}:${option.kind === "organization" && option.isOwner ? "owner" : "member"}`)
+    .map(
+      (option) =>
+        `${option.value}:${option.label}:${option.kind === "organization" && option.isOwner ? "owner" : "member"}`,
+    )
     .join("|");
 
   return (
@@ -53,8 +56,12 @@ export function WorkspaceSwitcher({
       <SelectContent align="end">
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {option.kind === "personal" ? t("workspace.personal") : option.label}
-            {option.kind === "organization" && option.isOwner ? ` · ${t("workspace.ownerSuffix")}` : ""}
+            {option.kind === "personal"
+              ? t("workspace.personal")
+              : option.label}
+            {option.kind === "organization" && option.isOwner
+              ? ` · ${t("workspace.ownerSuffix")}`
+              : ""}
           </SelectItem>
         ))}
       </SelectContent>

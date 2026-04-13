@@ -7,7 +7,10 @@ import type {
   OrganizationMemberSummary,
   OrganizationSettingsSummary,
 } from "@/lib/form-types";
-import { assertOrganizationMember, assertOrganizationOwner } from "@/lib/workspaces";
+import {
+  assertOrganizationMember,
+  assertOrganizationOwner,
+} from "@/lib/workspaces";
 
 function normalizeOrganizationName(value: unknown) {
   const name = typeof value === "string" ? value.trim() : "";
@@ -17,7 +20,10 @@ function normalizeOrganizationName(value: unknown) {
   }
 
   if (name.length > 80) {
-    throw new AppError("Organization name must be 80 characters or fewer.", 422);
+    throw new AppError(
+      "Organization name must be 80 characters or fewer.",
+      422,
+    );
   }
 
   return name;
@@ -59,7 +65,9 @@ function toInviteSummary(invite: {
   };
 }
 
-export async function listOrganizationsForUser(userId: string): Promise<OrganizationSettingsSummary[]> {
+export async function listOrganizationsForUser(
+  userId: string,
+): Promise<OrganizationSettingsSummary[]> {
   const memberships = await db.organizationMembership.findMany({
     where: { userId },
     include: {
@@ -106,7 +114,10 @@ export async function listOrganizationsForUser(userId: string): Promise<Organiza
   }));
 }
 
-export async function createOrganization(userId: string, payload: { name: unknown }) {
+export async function createOrganization(
+  userId: string,
+  payload: { name: unknown },
+) {
   const name = normalizeOrganizationName(payload.name);
 
   return db.organization.create({
@@ -123,7 +134,11 @@ export async function createOrganization(userId: string, payload: { name: unknow
   });
 }
 
-export async function renameOrganization(userId: string, organizationId: string, payload: { name: unknown }) {
+export async function renameOrganization(
+  userId: string,
+  organizationId: string,
+  payload: { name: unknown },
+) {
   const name = normalizeOrganizationName(payload.name);
   await assertOrganizationOwner(userId, organizationId);
 
@@ -133,7 +148,10 @@ export async function renameOrganization(userId: string, organizationId: string,
   });
 }
 
-export async function deleteOrganization(userId: string, organizationId: string) {
+export async function deleteOrganization(
+  userId: string,
+  organizationId: string,
+) {
   await assertOrganizationOwner(userId, organizationId);
 
   await db.organization.delete({
@@ -141,7 +159,10 @@ export async function deleteOrganization(userId: string, organizationId: string)
   });
 }
 
-export async function createOrganizationInviteLink(userId: string, organizationId: string) {
+export async function createOrganizationInviteLink(
+  userId: string,
+  organizationId: string,
+) {
   await assertOrganizationOwner(userId, organizationId);
 
   return db.organizationInviteLink.create({
@@ -153,7 +174,11 @@ export async function createOrganizationInviteLink(userId: string, organizationI
   });
 }
 
-export async function revokeOrganizationInviteLink(userId: string, organizationId: string, inviteLinkId: string) {
+export async function revokeOrganizationInviteLink(
+  userId: string,
+  organizationId: string,
+  inviteLinkId: string,
+) {
   await assertOrganizationOwner(userId, organizationId);
 
   const inviteLink = await db.organizationInviteLink.findFirst({
@@ -175,7 +200,11 @@ export async function revokeOrganizationInviteLink(userId: string, organizationI
   });
 }
 
-export async function removeOrganizationMember(userId: string, organizationId: string, memberUserId: string) {
+export async function removeOrganizationMember(
+  userId: string,
+  organizationId: string,
+  memberUserId: string,
+) {
   const ownerMembership = await assertOrganizationOwner(userId, organizationId);
 
   if (ownerMembership.userId === memberUserId) {
@@ -205,7 +234,10 @@ export async function removeOrganizationMember(userId: string, organizationId: s
   });
 }
 
-export async function getOrganizationInviteState(userId: string, token: string) {
+export async function getOrganizationInviteState(
+  userId: string,
+  token: string,
+) {
   const inviteLink = await db.organizationInviteLink.findUnique({
     where: { token },
     include: {
@@ -266,7 +298,10 @@ export async function acceptOrganizationInvite(userId: string, token: string) {
   };
 }
 
-export async function getOrganizationDetailsForMember(userId: string, organizationId: string) {
+export async function getOrganizationDetailsForMember(
+  userId: string,
+  organizationId: string,
+) {
   await assertOrganizationMember(userId, organizationId);
 
   return db.organization.findUnique({

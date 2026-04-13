@@ -11,8 +11,14 @@ function clean(value: string | null | undefined) {
   return nextValue || null;
 }
 
-export function getComposedName(firstName?: string | null, secondName?: string | null) {
-  const composed = [clean(firstName), clean(secondName)].filter(Boolean).join(" ").trim();
+export function getComposedName(
+  firstName?: string | null,
+  secondName?: string | null,
+) {
+  const composed = [clean(firstName), clean(secondName)]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   return composed || null;
 }
 
@@ -31,7 +37,12 @@ export function splitNameParts(value?: string | null) {
 }
 
 export function getUserDisplayName(user: UserIdentityLike) {
-  return getComposedName(user.firstName, user.secondName) ?? clean(user.name) ?? clean(user.email)?.split("@")[0] ?? "User";
+  return (
+    getComposedName(user.firstName, user.secondName) ??
+    clean(user.name) ??
+    clean(user.email)?.split("@")[0] ??
+    "User"
+  );
 }
 
 export function getUserImage(user: UserIdentityLike) {

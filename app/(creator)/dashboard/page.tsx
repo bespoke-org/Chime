@@ -13,14 +13,22 @@ export default async function DashboardPage() {
   const session = await getServerAuthSession();
   const { t } = await getRequestI18n();
   const workspaceState = await getActiveWorkspaceForUser(session!.user.id);
-  const forms = await listFormsForWorkspace(session!.user.id, workspaceState.activeWorkspace);
-  const workspaceLabel = workspaceState.activeOption.kind === "personal" ? t("workspace.personal") : workspaceState.activeOption.label;
+  const forms = await listFormsForWorkspace(
+    session!.user.id,
+    workspaceState.activeWorkspace,
+  );
+  const workspaceLabel =
+    workspaceState.activeOption.kind === "personal"
+      ? t("workspace.personal")
+      : workspaceState.activeOption.label;
 
   return forms.length === 0 ? (
     <div className="space-y-8">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
-          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">{workspaceLabel}</h1>
+          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">
+            {workspaceLabel}
+          </h1>
           <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">
             {t("dashboard.description")}
           </p>

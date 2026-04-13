@@ -6,9 +6,16 @@ import { AccountMenu } from "@/components/account-menu";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
-import { getActiveWorkspaceForUser, serializeWorkspaceValue } from "@/lib/workspaces";
+import {
+  getActiveWorkspaceForUser,
+  serializeWorkspaceValue,
+} from "@/lib/workspaces";
 
-export default async function CreatorLayout({ children }: { children: React.ReactNode }) {
+export default async function CreatorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await getServerAuthSession();
   const { t } = await getRequestI18n();
   const appName = t("app.name");
@@ -28,16 +35,28 @@ export default async function CreatorLayout({ children }: { children: React.Reac
             aria-label={t("app.goToDashboardAria")}
             className="shrink-0 transition-transform hover:scale-[1.02]"
           >
-            <Image src="/sproute.png" alt={appName} width={48} height={48} priority className="size-12" />
+            <Image
+              src="/sproute.png"
+              alt={appName}
+              width={48}
+              height={48}
+              priority
+              className="size-12"
+            />
           </Link>
-          <Link href="/dashboard" className="font-display text-2xl text-[var(--ink)] transition hover:text-[var(--accent)]">
+          <Link
+            href="/dashboard"
+            className="font-display text-2xl text-[var(--ink)] transition hover:text-[var(--accent)]"
+          >
             {appName}
           </Link>
         </div>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-5">
           <WorkspaceSwitcher
             options={workspaceState.options}
-            activeValue={serializeWorkspaceValue(workspaceState.activeWorkspace)}
+            activeValue={serializeWorkspaceValue(
+              workspaceState.activeWorkspace,
+            )}
           />
           <AccountMenu user={session.user} />
         </div>

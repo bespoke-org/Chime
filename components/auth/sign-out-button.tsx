@@ -20,7 +20,11 @@ export function SignOutButton() {
         })
       }
     >
-      {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+      {isPending ? (
+        <LoaderCircle className="size-4 animate-spin" />
+      ) : (
+        <LogOut className="size-4" />
+      )}
       Sign out
     </Button>
   );

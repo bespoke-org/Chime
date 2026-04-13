@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 
-import { getUserDisplayName, getUserImage, getUserInitials, type UserIdentityLike } from "@/lib/user-identity";
+import {
+  getUserDisplayName,
+  getUserImage,
+  getUserInitials,
+  type UserIdentityLike,
+} from "@/lib/user-identity";
 import { cn } from "@/lib/utils";
 
 export function UserAvatar({
@@ -39,7 +44,14 @@ export function UserAvatar({
           onError={() => setFailedImage(image)}
         />
       ) : (
-        <span className={cn("text-sm font-semibold uppercase tracking-[0.08em]", initialsClassName)}>{initials}</span>
+        <span
+          className={cn(
+            "text-sm font-semibold uppercase tracking-[0.08em]",
+            initialsClassName,
+          )}
+        >
+          {initials}
+        </span>
       )}
     </span>
   );

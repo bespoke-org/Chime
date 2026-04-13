@@ -57,9 +57,11 @@ Create your own Google OAuth client in Google Cloud Console.
 Use these values during local development:
 
 **Authorized JavaScript origins**
+
 - `http://localhost:3000`
 
 **Authorized redirect URIs**
+
 - `http://localhost:3000/api/auth/callback/google`
 
 If these values are missing or incorrect, Google sign-in will fail.
@@ -71,9 +73,11 @@ For a deployed environment, replace `localhost` with your real domain.
 Example:
 
 **Authorized JavaScript origins**
+
 - `https://your-domain.example`
 
 **Authorized redirect URIs**
+
 - `https://your-domain.example/api/auth/callback/google`
 
 Set `NEXTAUTH_URL` to the same public base URL.

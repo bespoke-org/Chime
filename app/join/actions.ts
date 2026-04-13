@@ -14,8 +14,14 @@ export async function acceptOrganizationInviteAction(formData: FormData) {
   }
 
   const token = String(formData.get("token") ?? "");
-  const { organization } = await acceptOrganizationInvite(session.user.id, token);
+  const { organization } = await acceptOrganizationInvite(
+    session.user.id,
+    token,
+  );
 
-  await setActiveWorkspaceCookie({ kind: "organization", organizationId: organization.id });
+  await setActiveWorkspaceCookie({
+    kind: "organization",
+    organizationId: organization.id,
+  });
   redirect("/dashboard");
 }

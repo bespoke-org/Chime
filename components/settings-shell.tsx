@@ -9,11 +9,17 @@ import { OrganizationSettingsPanel } from "@/components/organization-settings-pa
 import { ProfileSettingsPanel } from "@/components/profile-settings-panel";
 import { ThemeSettingsPanel } from "@/components/theme-settings-panel";
 import { cn } from "@/lib/utils";
-import type { OrganizationSettingsSummary, ProfileSettingsUserSummary } from "@/lib/form-types";
+import type {
+  OrganizationSettingsSummary,
+  ProfileSettingsUserSummary,
+} from "@/lib/form-types";
 
 type SettingsSection = "profile" | "organizations" | "appearance";
 
-const sectionMeta: Record<SettingsSection, { key: string; icon: typeof Building2 }> = {
+const sectionMeta: Record<
+  SettingsSection,
+  { key: string; icon: typeof Building2 }
+> = {
   profile: {
     key: "profile",
     icon: UserRound,
@@ -44,14 +50,18 @@ export function SettingsShell({
   const searchParams = useSearchParams();
   const { t } = useI18n();
   const [selection, setSelection] = useState<SettingsSection>(
-    initialSection === "organizations" || initialSection === "appearance" ? initialSection : "profile",
+    initialSection === "organizations" || initialSection === "appearance"
+      ? initialSection
+      : "profile",
   );
 
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">{t("settings.shell.title")}</h1>
+          <h1 className="font-display text-4xl text-[var(--ink)]">
+            {t("settings.shell.title")}
+          </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
             {t("settings.shell.description")}
           </p>
@@ -71,9 +81,13 @@ export function SettingsShell({
                 type="button"
                 onClick={() => {
                   setSelection(section);
-                  const nextParams = new URLSearchParams(searchParams.toString());
+                  const nextParams = new URLSearchParams(
+                    searchParams.toString(),
+                  );
                   nextParams.set("section", section);
-                  router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+                  router.replace(`${pathname}?${nextParams.toString()}`, {
+                    scroll: false,
+                  });
                 }}
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition",
@@ -82,15 +96,23 @@ export function SettingsShell({
                     : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]",
                 )}
               >
-                <div className={cn(
-                  "rounded-full p-1.5",
-                  selected ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "bg-[var(--bg-strong)] text-[var(--muted)]",
-                )}>
+                <div
+                  className={cn(
+                    "rounded-full p-1.5",
+                    selected
+                      ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
+                      : "bg-[var(--bg-strong)] text-[var(--muted)]",
+                  )}
+                >
                   <Icon className="size-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{t(`settings.sections.${meta.key}.title`)}</p>
-                  <p className="mt-1 truncate text-xs opacity-80">{t(`settings.sections.${meta.key}.description`)}</p>
+                  <p className="text-sm font-medium">
+                    {t(`settings.sections.${meta.key}.title`)}
+                  </p>
+                  <p className="mt-1 truncate text-xs opacity-80">
+                    {t(`settings.sections.${meta.key}.description`)}
+                  </p>
                 </div>
               </button>
             );
@@ -99,9 +121,15 @@ export function SettingsShell({
 
         <div className="min-w-0">
           {selection === "profile" ? (
-            <ProfileSettingsPanel user={profileUser} initialOrganizationId={initialOrganizationId} />
+            <ProfileSettingsPanel
+              user={profileUser}
+              initialOrganizationId={initialOrganizationId}
+            />
           ) : selection === "organizations" ? (
-            <OrganizationSettingsPanel organizations={organizations} initialOrganizationId={initialOrganizationId} />
+            <OrganizationSettingsPanel
+              organizations={organizations}
+              initialOrganizationId={initialOrganizationId}
+            />
           ) : (
             <ThemeSettingsPanel />
           )}

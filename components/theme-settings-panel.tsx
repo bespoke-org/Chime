@@ -32,7 +32,9 @@ export function ThemeSettingsPanel() {
   return (
     <div>
       <div>
-        <h1 className="font-display text-4xl text-[var(--ink)]">{t("settings.appearance.title")}</h1>
+        <h1 className="font-display text-4xl text-[var(--ink)]">
+          {t("settings.appearance.title")}
+        </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
           {t("settings.appearance.description")}
         </p>
@@ -61,15 +63,20 @@ export function ThemeSettingsPanel() {
                   <Icon className="size-5" />
                 </span>
                 <div>
-                  <p className="font-semibold text-[var(--ink)]">{t(`settings.appearance.options.${option.value}.title`)}</p>
-                  <p className="mt-1 text-sm text-[var(--muted)]">{t(`settings.appearance.options.${option.value}.description`)}</p>
+                  <p className="font-semibold text-[var(--ink)]">
+                    {t(`settings.appearance.options.${option.value}.title`)}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    {t(
+                      `settings.appearance.options.${option.value}.description`,
+                    )}
+                  </p>
                 </div>
               </div>
             </button>
           );
         })}
       </div>
-
     </div>
   );
 }

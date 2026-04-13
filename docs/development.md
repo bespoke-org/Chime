@@ -90,6 +90,7 @@ bun run build
 ```
 
 Notes:
+
 - `bun run build` also validates translation resources before the Next.js build.
 - There is currently no separate test suite command in `package.json`.
 
