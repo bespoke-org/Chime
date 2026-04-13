@@ -2,6 +2,7 @@
   "name": "the-forms",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/validate-translations.mjs && next build",

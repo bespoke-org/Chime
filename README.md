@@ -60,6 +60,13 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Light / dark / system theme preference
 - Localized UI in English and Russian
 
+## License
+
+Licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
+See [LICENSE](./LICENSE).
+
+Copyright (C) 2026 Michael Chernigin
+
 ## Stack
 
 - Next.js App Router
