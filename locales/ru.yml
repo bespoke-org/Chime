@@ -305,8 +305,11 @@ responses:
   answeredCount: "Ответили: {count}"
   emptyCount: "Без ответа: {count}"
   skippedCount: "Пропущено ветвлением: {count}"
-  minValue: "Мин: {value}"
-  maxValue: "Макс: {value}"
+  minLabel: Минимум
+  averageLabel: Среднее
+  maxLabel: Максимум
+  minValue: "Минимум: {value}"
+  maxValue: "Максимум: {value}"
   averageValue: "Среднее: {value}"
   answerList: Ответы
   open: Открыть

@@ -8,6 +8,7 @@ import { ResponseExportActions } from "@/components/response-export-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ScrollHintPanel } from "@/components/ui/scroll-hint-panel";
 import {
   AGREEMENT_ANSWER_VALUES,
   blockTypeTranslationKeys,
@@ -166,23 +167,23 @@ export default async function ResponsesPage({
               {responses.map((response) => (
                 <div
                   key={response.id}
-                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  className="grid gap-3 px-5 py-4 sm:grid-cols-[140px_190px_120px_1fr] sm:items-center sm:gap-y-4 sm:gap-x-3"
                 >
-                  <div className="min-w-0">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                      <h2 className="font-display text-2xl text-[var(--ink)]">
-                        {t("responses.submissionTitle", {
-                          number: response.submissionNumber,
-                          date: formatDate(response.submittedAt, locale),
-                        })}
-                      </h2>
-                      <p className="text-sm text-[var(--muted)]">
-                        {t("responses.answersCount", {
-                          count: response.answerCount,
-                        })}
-                      </p>
-                    </div>
+                  <div className="min-w-0 sm:justify-self-start">
+                    <h2 className="text-base font-semibold text-[var(--ink)] sm:text-left">
+                      {t("meta.response", {
+                        number: response.submissionNumber,
+                      })}
+                    </h2>
                   </div>
+                  <p className="min-w-0 text-sm text-[var(--muted)] sm:justify-self-start sm:text-left">
+                    {formatDate(response.submittedAt, locale)}
+                  </p>
+                  <p className="min-w-0 text-sm text-[var(--muted)] sm:justify-self-start sm:text-left">
+                    {t("responses.answersCount", {
+                      count: response.answerCount,
+                    })}
+                  </p>
                   <div className="sm:flex sm:justify-end">
                     <Link href={`/forms/${form.id}/responses/${response.id}`}>
                       <Button size="sm" variant="secondary">
@@ -247,13 +248,18 @@ export default async function ResponsesPage({
               </div>
 
               {summary.kind === "choice" ? (
-                <div className="mt-6 grid gap-3">
-                  {summary.optionCounts.map((option) => (
+                <div className="mt-6 overflow-hidden rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)]">
+                  {summary.optionCounts.map((option, index) => (
                     <div
                       key={option.value}
-                      className="flex items-center justify-between rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]"
+                      className={cn(
+                        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm",
+                        index % 2 === 0
+                          ? "bg-transparent"
+                          : "bg-[var(--bg-end)]",
+                      )}
                     >
-                      <span className="font-medium">
+                      <span className="font-medium text-[var(--ink)]">
                         {getOptionLabel(summary, option.value)}
                       </span>
                       <span className="text-[var(--muted)]">
@@ -265,83 +271,91 @@ export default async function ResponsesPage({
               ) : null}
 
               {summary.kind === "number" ? (
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
-                    <p className="text-[var(--muted)]">
-                      {t("responses.minValue", {
-                        value:
-                          summary.min === null
-                            ? "—"
-                            : numberFormatter.format(summary.min),
-                      })}
-                    </p>
-                  </div>
-                  <div className="rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
-                    <p className="text-[var(--muted)]">
-                      {t("responses.maxValue", {
-                        value:
-                          summary.max === null
-                            ? "—"
-                            : numberFormatter.format(summary.max),
-                      })}
-                    </p>
-                  </div>
-                  <div className="rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
-                    <p className="text-[var(--muted)]">
-                      {t("responses.averageValue", {
-                        value:
-                          summary.average === null
-                            ? "—"
-                            : numberFormatter.format(summary.average),
-                      })}
-                    </p>
-                  </div>
+                <div className="mt-6 overflow-hidden rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)]">
+                  {[
+                    {
+                      label: t("responses.minLabel"),
+                      value:
+                        summary.min === null
+                          ? "—"
+                          : numberFormatter.format(summary.min),
+                    },
+                    {
+                      label: t("responses.averageLabel"),
+                      value:
+                        summary.average === null
+                          ? "—"
+                          : numberFormatter.format(summary.average),
+                    },
+                    {
+                      label: t("responses.maxLabel"),
+                      value:
+                        summary.max === null
+                          ? "—"
+                          : numberFormatter.format(summary.max),
+                    },
+                  ].map((row, index) => (
+                    <div
+                      key={row.label}
+                      className={cn(
+                        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm",
+                        index % 2 === 0
+                          ? "bg-transparent"
+                          : "bg-[var(--bg-end)]",
+                      )}
+                    >
+                      <span className="font-medium text-[var(--ink)]">
+                        {row.label}
+                      </span>
+                      <span className="text-[var(--muted)]">{row.value}</span>
+                    </div>
+                  ))}
                 </div>
               ) : null}
 
               {summary.kind === "freeform" ? (
-                <div className="mt-6 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-4">
-                  <p className="text-sm font-medium text-[var(--ink)]">
-                    {t("responses.answerList")}
+                summary.answers.length === 0 ? (
+                  <p className="mt-6 text-sm text-[var(--muted)]">
+                    {t("responses.noAnswersYet")}
                   </p>
-                  {summary.answers.length === 0 ? (
-                    <p className="mt-3 text-sm text-[var(--muted)]">
-                      {t("responses.noAnswersYet")}
-                    </p>
-                  ) : (
-                    <div className="mt-3 divide-y divide-[color:var(--line)]">
-                      {summary.answers.map((answer, index) => (
-                        <div
-                          key={`${answer.responseId}-${answer.submissionNumber}-${index}`}
-                          className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between"
-                        >
-                          {summary.block.type === "LINK" ? (
-                            <Link
-                              href={answer.value}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="break-all text-sm leading-7 text-[var(--accent)] hover:underline"
-                            >
-                              {answer.value}
-                            </Link>
-                          ) : (
-                            <p className="whitespace-pre-wrap break-words text-sm leading-7 text-[var(--ink)]">
-                              {formatAnswerValue(summary, answer.value)}
-                            </p>
-                          )}
+                ) : (
+                  <ScrollHintPanel className="mt-6 max-h-80 overflow-y-auto rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)] sm:max-h-96">
+                    {summary.answers.map((answer, index) => (
+                      <div
+                        key={`${answer.responseId}-${answer.submissionNumber}-${index}`}
+                        className={cn(
+                          "grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-4",
+                          index % 2 === 0
+                            ? "bg-transparent"
+                            : "bg-[var(--bg-end)]",
+                        )}
+                      >
+                        {summary.block.type === "LINK" ? (
                           <Link
-                            href={`/forms/${form.id}/responses/${answer.responseId}`}
-                            className="text-xs font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
+                            href={answer.value}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="break-all text-sm leading-7 text-[var(--accent)] hover:underline"
                           >
-                            {t("meta.response", {
-                              number: answer.submissionNumber,
-                            })}
+                            {answer.value}
                           </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap break-words text-sm leading-7 text-[var(--ink)]">
+                            {formatAnswerValue(summary, answer.value)}
+                          </p>
+                        )}
+                        <Link
+                          href={`/forms/${form.id}/responses/${answer.responseId}`}
+                          className="justify-self-start self-center text-xs font-medium text-[var(--muted)] transition hover:text-[var(--ink)] sm:justify-self-end"
+                        >
+                          {t("meta.response", {
+                            number: answer.submissionNumber,
+                          })}
+                        </Link>
+                      </div>
+                    ))}
+                  </ScrollHintPanel>
+                )
               ) : null}
 
               {summary.kind !== "freeform" && summary.answeredCount === 0 ? (

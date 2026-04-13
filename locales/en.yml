@@ -305,6 +305,9 @@ responses:
   answeredCount: "Answered: {count}"
   emptyCount: "No answer: {count}"
   skippedCount: "Skipped by branching: {count}"
+  minLabel: Minimum
+  averageLabel: Average
+  maxLabel: Maximum
   minValue: "Min: {value}"
   maxValue: "Max: {value}"
   averageValue: "Average: {value}"
