@@ -13,6 +13,7 @@ This document covers day-to-day local development for Lively Forms.
 
 ```bash
 bun install
+bun run hooks:install
 cp .env.example .env
 bun run db:up
 bun run prisma:migrate
@@ -77,20 +78,33 @@ bun run prisma:studio
 
 ## Quality checks
 
-Run lint:
+Run the full local verification suite used by CI:
+
+```bash
+bun run check
+```
+
+Run lint only:
 
 ```bash
 bun run lint
 ```
 
-Run a production build:
+Run a production build only:
 
 ```bash
 bun run build
 ```
 
+Install git hooks for this repo:
+
+```bash
+bun run hooks:install
+```
+
 Notes:
 
+- The pre-commit hook runs `bun run check`, which includes formatting, linting, type-checking, and a production build.
 - `bun run build` also validates translation resources before the Next.js build.
 - There is currently no separate test suite command in `package.json`.
 

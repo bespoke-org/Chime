@@ -36,6 +36,7 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 
 ```bash
 bun install
+bun run hooks:install
 cp .env.example .env
 bun run db:up
 bun run prisma:migrate
@@ -52,6 +53,8 @@ You must also configure Google OAuth for local development. See [docs/deployment
 bun run dev
 bun run build
 bun run lint
+bun run check
+bun run hooks:install
 bun run db:up
 bun run db:down
 bun run db:logs

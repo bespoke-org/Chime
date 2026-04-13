@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+printf 'Running pre-commit checks...\n'
+bun run check
