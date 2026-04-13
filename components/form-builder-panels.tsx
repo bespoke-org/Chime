@@ -10,14 +10,17 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Copy, GripVertical, Link as LinkIcon, LoaderCircle, MessagesSquare, Plus, Save, Settings2, Trash2, type LucideIcon } from "lucide-react";
+import { ChevronDown, Copy, ExternalLink, EyeOff, Globe, GripVertical, Link as LinkIcon, LoaderCircle, MessagesSquare, Plus, Save, Settings2, Trash2, Upload, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import * as React from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { FormStatusBadge } from "@/components/form-status-badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -75,17 +78,26 @@ export function BuilderHeader({
   form,
   settingsSelected,
   busy,
+  shareHref,
   onOpenSettings,
-  onTogglePublished,
+  onPublish,
+  onUnpublish,
+  onCopyShareLink,
 }: {
   form: BuilderForm;
   settingsSelected: boolean;
   busy: string | null;
+  shareHref: string;
   onOpenSettings: () => void;
-  onTogglePublished: () => void;
+  onPublish: () => void;
+  onUnpublish: () => void;
+  onCopyShareLink: () => void;
 }) {
   const { t } = useI18n();
   const workspaceLabel = form.workspace.kind === "personal" ? t("workspace.personal") : form.workspace.label;
+  const [isPublicationMenuOpen, setIsPublicationMenuOpen] = React.useState(false);
+  const isPublished = form.status === "PUBLISHED";
+  const isPublishBusy = busy === "publish";
 
   return (
     <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -95,7 +107,6 @@ export function BuilderHeader({
           <FormStatusBadge status={form.status} />
         </div>
         <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">{workspaceLabel}</p>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t("builder.description")}</p>
       </div>
       <div className="flex flex-wrap items-center gap-3 lg:justify-end">
         <Button variant={settingsSelected ? "default" : "secondary"} onClick={onOpenSettings}>
@@ -108,10 +119,57 @@ export function BuilderHeader({
             {t("builder.responses", { count: form.responseCount })}
           </Button>
         </Link>
-        <Button variant={form.status === "PUBLISHED" ? "secondary" : "default"} onClick={onTogglePublished}>
-          {busy === "publish" ? <LoaderCircle className="size-4 animate-spin" /> : <LinkIcon className="size-4" />}
-          {form.status === "PUBLISHED" ? t("builder.unpublish") : t("builder.publish")}
-        </Button>
+        <Popover open={isPublicationMenuOpen} onOpenChange={setIsPublicationMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button variant={isPublished ? "default" : "secondary"} aria-haspopup="menu" aria-expanded={isPublicationMenuOpen}>
+              {isPublishBusy ? <LoaderCircle className="size-4 animate-spin" /> : <Globe className="size-4" />}
+              {t("builder.publicationMenu")}
+              <ChevronDown className="size-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 p-2">
+            <div className="grid gap-1">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:text-[var(--muted)] disabled:hover:bg-transparent"
+                disabled={isPublishBusy}
+                onClick={() => {
+                  setIsPublicationMenuOpen(false);
+                  if (isPublished) {
+                    onUnpublish();
+                    return;
+                  }
+
+                  onPublish();
+                }}
+              >
+                {isPublished ? <EyeOff className="size-4" /> : <Upload className="size-4" />}
+                {t(isPublished ? "builder.unpublish" : "builder.publish")}
+              </button>
+              <div className="my-1 h-px bg-[color:var(--line)]" />
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+                onClick={() => {
+                  setIsPublicationMenuOpen(false);
+                  onCopyShareLink();
+                }}
+              >
+                <Copy className="size-4" />
+                {t("builder.copyLink")}
+              </button>
+              <Link
+                href={shareHref}
+                target="_blank"
+                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+                onClick={() => setIsPublicationMenuOpen(false)}
+              >
+                <ExternalLink className="size-4" />
+                {t("builder.openRunner")}
+              </Link>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </section>
   );
@@ -149,36 +207,6 @@ export function FormSettingsPanel({
         </label>
       </div>
 
-      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("builder.afterSubmission")}</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.afterSubmissionDescription")}
-          </p>
-        </div>
-
-        <div className="grid gap-5">
-          <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">{t("builder.completionTitle")}</span>
-            <Input value={metadataDraft.completionTitle} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionTitle: event.target.value }))} />
-          </label>
-          <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">{t("builder.completionMessage")}</span>
-            <Textarea value={metadataDraft.completionMessage} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionMessage: event.target.value }))} />
-          </label>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <label className="grid gap-2 text-sm text-[var(--muted)]">
-              <span className="font-medium text-[var(--ink)]">{t("builder.followUpLabel")}</span>
-              <Input value={metadataDraft.completionLinkLabel} placeholder={t("builder.followUpLabelPlaceholder")} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkLabel: event.target.value }))} />
-            </label>
-            <label className="grid gap-2 text-sm text-[var(--muted)]">
-              <span className="font-medium text-[var(--ink)]">{t("builder.followUpUrl")}</span>
-              <Input value={metadataDraft.completionLinkUrl} placeholder={t("builder.followUpUrlPlaceholder")} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkUrl: event.target.value }))} />
-            </label>
-          </div>
-        </div>
-      </div>
-
       <div className="grid gap-5 border-t border-[color:var(--line)] pt-6">
         <div>
           <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("builder.publicRoute")}</p>
@@ -209,6 +237,36 @@ export function FormSettingsPanel({
                 </Button>
               </Link>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t("builder.afterSubmission")}</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.afterSubmissionDescription")}
+          </p>
+        </div>
+
+        <div className="grid gap-5">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">{t("builder.completionTitle")}</span>
+            <Input value={metadataDraft.completionTitle} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionTitle: event.target.value }))} />
+          </label>
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">{t("builder.completionMessage")}</span>
+            <Textarea value={metadataDraft.completionMessage} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionMessage: event.target.value }))} />
+          </label>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]">{t("builder.followUpLabel")}</span>
+              <Input value={metadataDraft.completionLinkLabel} placeholder={t("builder.followUpLabelPlaceholder")} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkLabel: event.target.value }))} />
+            </label>
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]">{t("builder.followUpUrl")}</span>
+              <Input value={metadataDraft.completionLinkUrl} placeholder={t("builder.followUpUrlPlaceholder")} onChange={(event) => setMetadataDraft((current) => ({ ...current, completionLinkUrl: event.target.value }))} />
+            </label>
           </div>
         </div>
       </div>
@@ -590,10 +648,23 @@ export function BlockEditorPanel({
       </div>
 
       <div className="grid gap-5">
-        <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">{t(blockDraft.type === "TEXT" ? "builder.headingField" : "builder.prompt")}</span>
+        <div className="grid gap-2 text-sm text-[var(--muted)]">
+          {blockDraft.type === "TEXT" ? (
+            <span className="font-medium text-[var(--ink)]">{t("builder.headingField")}</span>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="font-medium text-[var(--ink)]">{t("builder.prompt")}</span>
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-[var(--ink)]">
+                <Checkbox
+                  checked={blockDraft.required}
+                  onChange={(event) => setBlockDraft((current) => (current ? { ...current, required: event.target.checked } : current))}
+                />
+                {t("builder.requiredToggle")}
+              </label>
+            </div>
+          )}
           <Input value={blockDraft.title} onChange={(event) => setBlockDraft((current) => (current ? { ...current, title: event.target.value } : current))} />
-        </label>
+        </div>
 
         {blockDraft.type !== "TEXT" ? (
           <label className="grid gap-2 text-sm text-[var(--muted)]">
@@ -624,10 +695,8 @@ export function BlockEditorPanel({
 
             <div className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
               <label className="flex items-center gap-3 text-[var(--ink)]">
-                <input
+                <Checkbox
                   checked={(blockDraft.config as ShortTextBlockConfig | LongTextBlockConfig).validationRegex !== null}
-                  className="size-4 rounded border-[color:var(--line-strong)]"
-                  type="checkbox"
                   onChange={(event) => updateConfig({ validationRegex: event.target.checked ? "" : null })}
                 />
                 {t("builder.regexValidation")}
@@ -660,10 +729,8 @@ export function BlockEditorPanel({
             </label>
 
             <label className="flex items-center gap-3 text-[var(--ink)]">
-              <input
+              <Checkbox
                 checked={(blockDraft.config as NumberBlockConfig).allowFloat}
-                className="size-4 rounded border-[color:var(--line-strong)]"
-                type="checkbox"
                 onChange={(event) => updateConfig({ allowFloat: event.target.checked })}
               />
               {t("builder.allowFloats")}
@@ -826,17 +893,6 @@ export function BlockEditorPanel({
           </div>
         ) : null}
 
-        {isQuestionBlock(blockDraft.type) ? (
-          <label className="flex items-center gap-3 rounded-xl bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--ink)]">
-            <input
-              checked={blockDraft.required}
-              className="size-4 rounded border-[color:var(--line-strong)]"
-              type="checkbox"
-              onChange={(event) => setBlockDraft((current) => (current ? { ...current, required: event.target.checked } : current))}
-            />
-            {t("builder.requiredToggle")}
-          </label>
-        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">

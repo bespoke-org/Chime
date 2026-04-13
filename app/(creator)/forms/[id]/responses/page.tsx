@@ -41,14 +41,13 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
         <div>
           <h1 className="font-display text-4xl text-[var(--ink)]">{form.title}</h1>
           <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">{workspaceLabel}</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t("responses.description")}</p>
         </div>
         <div className="flex flex-wrap gap-3 lg:justify-end">
           <Badge>{t("responses.submissionsCount", { count: responses.length })}</Badge>
-          <ResponseExportActions formId={form.id} />
           <Link href={`/forms/${form.id}/edit`}>
             <Button variant="secondary">{t("responses.backToBuilder")}</Button>
           </Link>
+          <ResponseExportActions formId={form.id} />
         </div>
       </section>
 

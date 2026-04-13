@@ -12,7 +12,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-6 py-8 lg:px-10 lg:py-10">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-6 py-8 lg:px-10 lg:py-10">
       <PublicFormRunner form={form} />
     </main>
   );

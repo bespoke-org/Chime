@@ -20,7 +20,7 @@ export default async function JoinOrganizationPage({ params }: { params: Promise
   const invite = await getOrganizationInviteState(session.user.id, token);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-6 py-10 lg:px-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 items-center px-6 py-10 lg:px-10">
       <Card className="w-full p-8 lg:p-10">
         {invite ? (
           <>

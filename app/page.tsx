@@ -14,7 +14,7 @@ export default async function HomePage() {
   const appName = t("app.name");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-6 py-8 lg:px-10 lg:py-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-8 lg:px-10 lg:py-10">
       <section className="flex flex-1 items-center justify-center py-16 lg:py-24">
         <Card className="w-full max-w-3xl p-8 lg:p-10">
           <div className="max-w-2xl">

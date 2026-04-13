@@ -5,6 +5,11 @@ app:
 home:
   description: "Как семя в хорошей почве, каждый продуманный вопрос может помочь чему-то вырасти. Создавайте формы, которые ощущаются живыми — мягкими приглашениями подумать, ответить и понять, что действительно важно."
   openDashboard: Открыть дашборд
+footer:
+  poweredBy: Сделано с помощью
+  licensedUnder: Лицензия
+  sourceCode: Исходный код
+  reportBug: Сообщить об ошибке
 auth:
   continueWithGoogle: Продолжить с Google
 workspace:
@@ -108,9 +113,9 @@ dashboard:
   updated: Обновлено
   open: Открыть
 builder:
-  description: Редактируйте блоки, меняйте настройки и просматривайте ответы.
   settings: Настройки
   responses: "Ответы ({count})"
+  publicationMenu: Публикация
   publish: Опубликовать форму
   unpublish: Снять с публикации
   blocks: Блоки
@@ -203,7 +208,7 @@ builder:
   branchAgreementValues:
     agreed: Согласен
     not_agreed: Не согласен
-  requiredToggle: Сделать этот вопрос обязательным
+  requiredToggle: Обязательный
   deleteBlock: Удалить блок
   saveBlock: Сохранить блок
   nothingSelected: Ничего не выбрано
@@ -275,7 +280,6 @@ publicRunner:
   continue: Далее
   submit: Отправить
 responses:
-  description: Просматривайте анонимные ответы в порядке формы.
   submissionsCount: "{count} ответов"
   backToBuilder: Назад к редактору
   noSubmissionsEyebrow: Пока нет ответов

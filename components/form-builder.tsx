@@ -160,11 +160,12 @@ function SortableBlockRow({
         transition,
       }}
       className={cn(
-        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2",
+        "group flex cursor-pointer items-center gap-2 rounded-[14px] px-2.5 py-2",
         selected
           ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
           : "hover:bg-[var(--surface)]",
       )}
+      onClick={() => onSelect(block.id)}
     >
       <BlockRowInner
         block={block}
@@ -174,6 +175,7 @@ function SortableBlockRow({
             className="relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)]"
             type="button"
             aria-label={t("builder.dragBlockAria", { label: preview })}
+            onClick={(event) => event.stopPropagation()}
             {...attributes}
             {...listeners}
           >
@@ -200,11 +202,12 @@ function StaticBlockRow({
   return (
     <div
       className={cn(
-        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2",
+        "group flex cursor-pointer items-center gap-2 rounded-[14px] px-2.5 py-2",
         selected
           ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
           : "hover:bg-[var(--surface)]",
       )}
+      onClick={() => onSelect(block.id)}
     >
       <BlockRowInner
         block={block}
@@ -421,13 +424,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     });
   }
 
-  async function togglePublished() {
+  async function setPublished(published: boolean) {
     await withTask("publish", async () => {
       const payload = await fetchJson<{ form: BuilderForm }>(`/api/forms/${form.id}/publish`, {
         method: "POST",
-        body: JSON.stringify({
-          published: form.status !== "PUBLISHED",
-        }),
+        body: JSON.stringify({ published }),
       });
 
       setForm(payload.form);
@@ -510,8 +511,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           form={form}
           settingsSelected={selection.kind === "form"}
           busy={busy}
+          shareHref={shareHref}
           onOpenSettings={() => setSelection({ kind: "form" })}
-          onTogglePublished={togglePublished}
+          onPublish={() => setPublished(true)}
+          onUnpublish={() => setPublished(false)}
+          onCopyShareLink={copyShareLink}
         />
 
         {branchingAnalysis.blockers.length ? (

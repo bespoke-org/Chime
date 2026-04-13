@@ -5,6 +5,11 @@ app:
 home:
   description: "Like a seed in good soil, every thoughtful question has the power to make something grow. Build forms that feel alive—gentle invitations to reflect, respond, and uncover what matters most."
   openDashboard: Open dashboard
+footer:
+  poweredBy: Built with
+  licensedUnder: Licensed under
+  sourceCode: Source code
+  reportBug: Report a bug
 auth:
   continueWithGoogle: Continue with Google
 workspace:
@@ -108,9 +113,9 @@ dashboard:
   updated: Updated
   open: Open
 builder:
-  description: Edit blocks, update settings, and review responses.
   settings: Settings
   responses: "Responses ({count})"
+  publicationMenu: Publication
   publish: Publish form
   unpublish: Unpublish
   blocks: Blocks
@@ -203,7 +208,7 @@ builder:
   branchAgreementValues:
     agreed: Agree
     not_agreed: Do not agree
-  requiredToggle: Mark this question as required
+  requiredToggle: Required
   deleteBlock: Delete block
   saveBlock: Save block
   nothingSelected: Nothing selected
@@ -275,7 +280,6 @@ publicRunner:
   continue: Continue
   submit: Submit
 responses:
-  description: Review anonymous submissions in form order.
   submissionsCount: "{count} submissions"
   backToBuilder: Back to builder
   noSubmissionsEyebrow: No submissions yet
