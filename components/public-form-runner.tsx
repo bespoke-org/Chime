@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -76,16 +77,19 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   );
   const { t } = useI18n();
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
-  const [history, setHistory] = useState<string[]>(initialHistory);
-  const [cursor, setCursor] = useState(0);
+  const [route, setRoute] = useState({ history: initialHistory, cursor: 0 });
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const submitLockRef = useRef(false);
 
   const blocksById = useMemo(
     () => new Map(form.blocks.map((block) => [block.id, block])),
     [form.blocks],
   );
+  const history = route.history;
+  const maxCursor = Math.max(history.length - 1, 0);
+  const cursor = Math.min(route.cursor, maxCursor);
   const currentBlockId = history[cursor] ?? initialHistory[0] ?? null;
   const currentBlock = currentBlockId
     ? (blocksById.get(currentBlockId) ?? null)
@@ -317,13 +321,20 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
+      const sourceBlockId = currentBlock.id;
       const resolvedNextBlockId = resolveNextBlockId(
         form.blocks,
-        currentBlock.id,
+        sourceBlockId,
         answerSet,
       );
 
       if (!resolvedNextBlockId) {
+        if (submitLockRef.current) {
+          return;
+        }
+
+        submitLockRef.current = true;
+
         try {
           setIsSubmitting(true);
           await submitResponse(form.slug, answerSet);
@@ -337,31 +348,38 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           );
         } finally {
           setIsSubmitting(false);
+          submitLockRef.current = false;
         }
 
         return;
       }
 
-      setHistory((current) => [
-        ...current.slice(0, cursor + 1),
-        resolvedNextBlockId,
-      ]);
-      setCursor((current) => current + 1);
+      setRoute((current) => {
+        const activeBlockId = current.history[current.cursor] ?? null;
+
+        if (activeBlockId !== sourceBlockId) {
+          return current;
+        }
+
+        const nextHistory = [
+          ...current.history.slice(0, current.cursor + 1),
+          resolvedNextBlockId,
+        ];
+
+        return {
+          history: nextHistory,
+          cursor: nextHistory.length - 1,
+        };
+      });
     },
-    [
-      answers,
-      currentBlock,
-      cursor,
-      form.blocks,
-      form.slug,
-      showToast,
-      t,
-      validateStep,
-    ],
+    [answers, currentBlock, form.blocks, form.slug, showToast, t, validateStep],
   );
 
   const handleBack = useCallback(() => {
-    setCursor((current) => Math.max(0, current - 1));
+    setRoute((current) => ({
+      ...current,
+      cursor: Math.max(0, current.cursor - 1),
+    }));
   }, []);
 
   function handleAdvanceKeyDown(
