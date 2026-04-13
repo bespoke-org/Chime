@@ -140,6 +140,9 @@ builder:
   followUpUrlPlaceholder: https://example.com/next
   publicRoute: Публичный доступ
   publicRouteHelp: Опубликованные формы принимают анонимные ответы. Изменения в опубликованной форме становятся доступны сразу.
+  appearance: Внешний вид
+  appearanceDescription: Управляйте тем, что респонденты видят во время прохождения формы.
+  showProgress: Показывать прогресс формы
   copyLink: Скопировать ссылку
   openRunner: Открыть раннер
   deleteForm: Удалить форму

@@ -258,6 +258,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     completionMessage: initialForm.completionMessage,
     completionLinkLabel: initialForm.completionLinkLabel ?? "",
     completionLinkUrl: initialForm.completionLinkUrl ?? "",
+    showProgress: initialForm.showProgress,
     slug: initialForm.slug,
   });
 
@@ -309,6 +310,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       completionMessage: form.completionMessage,
       completionLinkLabel: form.completionLinkLabel ?? "",
       completionLinkUrl: form.completionLinkUrl ?? "",
+      showProgress: form.showProgress,
       slug: form.slug,
     });
   }, [
@@ -317,6 +319,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     form.completionMessage,
     form.completionLinkLabel,
     form.completionLinkUrl,
+    form.showProgress,
     form.slug,
   ]);
 

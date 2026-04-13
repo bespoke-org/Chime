@@ -84,6 +84,7 @@ export type FormMetadataDraft = {
   completionMessage: string;
   completionLinkLabel: string;
   completionLinkUrl: string;
+  showProgress: boolean;
   slug: string;
 };
 
@@ -313,6 +314,32 @@ export function FormSettingsPanel({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.appearance")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.appearanceDescription")}
+          </p>
+        </div>
+
+        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+          <Checkbox
+            checked={metadataDraft.showProgress}
+            onChange={(event) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                showProgress: event.target.checked,
+              }))
+            }
+          />
+          <span className="font-medium text-[var(--ink)]">
+            {t("builder.showProgress")}
+          </span>
+        </label>
       </div>
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">

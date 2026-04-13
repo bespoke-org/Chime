@@ -164,6 +164,7 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     completionMessage: form.completionMessage,
     completionLinkLabel: form.completionLinkLabel,
     completionLinkUrl: form.completionLinkUrl,
+    showProgress: form.showProgress,
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -182,6 +183,7 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
     completionMessage: form.completionMessage,
     completionLinkLabel: form.completionLinkLabel,
     completionLinkUrl: form.completionLinkUrl,
+    showProgress: form.showProgress,
     slug: form.slug,
     blocks: form.blocks.map(serializeBlock),
   };
@@ -875,6 +877,7 @@ export async function createDraftForm(
       description: "",
       completionTitle: copy.completionTitle,
       completionMessage: copy.completionMessage,
+      showProgress: true,
       slug,
       blocks: {
         create: initialBlocks(locale),

@@ -97,12 +97,23 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const nextBlockId = currentBlock
     ? resolveNextBlockId(form.blocks, currentBlock.id, answers)
     : null;
-  const visibleTotal = Math.max(
-    cursor + 1,
-    currentBlock && cursor === history.length - 1 && nextBlockId
-      ? history.length + 1
-      : history.length || 1,
-  );
+  const visibleTotal = useMemo(() => {
+    if (!currentBlockId) {
+      return 1;
+    }
+
+    let total = cursor + 1;
+    let nextId = resolveNextBlockId(form.blocks, currentBlockId, answers);
+    let safetyCounter = 0;
+
+    while (nextId && safetyCounter < form.blocks.length) {
+      total += 1;
+      nextId = resolveNextBlockId(form.blocks, nextId, answers);
+      safetyCounter += 1;
+    }
+
+    return Math.max(total, cursor + 1);
+  }, [answers, currentBlockId, cursor, form.blocks]);
   const progress = useMemo(
     () => ((cursor + 1) / visibleTotal) * 100,
     [cursor, visibleTotal],
@@ -520,26 +531,29 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
               </h1>
             </div>
 
-            <div className="w-full max-w-xs shrink-0">
-              <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
-                  {t("publicRunner.step", {
-                    current: cursor + 1,
-                    total: visibleTotal,
-                  })}
-                </span>
-                <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">
-                  {Math.round(progress)}%
-                </span>
+            {form.showProgress ? (
+              <div className="w-full max-w-xs shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
+                    {t("publicRunner.step", {
+                      current: cursor + 1,
+                      total: visibleTotal,
+                    })}
+                  </span>
+                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">
+                    {Math.round(progress)}%
+                  </span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-strong)]">
+                  <motion.div
+                    className="h-full rounded-full bg-[var(--accent)]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ type: "spring", stiffness: 130, damping: 20 }}
+                  />
+                </div>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-strong)]">
-                <motion.div
-                  className="h-full rounded-full bg-[var(--accent)]"
-                  animate={{ width: `${progress}%` }}
-                  transition={{ type: "spring", stiffness: 130, damping: 20 }}
-                />
-              </div>
-            </div>
+            ) : null}
           </div>
         </div>
 

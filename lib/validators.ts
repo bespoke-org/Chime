@@ -11,6 +11,7 @@ export const formMetadataSchema = z
     completionMessage: z.string().trim().max(600).default(""),
     completionLinkLabel: z.string().trim().max(80).default(""),
     completionLinkUrl: z.string().trim().max(2048).default(""),
+    showProgress: z.boolean().default(true),
     slug: z
       .string()
       .trim()

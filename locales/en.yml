@@ -140,6 +140,9 @@ builder:
   followUpUrlPlaceholder: https://example.com/next
   publicRoute: Public route
   publicRouteHelp: Published forms accept anonymous submissions. Changes to a published form go live immediately.
+  appearance: Appearance
+  appearanceDescription: Control what respondents see while moving through the form.
+  showProgress: Show form progress
   copyLink: Copy link
   openRunner: Open runner
   deleteForm: Delete form

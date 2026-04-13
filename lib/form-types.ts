@@ -44,6 +44,7 @@ export type BuilderForm = {
   completionMessage: string;
   completionLinkLabel: string | null;
   completionLinkUrl: string | null;
+  showProgress: boolean;
   slug: string;
   status: FormStatus;
   updatedAt: string;
@@ -60,6 +61,7 @@ export type PublicForm = {
   completionMessage: string;
   completionLinkLabel: string | null;
   completionLinkUrl: string | null;
+  showProgress: boolean;
   slug: string;
   blocks: PublicBlock[];
 };
