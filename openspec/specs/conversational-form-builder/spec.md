@@ -119,3 +119,59 @@ The system SHALL show the active workspace context when a creator creates or edi
 #### Scenario: Creator opens a form builder in an organization workspace
 - **WHEN** an authenticated creator opens a form that belongs to an organization workspace
 - **THEN** the system shows that organization context in the builder chrome
+
+### Requirement: Creator can configure answer-based branch rules on question blocks
+The system SHALL allow an authenticated creator to add, edit, reorder, and remove branch rules on answerable blocks in a form located in an accessible workspace. Each branch rule SHALL compare the current block's answer using behavior appropriate to that block type and SHALL send respondents to a later block in the same form. The system SHALL also allow an authenticated creator to configure a default next target on an answerable block so respondents can continue to a chosen later block when no branch rule matches. If no branch rule matches and no default next target is configured, the respondent flow SHALL continue to the next block in saved order.
+
+#### Scenario: Creator adds a conditional follow-up for one answer
+- **WHEN** an authenticated creator configures a single choice question so one option branches to a later follow-up block
+- **THEN** the system saves that branch rule on the source question and keeps the unconfigured path flowing to the next saved block
+
+#### Scenario: Creator defines divergent paths from one question
+- **WHEN** an authenticated creator configures different branch rules for different answers on the same question block
+- **THEN** the system saves distinct later-block targets for those answers on that source block
+
+#### Scenario: Creator changes branch priority
+- **WHEN** an authenticated creator reorders branch rules on a question block
+- **THEN** the system saves the updated evaluation order for that block's branch rules
+
+### Requirement: Builder validates branch graphs before publishing
+The system SHALL validate saved branch rules before allowing a form to publish. The system SHALL prevent publishing when a branch rule points to a missing, current, or earlier block, or when one or more blocks become unreachable from the first block under the configured branch graph.
+
+#### Scenario: Creator tries to publish with a backward branch target
+- **WHEN** an authenticated creator attempts to publish a form containing a branch rule that points to the source block or an earlier block
+- **THEN** the system blocks publishing and indicates that the branch target must move forward in the form
+
+#### Scenario: Creator tries to publish with an unreachable block
+- **WHEN** an authenticated creator attempts to publish a form whose saved branch rules leave a block unreachable from the form start
+- **THEN** the system blocks publishing and indicates that the unreachable block must be reconnected or removed
+
+#### Scenario: Creator saves an invalid draft while editing branching
+- **WHEN** an authenticated creator saves draft changes that leave branch validation issues unresolved
+- **THEN** the system preserves the draft changes and continues to block publishing until the issues are fixed
+
+### Requirement: Creator can configure operator-based branch conditions on question blocks
+The system SHALL allow an authenticated creator to configure branch rules on answerable blocks using operator-aware conditions appropriate to the source block type. The supported operator set SHALL include `equals`, `not equals`, `is empty`, and `is not empty` for answerable blocks; `contains` for text-answer and link blocks; `contains any` for multiple choice blocks; and `greater than`, `greater than or equal`, `less than`, and `less than or equal` for number and date blocks.
+
+#### Scenario: Creator configures a numeric threshold branch
+- **WHEN** an authenticated creator configures a number question with a branch rule using a greater-than or less-than style operator
+- **THEN** the system saves that operator and operand as part of the branch rule for that question
+
+#### Scenario: Creator configures an empty-answer branch
+- **WHEN** an authenticated creator configures a branch rule using `is empty` or `is not empty` on an answerable block
+- **THEN** the system saves that rule without requiring a comparison value
+
+#### Scenario: Creator configures a text contains branch
+- **WHEN** an authenticated creator configures a text-answer or link question with a `contains` branch rule
+- **THEN** the system saves the rule and limits it to a valid operator for that block type
+
+### Requirement: Builder distinguishes branching blockers from advisory warnings
+The system SHALL surface branching validation feedback while a creator edits a form and SHALL distinguish publish-blocking routing errors from non-blocking advisory warnings.
+
+#### Scenario: Creator introduces a publish-blocking branching error
+- **WHEN** an authenticated creator edits a branch rule so that its target is missing, invalid for that block type, or unreachable in the form graph
+- **THEN** the system preserves the draft change, marks the issue as publish-blocking, and prevents publishing until it is fixed
+
+#### Scenario: Creator introduces a fragile but still valid branch setup
+- **WHEN** an authenticated creator creates a branch setup that is structurally valid but likely fragile or overlapping
+- **THEN** the system surfaces an advisory warning without preventing the draft from being saved

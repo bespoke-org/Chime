@@ -144,6 +144,52 @@ const numericLimitSchema = z
     message: "Use a valid number.",
   });
 
+export const AGREEMENT_ANSWER_VALUES = {
+  AGREED: "agreed",
+  NOT_AGREED: "not_agreed",
+} as const;
+
+export const branchOperatorValues = [
+  "equals",
+  "not_equals",
+  "is_empty",
+  "is_not_empty",
+  "contains",
+  "contains_any",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+] as const;
+
+export const branchOperatorSchema = z.enum(branchOperatorValues);
+
+function normalizeBranchRuleOperand(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+const rawBranchRuleSchema = z
+  .object({
+    operator: branchOperatorSchema.optional(),
+    value: z.unknown().transform(normalizeBranchRuleOperand).optional(),
+    targetBlockId: z.string().trim().min(1),
+  })
+  .transform((value) => ({
+    operator: value.operator ?? "equals",
+    value: value.value ?? null,
+    targetBlockId: value.targetBlockId,
+  }));
+
+export const branchRuleSchema = rawBranchRuleSchema;
+
+const branchRulesSchema = z.array(branchRuleSchema).max(50).default([]);
+const defaultNextBlockIdSchema = z.string().trim().min(1).nullable().default(null);
+
 const textConfigSchema = z.object({
   body: z.string().max(2400).default(defaultBlockCopyByLocale.en.textBody),
 });
@@ -151,11 +197,15 @@ const textConfigSchema = z.object({
 const shortTextConfigSchema = z.object({
   placeholder: z.string().max(120).default(defaultBlockCopyByLocale.en.shortPlaceholder),
   validationRegex: regexPatternSchema.default(null),
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
 const longTextConfigSchema = z.object({
   placeholder: z.string().max(240).default(defaultBlockCopyByLocale.en.longPlaceholder),
   validationRegex: regexPatternSchema.default(null),
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
 const numberConfigSchema = z
@@ -164,6 +214,8 @@ const numberConfigSchema = z
     allowFloat: z.boolean().default(false),
     min: numericLimitSchema.default(null),
     max: numericLimitSchema.default(null),
+    branchRules: branchRulesSchema,
+    defaultNextBlockId: defaultNextBlockIdSchema,
   })
   .superRefine((value, context) => {
     if (!value.allowFloat) {
@@ -195,24 +247,30 @@ const numberConfigSchema = z
 
 const linkConfigSchema = z.object({
   placeholder: z.string().max(2048).default(defaultBlockCopyByLocale.en.linkPlaceholder),
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
 const agreementConfigSchema = z.object({
   label: z.string().trim().max(160).default(defaultBlockCopyByLocale.en.agreementLabel),
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
-const dateConfigSchema = z.object({});
+const dateConfigSchema = z.object({
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
+});
 
 const optionListSchema = z.object({
   options: z.array(z.string().min(1).max(120)).min(2).max(10).default(defaultBlockCopyByLocale.en.options),
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
 });
 
-export const AGREEMENT_ANSWER_VALUES = {
-  AGREED: "agreed",
-  NOT_AGREED: "not_agreed",
-} as const;
-
 export type AgreementAnswerValue = (typeof AGREEMENT_ANSWER_VALUES)[keyof typeof AGREEMENT_ANSWER_VALUES];
+export type BranchOperator = z.infer<typeof branchOperatorSchema>;
+export type BranchRule = z.infer<typeof branchRuleSchema>;
 export type TextBlockConfig = z.infer<typeof textConfigSchema>;
 export type ShortTextBlockConfig = z.infer<typeof shortTextConfigSchema>;
 export type LongTextBlockConfig = z.infer<typeof longTextConfigSchema>;
@@ -222,8 +280,7 @@ export type AgreementBlockConfig = z.infer<typeof agreementConfigSchema>;
 export type DateBlockConfig = z.infer<typeof dateConfigSchema>;
 export type ChoiceBlockConfig = z.infer<typeof optionListSchema>;
 export type TextAnswerBlockConfig = ShortTextBlockConfig | LongTextBlockConfig;
-export type BlockConfig =
-  | TextBlockConfig
+export type AnswerableBlockConfig =
   | ShortTextBlockConfig
   | LongTextBlockConfig
   | NumberBlockConfig
@@ -231,6 +288,7 @@ export type BlockConfig =
   | AgreementBlockConfig
   | DateBlockConfig
   | ChoiceBlockConfig;
+export type BlockConfig = TextBlockConfig | AnswerableBlockConfig;
 
 export type SerializedBlock = Omit<FormBlock, "config"> & {
   config: BlockConfig;
@@ -285,6 +343,84 @@ export function isValidDateAnswer(value: string) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+export function getSupportedBranchOperators(type: PrismaFormBlockType): BranchOperator[] {
+  if (type === FORM_BLOCK_TYPES.TEXT) {
+    return [];
+  }
+
+  const common: BranchOperator[] = ["equals", "not_equals", "is_empty", "is_not_empty"];
+
+  if (type === FORM_BLOCK_TYPES.SHORT_TEXT || type === FORM_BLOCK_TYPES.LONG_TEXT || type === FORM_BLOCK_TYPES.LINK) {
+    return [...common, "contains"];
+  }
+
+  if (type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE) {
+    return [...common, "contains_any"];
+  }
+
+  if (type === FORM_BLOCK_TYPES.NUMBER || type === FORM_BLOCK_TYPES.DATE) {
+    return [...common, "gt", "gte", "lt", "lte"];
+  }
+
+  return common;
+}
+
+export function getVisibleBranchOperators(type: PrismaFormBlockType): BranchOperator[] {
+  if (type === FORM_BLOCK_TYPES.TEXT) {
+    return [];
+  }
+
+  if (type === FORM_BLOCK_TYPES.SHORT_TEXT || type === FORM_BLOCK_TYPES.LONG_TEXT || type === FORM_BLOCK_TYPES.LINK) {
+    return ["is_empty", "is_not_empty", "contains"];
+  }
+
+  if (type === FORM_BLOCK_TYPES.SINGLE_CHOICE) {
+    return ["equals", "not_equals", "is_empty", "is_not_empty"];
+  }
+
+  if (type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE) {
+    return ["contains_any", "is_empty", "is_not_empty"];
+  }
+
+  if (type === FORM_BLOCK_TYPES.NUMBER || type === FORM_BLOCK_TYPES.DATE) {
+    return ["equals", "not_equals", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty"];
+  }
+
+  if (type === FORM_BLOCK_TYPES.AGREEMENT) {
+    return ["equals", "not_equals"];
+  }
+
+  return ["equals", "not_equals"];
+}
+
+export function branchOperatorNeedsValue(operator: BranchOperator) {
+  return operator !== "is_empty" && operator !== "is_not_empty";
+}
+
+export function parseBlockConfig(type: PrismaFormBlockType, value: unknown): BlockConfig {
+  switch (type) {
+    case FORM_BLOCK_TYPES.TEXT:
+      return textConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.SHORT_TEXT:
+      return shortTextConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.LONG_TEXT:
+      return longTextConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.SINGLE_CHOICE:
+    case FORM_BLOCK_TYPES.MULTIPLE_CHOICE:
+      return optionListSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.NUMBER:
+      return numberConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.LINK:
+      return linkConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.AGREEMENT:
+      return agreementConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.DATE:
+      return dateConfigSchema.parse(value ?? {});
+    default:
+      return textConfigSchema.parse(value ?? {});
+  }
+}
+
 export function getDefaultBlockConfig(type: PrismaFormBlockType, locale: AppLocale = DEFAULT_LOCALE): BlockConfig {
   const copy = getDefaultBlockCopy(locale);
 
@@ -311,28 +447,12 @@ export function getDefaultBlockConfig(type: PrismaFormBlockType, locale: AppLoca
   }
 }
 
-export function parseBlockConfig(type: PrismaFormBlockType, value: unknown): BlockConfig {
-  switch (type) {
-    case FORM_BLOCK_TYPES.TEXT:
-      return textConfigSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.SHORT_TEXT:
-      return shortTextConfigSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.LONG_TEXT:
-      return longTextConfigSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.SINGLE_CHOICE:
-    case FORM_BLOCK_TYPES.MULTIPLE_CHOICE:
-      return optionListSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.NUMBER:
-      return numberConfigSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.LINK:
-      return linkConfigSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.AGREEMENT:
-      return agreementConfigSchema.parse(value ?? {});
-    case FORM_BLOCK_TYPES.DATE:
-      return dateConfigSchema.parse(value ?? {});
-    default:
-      return textConfigSchema.parse(value ?? {});
-  }
+export function getBranchRules(config: BlockConfig): BranchRule[] {
+  return "branchRules" in config ? config.branchRules : [];
+}
+
+export function getDefaultNextBlockId(config: BlockConfig) {
+  return "defaultNextBlockId" in config ? config.defaultNextBlockId : null;
 }
 
 export function serializeBlock(block: FormBlock): SerializedBlock {

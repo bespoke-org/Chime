@@ -26,6 +26,7 @@ import {
   type SerializedBlock,
   type TextAnswerBlockConfig,
 } from "@/lib/blocks";
+import { getBranchValidationIssueI18n, validateBranchingGraph, resolveNextBlockId } from "@/lib/branching";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
@@ -47,7 +48,8 @@ import {
   reorderBlocksSchema,
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
-import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, translate, type AppLocale } from "@/lib/i18n";
+import { getMessages } from "@/lib/i18n-server";
 import { assertOrganizationMember, workspaceAccessWhere, workspaceFilterWhere } from "@/lib/workspaces";
 
 const FORM_BLOCK_TYPES = {
@@ -318,9 +320,21 @@ function normalizeBlockConfig(type: PrismaFormBlockType, value: unknown): BlockC
         ? value.options.filter((option): option is string => typeof option === "string")
         : [];
     const options = sanitizeOptions(rawOptions);
+    const branchRules =
+      typeof value === "object" && value && "branchRules" in value && Array.isArray(value.branchRules)
+        ? value.branchRules
+        : undefined;
+    const defaultNextBlockId =
+      typeof value === "object" && value && "defaultNextBlockId" in value && typeof value.defaultNextBlockId === "string"
+        ? value.defaultNextBlockId
+        : value && typeof value === "object" && "defaultNextBlockId" in value && value.defaultNextBlockId === null
+          ? null
+          : undefined;
 
     return parseBlockConfig(type, {
       options: options.length >= 2 ? options : ["Option 1", "Option 2"],
+      branchRules,
+      defaultNextBlockId,
     });
   }
 
@@ -608,12 +622,22 @@ export async function deleteOwnedForm(userId: string, formId: string) {
   });
 }
 
-export async function setOwnedFormPublished(userId: string, formId: string, payload: unknown) {
+export async function setOwnedFormPublished(userId: string, formId: string, payload: unknown, locale: AppLocale = DEFAULT_LOCALE) {
   const parsed = publishFormSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
 
   if (parsed.published && form.blocks.length === 0) {
     throw new AppError("Add at least one block before publishing.", 422);
+  }
+
+  if (parsed.published) {
+    const branchValidationIssues = validateBranchingGraph(form.blocks.map(serializeBlock));
+
+    if (branchValidationIssues.length > 0) {
+      const messages = await getMessages(locale);
+      const issueI18n = getBranchValidationIssueI18n(branchValidationIssues[0], form.blocks.map(serializeBlock));
+      throw new AppError(translate(messages, issueI18n.key, issueI18n.values), 422);
+    }
   }
 
   const updated = await db.form.update({
@@ -779,21 +803,32 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
   }
 
   const blocks = form.blocks.map(serializeBlock);
-  const normalizedAnswers = blocks.reduce<Record<string, string | string[]>>((accumulator, block) => {
-    const answer = normalizeAnswer(block, answersInput[block.id]);
+  const blocksById = new Map(blocks.map((block) => [block.id, block]));
+  const normalizedAnswers: Record<string, string | string[]> = {};
+  const visitedBlocks: SerializedBlock[] = [];
+
+  let currentBlock: SerializedBlock | undefined = blocks[0];
+  let safetyCounter = 0;
+
+  while (currentBlock && safetyCounter < blocks.length) {
+    visitedBlocks.push(currentBlock);
+
+    const answer = normalizeAnswer(currentBlock, answersInput[currentBlock.id]);
 
     if (typeof answer !== "undefined") {
-      accumulator[block.id] = answer;
+      normalizedAnswers[currentBlock.id] = answer;
     }
 
-    return accumulator;
-  }, {});
+    const nextBlockId = resolveNextBlockId(blocks, currentBlock.id, normalizedAnswers);
+    currentBlock = nextBlockId ? blocksById.get(nextBlockId) : undefined;
+    safetyCounter += 1;
+  }
 
   const response = await db.response.create({
     data: {
       formId: form.id,
       answersJson: normalizedAnswers,
-      formSnapshotJson: blocks.map((block) => ({
+      formSnapshotJson: visitedBlocks.map((block) => ({
         id: block.id,
         type: block.type,
         title: block.title,
@@ -888,6 +923,10 @@ export async function getOwnedResponseDetail(userId: string, formId: string, res
     },
   });
 
+  const visitedBlocks = parseSnapshotBlocks(response);
+  const visitedBlockIds = new Set(visitedBlocks.map((block) => block.id));
+  const currentFormBlocks = response.form.blocks.map(serializeBlock);
+
   return {
     id: response.id,
     submittedAt: response.submittedAt.toISOString(),
@@ -898,6 +937,10 @@ export async function getOwnedResponseDetail(userId: string, formId: string, res
       typeof response.answersJson === "object" && response.answersJson && !Array.isArray(response.answersJson)
         ? (response.answersJson as Record<string, string | string[]>)
         : {},
-    blocks: parseSnapshotBlocks(response),
+    blocks: visitedBlocks,
+    routeBlocks: currentFormBlocks.map((block) => ({
+      block,
+      status: visitedBlockIds.has(block.id) ? "visited" : "skipped",
+    })),
   };
 }

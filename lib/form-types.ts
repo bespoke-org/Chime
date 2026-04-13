@@ -82,6 +82,11 @@ export type ResponseListItem = {
   submissionNumber: number;
 };
 
+export type ResponseDetailRouteBlock = {
+  block: SerializedBlock;
+  status: "visited" | "skipped";
+};
+
 export type ResponseDetail = {
   id: string;
   submittedAt: string;
@@ -90,6 +95,7 @@ export type ResponseDetail = {
   workspace: WorkspaceReference;
   answers: Record<string, AnswerValue>;
   blocks: SerializedBlock[];
+  routeBlocks: ResponseDetailRouteBlock[];
 };
 
 export type ResponseReviewFormSummary = {

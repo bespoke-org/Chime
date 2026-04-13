@@ -44,11 +44,23 @@ import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ToastViewport, type ToastData } from "@/components/ui/toast";
-import { blockTypeTranslationKeys, getBlockPreview, type ChoiceBlockConfig } from "@/lib/blocks";
+import {
+  getBranchRules,
+  isQuestionBlock,
+  blockTypeTranslationKeys,
+  getBlockPreview,
+  type BranchRule,
+  type ChoiceBlockConfig,
+} from "@/lib/blocks";
+import { analyzeBranchingGraph, getBranchValidationIssueI18n } from "@/lib/branching";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
 type BlockType = BuilderBlock["type"];
+
+type BranchRuleDraft = BranchRule & {
+  id: string;
+};
 
 type Selection = { kind: "form" } | { kind: "block"; blockId: string };
 
@@ -78,6 +90,10 @@ const blockCreationOrder: BlockType[] = [
 
 function createChoiceOptionDrafts(options: string[]): ChoiceOptionDraft[] {
   return options.map((value) => ({ id: crypto.randomUUID(), value }));
+}
+
+function createBranchRuleDrafts(rules: BranchRule[]): BranchRuleDraft[] {
+  return rules.map((rule) => ({ id: crypto.randomUUID(), ...rule }));
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit) {
@@ -144,7 +160,7 @@ function SortableBlockRow({
         transition,
       }}
       className={cn(
-        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2 transition",
+        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2",
         selected
           ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
           : "hover:bg-[var(--surface)]",
@@ -184,7 +200,7 @@ function StaticBlockRow({
   return (
     <div
       className={cn(
-        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2 transition",
+        "group flex items-center gap-2 rounded-[14px] px-2.5 py-2",
         selected
           ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
           : "hover:bg-[var(--surface)]",
@@ -239,9 +255,15 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       ? createChoiceOptionDrafts((selectedBlock.config as ChoiceBlockConfig).options)
       : [],
   );
+  const [branchRulesDraft, setBranchRulesDraft] = useState<BranchRuleDraft[]>(
+    selectedBlock && isQuestionBlock(selectedBlock.type)
+      ? createBranchRuleDrafts(getBranchRules(selectedBlock.config))
+      : [],
+  );
   const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const branchingAnalysis = useMemo(() => analyzeBranchingGraph(form.blocks), [form.blocks]);
 
   useEffect(() => {
     setMetadataDraft({
@@ -259,6 +281,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     setChoiceOptionsDraft(
       selectedBlock && (selectedBlock.type === "SINGLE_CHOICE" || selectedBlock.type === "MULTIPLE_CHOICE")
         ? createChoiceOptionDrafts((selectedBlock.config as ChoiceBlockConfig).options)
+        : [],
+    );
+    setBranchRulesDraft(
+      selectedBlock && isQuestionBlock(selectedBlock.type)
+        ? createBranchRuleDrafts(getBranchRules(selectedBlock.config))
         : [],
     );
   }, [selectedBlock]);
@@ -339,6 +366,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     }
 
     await withTask(`block-${blockDraft.id}`, async () => {
+      const serializedBranchRules = branchRulesDraft.map((rule) => ({
+        operator: rule.operator,
+        value: rule.value,
+        targetBlockId: rule.targetBlockId,
+      }));
       const payload = await fetchJson<{ block: BuilderBlock }>(`/api/forms/${form.id}/blocks/${blockDraft.id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -347,8 +379,17 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           required: blockDraft.required,
           config:
             blockDraft.type === "SINGLE_CHOICE" || blockDraft.type === "MULTIPLE_CHOICE"
-              ? { options: choiceOptionsDraft.map((option) => option.value) }
-              : blockDraft.config,
+              ? {
+                  ...blockDraft.config,
+                  options: choiceOptionsDraft.map((option) => option.value),
+                  branchRules: serializedBranchRules,
+                }
+              : isQuestionBlock(blockDraft.type)
+                ? {
+                    ...blockDraft.config,
+                    branchRules: serializedBranchRules,
+                  }
+                : blockDraft.config,
         }),
       });
 
@@ -473,6 +514,36 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           onTogglePublished={togglePublished}
         />
 
+        {branchingAnalysis.blockers.length ? (
+          <div className="rounded-[18px] border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-[var(--ink)]">
+            <p className="font-medium">{t("builder.branchingBlockersTitle", { count: branchingAnalysis.blockers.length })}</p>
+            <p className="mt-1 text-[var(--muted)]">{t("builder.branchingBlockersDescription")}</p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-[var(--muted)]">
+              {branchingAnalysis.blockers.slice(0, 5).map((issue, index) => {
+                const issueI18n = getBranchValidationIssueI18n(issue, form.blocks);
+                return (
+                  <li key={`${issue.blockId}-${issue.code}-${issue.ruleIndex ?? index}`}>{t(issueI18n.key, issueI18n.values)}</li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+
+        {branchingAnalysis.warnings.length ? (
+          <div className="rounded-[18px] border border-sky-500/30 bg-sky-500/10 px-4 py-4 text-sm text-[var(--ink)]">
+            <p className="font-medium">{t("builder.branchingWarningsTitle", { count: branchingAnalysis.warnings.length })}</p>
+            <p className="mt-1 text-[var(--muted)]">{t("builder.branchingWarningsDescription")}</p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-[var(--muted)]">
+              {branchingAnalysis.warnings.slice(0, 5).map((issue, index) => {
+                const issueI18n = getBranchValidationIssueI18n(issue, form.blocks);
+                return (
+                  <li key={`${issue.blockId}-${issue.code}-${issue.ruleIndex ?? index}`}>{t(issueI18n.key, issueI18n.values)}</li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
+
         <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
             <div className="flex items-center justify-between gap-3">
@@ -554,10 +625,14 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
               />
             ) : blockDraft ? (
               <BlockEditorPanel
+                allBlocks={form.blocks}
                 blockDraft={blockDraft}
                 selectedBlockIcon={SelectedBlockIcon}
                 choiceOptionsDraft={choiceOptionsDraft}
+                branchRulesDraft={branchRulesDraft}
+                branchValidationIssues={[...branchingAnalysis.blockers, ...branchingAnalysis.warnings]}
                 setChoiceOptionsDraft={setChoiceOptionsDraft}
+                setBranchRulesDraft={setBranchRulesDraft}
                 setBlockDraft={setBlockDraft}
                 deleteBlock={deleteBlock}
                 saveBlock={saveBlock}

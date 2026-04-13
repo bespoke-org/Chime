@@ -153,6 +153,56 @@ builder:
   dragOptionAria: "Drag option {number}"
   removeOptionAria: "Remove option {number}"
   optionsHelp: Drag to reorder, rename in place, and keep between 2 and 10 options.
+  branchingTitle: Branching
+  branchingDescription: Send respondents to a later block when this answer matches.
+  addBranchRule: Add rule
+  branchOperator: Operator
+  branchWhenAnswer: Condition value
+  branchGoTo: Go to block
+  branchOtherwise: Otherwise continue to
+  branchDefaultLinear: The next block in saved order
+  branchNoValueNeeded: No value needed for this operator.
+  branchingHelp: "Leave a rule unmatched to use the default path. Example value: \"{value}\"."
+  branchingNoTargets: Add a later block before creating branch rules from this question.
+  dragBranchRuleAria: "Drag branch rule {number}"
+  removeBranchRuleAria: "Remove branch rule {number}"
+  branchMissingTarget: Missing target block
+  branchingBlockersTitle: "{count} branching blocker(s) must be fixed before publish"
+  branchingBlockersDescription: Draft edits are preserved, but publishing stays blocked until these routing errors are fixed.
+  branchingWarningsTitle: "{count} branching warning(s) to review"
+  branchingWarningsDescription: These warnings do not block draft saves, but they may indicate fragile or confusing routing.
+  branchingBlockersForBlockTitle: Blocking issues on this block
+  branchingWarningsForBlockTitle: Warnings on this block
+  branchOperators:
+    equals: Equals
+    not_equals: Not equals
+    is_empty: Is empty
+    is_not_empty: Is not empty
+    contains: Contains
+    contains_any: Contains any
+    gt: Greater than
+    gte: Greater than or equal
+    lt: Less than
+    lte: Less than or equal
+  branchOperatorLabels:
+    singleChoice:
+      equals: Is
+      not_equals: Is not
+    multipleChoice:
+      contains_any: Contains option
+    agreement:
+      equals: Is agreed
+      not_equals: Is not agreed
+    date:
+      equals: Is on
+      not_equals: Is not on
+      gt: Is after
+      gte: Is on or after
+      lt: Is before
+      lte: Is on or before
+  branchAgreementValues:
+    agreed: Agree
+    not_agreed: Do not agree
   requiredToggle: Mark this question as required
   deleteBlock: Delete block
   saveBlock: Save block
@@ -183,6 +233,19 @@ blocks:
     LINK: Link
     AGREEMENT: Agreement
     DATE: Date
+branching:
+  issueMessages:
+    invalid-target: "A rule on \"{blockLabel}\" points to a missing block."
+    backward-target: "A rule on \"{blockLabel}\" must point to a later block."
+    invalid-default-target: "The default next step on \"{blockLabel}\" points to a missing block."
+    backward-default-target: "The default next step on \"{blockLabel}\" must point to a later block."
+    invalid-condition: "A rule on \"{blockLabel}\" has an invalid condition value."
+    duplicate-condition: "A rule on \"{blockLabel}\" duplicates an earlier condition."
+    unsupported-operator: "A rule on \"{blockLabel}\" uses an operator that does not fit this block type."
+    unreachable-block: "\"{blockLabel}\" is unreachable from the start of the form."
+    fragile-text-match: "Exact text matching on \"{blockLabel}\" may be fragile if respondents vary punctuation or casing."
+    overlapping-rule: "A later rule on \"{blockLabel}\" may never run because an earlier broader rule matches first."
+    partial-choice-coverage: "Some answers on \"{blockLabel}\" fall through to the default route. Double-check that this is intentional."
 publicRunner:
   responseReceived: Response received
   defaultCompletionTitle: Thanks for taking the time.
@@ -226,6 +289,10 @@ responseDetail:
   title: "Submission #{number} · {date}"
   description: Review submitted answers in form order.
   backToResponses: Back to responses
+  routeContext: Route context
+  visitedPath: Visited path
+  skippedPath: Skipped sections
+  nothingSkipped: No sections were skipped in this submission.
   contextBlock: Context block
   contextTitle: Context
   required: Required

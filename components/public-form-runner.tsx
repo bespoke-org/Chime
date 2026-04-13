@@ -25,6 +25,7 @@ import {
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
+import { resolveNextBlockId } from "@/lib/branching";
 import { isLegacyDefaultCompletionMessage, isLegacyDefaultCompletionTitle } from "@/lib/form-defaults";
 import type { PublicForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
@@ -48,15 +49,21 @@ async function submitResponse(slug: string, answers: Record<string, string | str
 }
 
 export function PublicFormRunner({ form }: { form: PublicForm }) {
-  const [step, setStep] = useState(0);
+  const initialHistory = useMemo(() => (form.blocks[0] ? [form.blocks[0].id] : []), [form.blocks]);
   const { t } = useI18n();
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [history, setHistory] = useState<string[]>(initialHistory);
+  const [cursor, setCursor] = useState(0);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
-  const currentBlock = form.blocks[step];
-  const progress = useMemo(() => ((step + 1) / form.blocks.length) * 100, [form.blocks.length, step]);
+  const blocksById = useMemo(() => new Map(form.blocks.map((block) => [block.id, block])), [form.blocks]);
+  const currentBlockId = history[cursor] ?? initialHistory[0] ?? null;
+  const currentBlock = currentBlockId ? blocksById.get(currentBlockId) ?? null : null;
+  const nextBlockId = currentBlock ? resolveNextBlockId(form.blocks, currentBlock.id, answers) : null;
+  const visibleTotal = Math.max(cursor + 1, currentBlock && cursor === history.length - 1 && nextBlockId ? history.length + 1 : history.length || 1);
+  const progress = useMemo(() => ((cursor + 1) / visibleTotal) * 100, [cursor, visibleTotal]);
   const completionTitle =
     !form.completionTitle.trim() || isLegacyDefaultCompletionTitle(form.completionTitle)
       ? t("publicRunner.defaultCompletionTitle")
@@ -241,11 +248,13 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   }, [answers, currentBlock, showToast, t]);
 
   const handleContinue = useCallback(async (answerSet: Record<string, string | string[]> = answers) => {
-    if (!validateStep(answerSet)) {
+    if (!validateStep(answerSet) || !currentBlock) {
       return;
     }
 
-    if (step === form.blocks.length - 1) {
+    const resolvedNextBlockId = resolveNextBlockId(form.blocks, currentBlock.id, answerSet);
+
+    if (!resolvedNextBlockId) {
       try {
         setIsSubmitting(true);
         await submitResponse(form.slug, answerSet);
@@ -259,11 +268,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       return;
     }
 
-    setStep((current) => current + 1);
-  }, [answers, form.blocks.length, form.slug, showToast, step, t, validateStep]);
+    setHistory((current) => [...current.slice(0, cursor + 1), resolvedNextBlockId]);
+    setCursor((current) => current + 1);
+  }, [answers, currentBlock, cursor, form.blocks, form.slug, showToast, t, validateStep]);
 
   const handleBack = useCallback(() => {
-    setStep((current) => Math.max(0, current - 1));
+    setCursor((current) => Math.max(0, current - 1));
   }, []);
 
   function handleAdvanceKeyDown(
@@ -286,7 +296,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     event: ReactKeyboardEvent<HTMLButtonElement>,
     nextAnswer: string | string[],
   ) {
-    if (event.key !== "Enter" || event.nativeEvent.isComposing || isSubmitting) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || isSubmitting || !currentBlock) {
       return;
     }
 
@@ -327,7 +337,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
-      if (event.key === "Escape" && step > 0) {
+      if (event.key === "Escape" && cursor > 0) {
         event.preventDefault();
         handleBack();
       }
@@ -335,7 +345,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
-  }, [currentBlock, handleBack, handleContinue, isComplete, isSubmitting, step]);
+  }, [currentBlock, cursor, handleBack, handleContinue, isComplete, isSubmitting]);
 
   if (isComplete) {
     return (
@@ -363,6 +373,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     );
   }
 
+  if (!currentBlock) {
+    return null;
+  }
+
   return (
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
@@ -376,7 +390,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           <div className="w-full max-w-xs shrink-0">
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
-                {t("publicRunner.step", { current: step + 1, total: form.blocks.length })}
+                {t("publicRunner.step", { current: cursor + 1, total: visibleTotal })}
               </span>
               <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">{Math.round(progress)}%</span>
             </div>
@@ -601,7 +615,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         </AnimatePresence>
 
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-4">
-          <Button variant="secondary" onClick={handleBack} disabled={step === 0 || isSubmitting}>
+          <Button variant="secondary" onClick={handleBack} disabled={cursor === 0 || isSubmitting}>
             {t("publicRunner.back")}
             <span className="ml-1 inline-flex h-5 items-center rounded-md border border-current/20 bg-black/10 px-1.5 text-[10px] font-medium opacity-90 dark:bg-white/10">
               Esc
@@ -609,7 +623,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           </Button>
           <Button onClick={() => void handleContinue()} disabled={isSubmitting}>
             {isSubmitting ? <LoaderCircle className="size-4 animate-spin" /> : null}
-            {step === form.blocks.length - 1 ? t("publicRunner.submit") : t("publicRunner.continue")}
+            {!nextBlockId ? t("publicRunner.submit") : t("publicRunner.continue")}
             {!isSubmitting ? (
               <span className="ml-1 inline-flex h-5 items-center gap-1 rounded-md border border-current/20 bg-black/10 px-1.5 text-[10px] opacity-90 dark:bg-white/10">
                 <CornerDownLeft className="size-3" />

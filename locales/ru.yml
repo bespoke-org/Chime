@@ -153,6 +153,56 @@ builder:
   dragOptionAria: "Перетащить вариант {number}"
   removeOptionAria: "Удалить вариант {number}"
   optionsHelp: Перетаскивайте варианты для изменения порядка, переименовывайте их на месте и держите количество в диапазоне от 2 до 10.
+  branchingTitle: Ветвление
+  branchingDescription: Отправляйте респондента к более позднему блоку, если ответ совпадает.
+  addBranchRule: Добавить правило
+  branchOperator: Оператор
+  branchWhenAnswer: Значение условия
+  branchGoTo: Перейти к блоку
+  branchOtherwise: Иначе продолжить к
+  branchDefaultLinear: Следующему блоку в сохранённом порядке
+  branchNoValueNeeded: Для этого оператора значение не требуется.
+  branchingHelp: "Если ни одно правило не совпало, форма использует маршрут по умолчанию. Пример значения: \"{value}\"."
+  branchingNoTargets: Добавьте более поздний блок, прежде чем создавать правила ветвления для этого вопроса.
+  dragBranchRuleAria: "Перетащить правило ветвления {number}"
+  removeBranchRuleAria: "Удалить правило ветвления {number}"
+  branchMissingTarget: Целевой блок отсутствует
+  branchingBlockersTitle: "Проблемы с ветвлением, блокирующие публикацию: {count}"
+  branchingBlockersDescription: Черновик сохранится, но публикация будет заблокирована, пока вы не исправите ошибки маршрутизации.
+  branchingWarningsTitle: "Предупреждения по ветвлению: {count}"
+  branchingWarningsDescription: Эти предупреждения не мешают сохранению черновика, но могут указывать на хрупкую или запутанную маршрутизацию.
+  branchingBlockersForBlockTitle: Блокирующие ошибки в этом блоке
+  branchingWarningsForBlockTitle: Предупреждения в этом блоке
+  branchOperators:
+    equals: Равно
+    not_equals: Не равно
+    is_empty: Пусто
+    is_not_empty: Не пусто
+    contains: Содержит
+    contains_any: Содержит любой из вариантов
+    gt: Больше чем
+    gte: Больше или равно
+    lt: Меньше чем
+    lte: Меньше или равно
+  branchOperatorLabels:
+    singleChoice:
+      equals: Выбран вариант
+      not_equals: Выбран не вариант
+    multipleChoice:
+      contains_any: Содержит вариант
+    agreement:
+      equals: Есть согласие
+      not_equals: Нет согласия
+    date:
+      equals: Дата совпадает с
+      not_equals: Дата не совпадает с
+      gt: После
+      gte: В эту дату или позже
+      lt: До
+      lte: В эту дату или раньше
+  branchAgreementValues:
+    agreed: Согласен
+    not_agreed: Не согласен
   requiredToggle: Сделать этот вопрос обязательным
   deleteBlock: Удалить блок
   saveBlock: Сохранить блок
@@ -183,6 +233,19 @@ blocks:
     LINK: Ссылка
     AGREEMENT: Согласие
     DATE: Дата
+branching:
+  issueMessages:
+    invalid-target: "Правило в \"{blockLabel}\" ссылается на отсутствующий блок."
+    backward-target: "Правило в \"{blockLabel}\" должно вести только к более позднему блоку."
+    invalid-default-target: "Маршрут по умолчанию в \"{blockLabel}\" ссылается на отсутствующий блок."
+    backward-default-target: "Маршрут по умолчанию в \"{blockLabel}\" должен вести только к более позднему блоку."
+    invalid-condition: "В \"{blockLabel}\" задано некорректное значение условия."
+    duplicate-condition: "В \"{blockLabel}\" условие дублирует более раннее правило."
+    unsupported-operator: "В \"{blockLabel}\" используется оператор, который не подходит этому типу блока."
+    unreachable-block: "Блок \"{blockLabel}\" недостижим от начала формы."
+    fragile-text-match: "Точное текстовое совпадение в \"{blockLabel}\" может быть хрупким, если респонденты вводят разную пунктуацию или регистр."
+    overlapping-rule: "Более позднее правило в \"{blockLabel}\" может никогда не сработать, потому что раньше срабатывает более широкое условие."
+    partial-choice-coverage: "Часть ответов в \"{blockLabel}\" уходит по маршруту по умолчанию. Проверьте, что это сделано намеренно."
 publicRunner:
   responseReceived: Ответ получен
   defaultCompletionTitle: Спасибо, что уделили время.
@@ -226,6 +289,10 @@ responseDetail:
   title: "Ответ №{number} · {date}"
   description: Просматривайте ответы в порядке формы.
   backToResponses: Назад к ответам
+  routeContext: Контекст маршрута
+  visitedPath: Пройденный путь
+  skippedPath: Пропущенные секции
+  nothingSkipped: В этой отправке не было пропущенных секций.
   contextBlock: Контекстный блок
   contextTitle: Контекст
   required: Обязательно
