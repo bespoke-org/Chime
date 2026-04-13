@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { withTitle } from "@/lib/metadata";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getRequestI18n();
+  return withTitle(t("meta.notFound"));
+}
 
 export default async function NotFound() {
   const { t } = await getRequestI18n();

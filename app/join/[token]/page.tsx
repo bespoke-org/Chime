@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -7,6 +8,28 @@ import { Card } from "@/components/ui/card";
 import { getServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { getOrganizationInviteState } from "@/lib/organizations";
+import { withTitle } from "@/lib/metadata";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const session = await getServerAuthSession();
+  const { t } = await getRequestI18n();
+  const { token } = await params;
+
+  if (!session?.user?.id) {
+    return withTitle(t("meta.joinOrganization"));
+  }
+
+  const invite = await getOrganizationInviteState(session.user.id, token);
+  return withTitle(
+    invite
+      ? t("join.joinTitle", { organization: invite.organizationName })
+      : t("meta.joinOrganization"),
+  );
+}
 
 export default async function JoinOrganizationPage({
   params,

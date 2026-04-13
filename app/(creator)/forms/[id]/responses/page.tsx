@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -11,24 +12,14 @@ import { getServerAuthSession } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { listResponsesForOwnedForm } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { resolveTitle, withTitle } from "@/lib/metadata";
 import { formatDate } from "@/lib/utils";
 
-export default async function ResponsesPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+async function getResponsesData(id: string) {
   const session = await getServerAuthSession();
-  const { locale, t } = await getRequestI18n();
-  const { id } = await params;
-
-  let form;
-  let responses;
 
   try {
-    const payload = await listResponsesForOwnedForm(session!.user.id, id);
-    form = payload.form;
-    responses = payload.responses;
+    return await listResponsesForOwnedForm(session!.user.id, id);
   } catch (error) {
     if (error instanceof AppError && error.status === 404) {
       notFound();
@@ -36,6 +27,30 @@ export default async function ResponsesPage({
 
     throw error;
   }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { t } = await getRequestI18n();
+  const { id } = await params;
+  const { form } = await getResponsesData(id);
+
+  return withTitle(
+    `${resolveTitle(form.title, t("meta.untitledForm"))} — ${t("meta.responses")}`,
+  );
+}
+
+export default async function ResponsesPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { locale, t } = await getRequestI18n();
+  const { id } = await params;
+  const { form, responses } = await getResponsesData(id);
 
   const workspaceLabel =
     form.workspace.kind === "personal"

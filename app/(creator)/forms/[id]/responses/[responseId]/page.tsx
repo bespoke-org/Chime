@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -9,21 +10,14 @@ import { getServerAuthSession } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { resolveTitle, withTitle } from "@/lib/metadata";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
 
-export default async function ResponseDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string; responseId: string }>;
-}) {
+async function getResponseData(id: string, responseId: string) {
   const session = await getServerAuthSession();
-  const { locale, t } = await getRequestI18n();
-  const { id, responseId } = await params;
-
-  let response;
 
   try {
-    response = await getOwnedResponseDetail(session!.user.id, id, responseId);
+    return await getOwnedResponseDetail(session!.user.id, id, responseId);
   } catch (error) {
     if (error instanceof AppError && error.status === 404) {
       notFound();
@@ -31,6 +25,30 @@ export default async function ResponseDetailPage({
 
     throw error;
   }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string; responseId: string }>;
+}): Promise<Metadata> {
+  const { t } = await getRequestI18n();
+  const { id, responseId } = await params;
+  const response = await getResponseData(id, responseId);
+
+  return withTitle(
+    `${resolveTitle(response.formTitle, t("meta.untitledForm"))} — ${t("meta.response", { number: response.submissionNumber })}`,
+  );
+}
+
+export default async function ResponseDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string; responseId: string }>;
+}) {
+  const { locale, t } = await getRequestI18n();
+  const { id, responseId } = await params;
+  const response = await getResponseData(id, responseId);
 
   const workspaceLabel =
     response.workspace.kind === "personal"

@@ -10,6 +10,13 @@ footer:
   licensedUnder: Лицензия
   sourceCode: Исходный код
   reportBug: Сообщить об ошибке
+meta:
+  untitledForm: Форма без названия
+  dashboard: Дашборд
+  responses: Ответы
+  response: "Ответ №{number}"
+  joinOrganization: Вступить в организацию
+  notFound: Не найдено
 auth:
   continueWithGoogle: Продолжить с Google
 workspace:

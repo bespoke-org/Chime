@@ -21,9 +21,13 @@ const inter = Inter({
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getRequestI18n();
+  const appName = t("app.name");
 
   return {
-    title: t("app.name"),
+    title: {
+      default: appName,
+      template: `%s | ${appName}`,
+    },
     description: t("app.description"),
   };
 }

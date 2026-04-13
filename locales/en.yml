@@ -10,6 +10,13 @@ footer:
   licensedUnder: Licensed under
   sourceCode: Source code
   reportBug: Report a bug
+meta:
+  untitledForm: Untitled form
+  dashboard: Dashboard
+  responses: Responses
+  response: "Response #{number}"
+  joinOrganization: Join organization
+  notFound: Not found
 auth:
   continueWithGoogle: Continue with Google
 workspace:

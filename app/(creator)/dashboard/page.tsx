@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Plus } from "lucide-react";
 
 import { createFormAction } from "@/app/(creator)/actions";
@@ -8,8 +9,9 @@ import { getServerAuthSession } from "@/lib/auth";
 import { listFormsForWorkspace } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { getActiveWorkspaceForUser } from "@/lib/workspaces";
+import { withTitle } from "@/lib/metadata";
 
-export default async function DashboardPage() {
+async function getDashboardData() {
   const session = await getServerAuthSession();
   const { t } = await getRequestI18n();
   const workspaceState = await getActiveWorkspaceForUser(session!.user.id);
@@ -21,6 +23,18 @@ export default async function DashboardPage() {
     workspaceState.activeOption.kind === "personal"
       ? t("workspace.personal")
       : workspaceState.activeOption.label;
+
+  return { forms, workspaceLabel };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { workspaceLabel } = await getDashboardData();
+  return withTitle(workspaceLabel);
+}
+
+export default async function DashboardPage() {
+  const { t } = await getRequestI18n();
+  const { forms, workspaceLabel } = await getDashboardData();
 
   return forms.length === 0 ? (
     <div className="space-y-8">

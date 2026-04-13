@@ -1,7 +1,16 @@
+import type { Metadata } from "next";
+
 import { SettingsShell } from "@/components/settings-shell";
 import { getServerAuthSession } from "@/lib/auth";
 import { listOrganizationsForUser } from "@/lib/organizations";
+import { getRequestI18n } from "@/lib/i18n-server";
+import { withTitle } from "@/lib/metadata";
 import { getProfileSettingsUser } from "@/lib/users";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getRequestI18n();
+  return withTitle(t("settings.shell.title"));
+}
 
 export default async function SettingsPage({
   searchParams,
