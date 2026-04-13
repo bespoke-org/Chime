@@ -288,13 +288,27 @@ publicRunner:
   submit: Отправить
 responses:
   submissionsCount: "{count} ответов"
+  viewSubmissions: По ответам
+  viewQuestions: По вопросам
   backToBuilder: Назад к редактору
   noSubmissionsEyebrow: Пока нет ответов
   noSubmissionsTitle: Опубликуйте форму, чтобы начать собирать ответы.
   noSubmissionsDescription: Только опубликованные формы доступны по публичному URL, и каждый респондент остаётся анонимным при ответе.
+  noQuestionBlocksEyebrow: Нет вопросов для сводки
+  noQuestionBlocksTitle: В этой форме пока нет вопросов, которые можно суммировать.
+  noQuestionBlocksDescription: Добавьте хотя бы один блок с ответом, чтобы просматривать ответы по вопросам.
+  noAnswersYet: На этот вопрос пока нет ответов.
   openBuilder: Открыть редактор
   submissionTitle: "Ответ №{number} · {date}"
   answersCount: "{count} ответов"
+  reachedCount: "Дошли: {count}"
+  answeredCount: "Ответили: {count}"
+  emptyCount: "Без ответа: {count}"
+  skippedCount: "Пропущено ветвлением: {count}"
+  minValue: "Мин: {value}"
+  maxValue: "Макс: {value}"
+  averageValue: "Среднее: {value}"
+  answerList: Ответы
   open: Открыть
 responseDetail:
   title: "Ответ №{number} · {date}"

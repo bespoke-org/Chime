@@ -288,13 +288,27 @@ publicRunner:
   submit: Submit
 responses:
   submissionsCount: "{count} submissions"
+  viewSubmissions: By submissions
+  viewQuestions: By questions
   backToBuilder: Back to builder
   noSubmissionsEyebrow: No submissions yet
   noSubmissionsTitle: Publish the form to start collecting responses.
   noSubmissionsDescription: Only published forms are available on the public route, and every respondent stays anonymous on submission.
+  noQuestionBlocksEyebrow: No answerable questions
+  noQuestionBlocksTitle: This form has no questions to summarize yet.
+  noQuestionBlocksDescription: Add at least one answerable block to review responses by question.
+  noAnswersYet: No answers yet for this question.
   openBuilder: Open builder
   submissionTitle: "Submission #{number} · {date}"
   answersCount: "{count} answers"
+  reachedCount: "Reached: {count}"
+  answeredCount: "Answered: {count}"
+  emptyCount: "No answer: {count}"
+  skippedCount: "Skipped by branching: {count}"
+  minValue: "Min: {value}"
+  maxValue: "Max: {value}"
+  averageValue: "Average: {value}"
+  answerList: Answers
   open: Open
 responseDetail:
   title: "Submission #{number} · {date}"

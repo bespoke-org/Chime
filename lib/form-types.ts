@@ -104,6 +104,46 @@ export type ResponseReviewFormSummary = {
   workspace: WorkspaceReference;
 };
 
+export type QuestionSummaryOptionCount = {
+  value: string;
+  count: number;
+};
+
+export type QuestionSummaryAnswer = {
+  responseId: string;
+  submissionNumber: number;
+  value: string;
+};
+
+export type QuestionSummary = {
+  block: SerializedBlock;
+  reachedCount: number;
+  answeredCount: number;
+  emptyCount: number;
+  skippedCount: number;
+} & (
+  | {
+      kind: "choice";
+      optionCounts: QuestionSummaryOptionCount[];
+    }
+  | {
+      kind: "number";
+      min: number | null;
+      max: number | null;
+      average: number | null;
+    }
+  | {
+      kind: "freeform";
+      answers: QuestionSummaryAnswer[];
+    }
+);
+
+export type ResponseReviewData = {
+  form: ResponseReviewFormSummary;
+  responses: ResponseListItem[];
+  questionSummaries: QuestionSummary[];
+};
+
 export type ProfileSettingsUserSummary = {
   id: string;
   name: string | null;

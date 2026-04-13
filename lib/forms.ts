@@ -4,6 +4,7 @@ import {
   type FormBlock,
   type FormBlockType as PrismaFormBlockType,
   type Prisma,
+  type Response as PrismaResponse,
 } from "@prisma/client";
 import { z } from "zod";
 
@@ -39,8 +40,11 @@ import type {
   BuilderForm,
   FormListItem,
   PublicForm,
+  QuestionSummary,
+  QuestionSummaryAnswer,
   ResponseDetail,
   ResponseListItem,
+  ResponseReviewData,
   ResponseReviewFormSummary,
   WorkspaceReference,
 } from "@/lib/form-types";
@@ -614,6 +618,191 @@ function parseSnapshotBlocks(response: ResponseRecord): SerializedBlock[] {
     }));
 }
 
+function parseResponseAnswers(
+  response: PrismaResponse,
+): Record<string, string | string[]> {
+  return typeof response.answersJson === "object" &&
+    response.answersJson &&
+    !Array.isArray(response.answersJson)
+    ? (response.answersJson as Record<string, string | string[]>)
+    : {};
+}
+
+function parseVisitedBlockIds(
+  response: PrismaResponse,
+  fallbackBlocks: SerializedBlock[],
+) {
+  const parsed = z
+    .array(snapshotBlockSchema)
+    .safeParse(response.formSnapshotJson);
+
+  if (!parsed.success) {
+    return new Set(fallbackBlocks.map((block) => block.id));
+  }
+
+  return new Set(parsed.data.map((block) => block.id));
+}
+
+function hasRecordedAnswer(answer: string | string[] | undefined) {
+  if (Array.isArray(answer)) {
+    return answer.length > 0;
+  }
+
+  return typeof answer === "string" && answer.trim().length > 0;
+}
+
+function aggregateQuestionSummaries(
+  blocks: SerializedBlock[],
+  responses: PrismaResponse[],
+): QuestionSummary[] {
+  const answerableBlocks = blocks.filter((block) =>
+    isQuestionBlock(block.type),
+  );
+  const responseSummaries = responses.map((response, index) => ({
+    id: response.id,
+    submissionNumber: index + 1,
+    answers: parseResponseAnswers(response),
+    visitedBlockIds: parseVisitedBlockIds(response, blocks),
+  }));
+
+  return answerableBlocks.map((block) => {
+    const reachedResponses = responseSummaries.filter((response) =>
+      response.visitedBlockIds.has(block.id),
+    );
+    const skippedCount = responseSummaries.length - reachedResponses.length;
+    const answeredResponses = reachedResponses.filter((response) =>
+      hasRecordedAnswer(response.answers[block.id]),
+    );
+    const answeredCount = answeredResponses.length;
+    const emptyCount = reachedResponses.length - answeredCount;
+
+    if (
+      block.type === FORM_BLOCK_TYPES.SINGLE_CHOICE ||
+      block.type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE ||
+      block.type === FORM_BLOCK_TYPES.AGREEMENT
+    ) {
+      const initialOptions =
+        block.type === FORM_BLOCK_TYPES.AGREEMENT
+          ? [AGREEMENT_ANSWER_VALUES.AGREED, AGREEMENT_ANSWER_VALUES.NOT_AGREED]
+          : [...(block.config as ChoiceBlockConfig).options];
+      const optionCounts = new Map(initialOptions.map((value) => [value, 0]));
+
+      for (const response of answeredResponses) {
+        const answer = response.answers[block.id];
+        const values = Array.isArray(answer)
+          ? answer
+          : typeof answer === "string"
+            ? [answer]
+            : [];
+
+        for (const value of values) {
+          optionCounts.set(value, (optionCounts.get(value) ?? 0) + 1);
+        }
+      }
+
+      return {
+        block,
+        kind: "choice",
+        reachedCount: reachedResponses.length,
+        answeredCount,
+        emptyCount,
+        skippedCount,
+        optionCounts: [...optionCounts.entries()].map(([value, count]) => ({
+          value,
+          count,
+        })),
+      } satisfies QuestionSummary;
+    }
+
+    if (block.type === FORM_BLOCK_TYPES.NUMBER) {
+      const numericAnswers = answeredResponses
+        .map((response) => response.answers[block.id])
+        .filter((answer): answer is string => typeof answer === "string")
+        .map((answer) => Number(answer))
+        .filter((value) => Number.isFinite(value));
+      const average = numericAnswers.length
+        ? numericAnswers.reduce((sum, value) => sum + value, 0) /
+          numericAnswers.length
+        : null;
+
+      return {
+        block,
+        kind: "number",
+        reachedCount: reachedResponses.length,
+        answeredCount,
+        emptyCount,
+        skippedCount,
+        min: numericAnswers.length ? Math.min(...numericAnswers) : null,
+        max: numericAnswers.length ? Math.max(...numericAnswers) : null,
+        average,
+      } satisfies QuestionSummary;
+    }
+
+    const answers = answeredResponses
+      .map((response) => ({
+        responseId: response.id,
+        submissionNumber: response.submissionNumber,
+        value: response.answers[block.id],
+      }))
+      .flatMap((response): QuestionSummaryAnswer[] => {
+        if (Array.isArray(response.value)) {
+          return response.value.map((value) => ({
+            responseId: response.responseId,
+            submissionNumber: response.submissionNumber,
+            value,
+          }));
+        }
+
+        if (typeof response.value === "string") {
+          return [
+            {
+              responseId: response.responseId,
+              submissionNumber: response.submissionNumber,
+              value: response.value,
+            },
+          ];
+        }
+
+        return [];
+      })
+      .reverse();
+
+    return {
+      block,
+      kind: "freeform",
+      reachedCount: reachedResponses.length,
+      answeredCount,
+      emptyCount,
+      skippedCount,
+      answers,
+    } satisfies QuestionSummary;
+  });
+}
+
+function buildResponseReviewData(
+  form: BuilderFormRecord,
+  responses: PrismaResponse[],
+): ResponseReviewData {
+  const serializedBlocks = form.blocks.map(serializeBlock);
+
+  return {
+    form: {
+      id: form.id,
+      title: form.title,
+      workspace: toWorkspaceReference(form),
+    } satisfies ResponseReviewFormSummary,
+    responses: responses
+      .map((response, index) => ({
+        id: response.id,
+        submittedAt: response.submittedAt.toISOString(),
+        answerCount: Object.keys(parseResponseAnswers(response)).length,
+        submissionNumber: index + 1,
+      }))
+      .reverse() satisfies ResponseListItem[],
+    questionSummaries: aggregateQuestionSummaries(serializedBlocks, responses),
+  };
+}
+
 export async function listFormsForWorkspace(
   userId: string,
   workspace: ActiveWorkspace,
@@ -987,7 +1176,7 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
 export async function listResponsesForOwnedForm(
   userId: string,
   formId: string,
-) {
+): Promise<ResponseReviewData> {
   const form = await assertAccessibleForm(userId, formId);
   const responses = await db.response.findMany({
     where: {
@@ -996,27 +1185,7 @@ export async function listResponsesForOwnedForm(
     orderBy: [{ submittedAt: "asc" }, { id: "asc" }],
   });
 
-  return {
-    form: {
-      id: form.id,
-      title: form.title,
-      workspace: toWorkspaceReference(form),
-    } satisfies ResponseReviewFormSummary,
-    responses: responses
-      .map((response, index) => ({
-        id: response.id,
-        submittedAt: response.submittedAt.toISOString(),
-        answerCount:
-          typeof response.answersJson === "object" &&
-          response.answersJson &&
-          !Array.isArray(response.answersJson)
-            ? Object.keys(response.answersJson as Record<string, unknown>)
-                .length
-            : 0,
-        submissionNumber: index + 1,
-      }))
-      .reverse() satisfies ResponseListItem[],
-  };
+  return buildResponseReviewData(form, responses);
 }
 
 export async function getOwnedResponseDetail(
