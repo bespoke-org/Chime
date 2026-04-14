@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check . --ignore-unknown",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run build",
+    "check": "bun run format:check && bun test && bun run lint && bun run typecheck && bun run build",
     "hooks:install": "git config core.hooksPath .githooks",
     "db:up": "podman-compose up -d",
     "db:down": "podman-compose down",
