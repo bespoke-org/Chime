@@ -164,6 +164,32 @@ describe("branch-aware runner routing", () => {
     expect(resolveNextBlockId(blocks, "path", { path: "no" })).toBe("fallback");
   });
 
+  test("ends immediately when a block is marked as terminal", () => {
+    const blocks = [
+      createBlock({
+        id: "terminal-question",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [
+            { operator: "equals", value: "yes", targetBlockId: "special" },
+          ],
+          defaultNextBlockId: "fallback",
+          endForm: true,
+        },
+      }),
+      createBlock({ id: "fallback", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "special", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(
+      resolveNextBlockId(blocks, "terminal-question", {
+        "terminal-question": "yes",
+      }),
+    ).toBe(null);
+  });
+
   test("continues in saved order when no rule matches and no default route is configured", () => {
     const blocks = [
       createBlock({

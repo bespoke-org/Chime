@@ -47,11 +47,16 @@ export function normalizeBlockConfig(
             value.defaultNextBlockId === null
           ? null
           : undefined;
+    const endForm =
+      typeof value === "object" && value && "endForm" in value
+        ? Boolean(value.endForm)
+        : undefined;
 
     return parseBlockConfig(type, {
       options: options.length >= 2 ? options : ["Option 1", "Option 2"],
       branchRules,
       defaultNextBlockId,
+      endForm,
     });
   }
 

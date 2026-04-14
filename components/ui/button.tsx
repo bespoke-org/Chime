@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[var(--ink)] px-5 py-3 text-[var(--bg)] shadow-[var(--shadow-button)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-button-hover)] focus-visible:ring-[var(--ink)]",
+          "bg-[var(--ink)] px-5 py-3 text-[var(--bg)] shadow-[var(--shadow-button)] hover:brightness-80 hover:shadow-[var(--shadow-button-hover)] focus-visible:ring-[var(--ink)]",
         secondary:
           "bg-[var(--surface-strong)] px-5 py-3 text-[var(--ink)] ring-1 ring-[color:var(--line)] hover:bg-[var(--surface)] focus-visible:ring-[var(--ink)]",
         ghost:
@@ -21,7 +21,7 @@ const buttonVariants = cva(
         default: "h-11",
         sm: "h-9 px-4 text-xs",
         lg: "h-12 px-6 text-base",
-        icon: "h-10 w-10 rounded-xl",
+        icon: "h-10 w-10 rounded-xl px-0 py-0",
       },
     },
     defaultVariants: {

@@ -158,6 +158,76 @@ describe("BranchRulesEditor", () => {
     restoreDom();
   });
 
+  test("hides branching controls when terminal mode is enabled", () => {
+    const restoreDom = installTestDom();
+    const blockDraft = createBlock({
+      id: "question-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "Last question",
+      config: {
+        ...getDefaultBlockConfig("SHORT_TEXT"),
+        endForm: true,
+      },
+    });
+    const nextBlock = createBlock({
+      id: "question-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Next",
+    });
+
+    const view = render(
+      <BranchRulesEditorHarness
+        allBlocks={[blockDraft, nextBlock]}
+        blockDraft={blockDraft}
+      />,
+    );
+
+    expect(view.getByText("builder.endFormAfterBlock") !== null).toBe(true);
+    expect(view.queryByText("builder.branchOtherwise")).toBe(null);
+    expect(
+      (
+        view.getByRole("button", {
+          name: "builder.addBranchRule",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+
+    cleanup();
+    restoreDom();
+  });
+
+  test("shows only the terminal toggle for text blocks", () => {
+    const restoreDom = installTestDom();
+    const blockDraft = createBlock({
+      id: "intro",
+      type: "TEXT",
+      position: 0,
+      title: "Intro",
+    });
+    const nextBlock = createBlock({
+      id: "question-1",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Next",
+    });
+
+    const view = render(
+      <BranchRulesEditorHarness
+        allBlocks={[blockDraft, nextBlock]}
+        blockDraft={blockDraft}
+      />,
+    );
+
+    expect(view.getByText("builder.endFormAfterBlock") !== null).toBe(true);
+    expect(view.queryByText("builder.branchOtherwise")).toBe(null);
+    expect(view.queryByText("builder.branchingHelp")).toBe(null);
+
+    cleanup();
+    restoreDom();
+  });
+
   test("renders branch issues only for the selected block", () => {
     const restoreDom = installTestDom();
     const blockDraft = createBlock({

@@ -50,7 +50,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   blockTypeTranslationKeys,
-  isQuestionBlock,
   type AgreementBlockConfig,
   type BlockConfig,
   type LinkBlockConfig,
@@ -869,16 +868,14 @@ export function BlockEditorPanel({
           </div>
         )}
 
-        {isQuestionBlock(blockDraft.type) ? (
-          <BranchRulesEditor
-            allBlocks={allBlocks}
-            blockDraft={blockDraft}
-            branchRulesDraft={branchRulesDraft}
-            branchValidationIssues={branchValidationIssues}
-            setBranchRulesDraft={setBranchRulesDraft}
-            updateConfig={updateConfig}
-          />
-        ) : null}
+        <BranchRulesEditor
+          allBlocks={allBlocks}
+          blockDraft={blockDraft}
+          branchRulesDraft={branchRulesDraft}
+          branchValidationIssues={branchValidationIssues}
+          setBranchRulesDraft={setBranchRulesDraft}
+          updateConfig={updateConfig}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">

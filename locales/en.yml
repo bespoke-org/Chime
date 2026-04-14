@@ -127,6 +127,25 @@ builder:
   unpublish: Unpublish
   blocks: Blocks
   newBlock: New block
+  openGraphMode: Open branching graph
+  graphModeEyebrow: Branching view
+  graphModeTitle: Branching graph
+  graphModeDescription: See the full route structure, select a block, and edit how respondents move through the form.
+  exitGraphMode: Back to editor
+  graphCanvasAria: Branching graph canvas
+  graphNodeIndex: "Block {number}"
+  graphNodeRoutes: "{count} route(s)"
+  graphNodeNoRoutes: No outgoing routes
+  graphEmptyTitle: No blocks to map yet
+  graphEmptyDescription: Add blocks to start laying out the form flow.
+  graphSelectionEyebrow: Routing
+  graphSelectionTitle: Select a block to edit its routes
+  graphSelectionDescription: Click a node or route in the graph to inspect its branching settings.
+  graphTextBlockDescription: Text blocks appear in the flow, but only question blocks can define branching routes.
+  graphSelectedRoute: "Selected route: {route} → {target}"
+  graphEditDescription: Review the selected block's default path and branch rules.
+  graphLinearRoute: Next
+  graphDefaultRoute: Default
   settingsTitle: Settings
   titleField: Title
   shareSlug: Public URL address
@@ -180,6 +199,9 @@ builder:
   branchNoValueNeeded: No value needed for this operator.
   branchingHelp: 'Leave a rule unmatched to use the default path. Example value: "{value}".'
   branchingNoTargets: Add a later block before creating branch rules from this question.
+  endFormAfterBlock: End form after this block
+  endFormAfterBlockDescription: Submit the response immediately after this block instead of continuing to another block.
+  endFormDisablesBranching: While this is enabled, this block ignores its saved branch rules and default path.
   dragBranchRuleAria: "Drag branch rule {number}"
   removeBranchRuleAria: "Remove branch rule {number}"
   branchMissingTarget: Missing target block

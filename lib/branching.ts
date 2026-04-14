@@ -3,6 +3,7 @@ import {
   branchOperatorNeedsValue,
   getBranchRules,
   getDefaultNextBlockId,
+  getEndForm,
   getSupportedBranchOperators,
   isAgreementAnswerValue,
   isQuestionBlock,
@@ -310,6 +311,10 @@ export function resolveNextBlockId(
   const currentBlock = blocks[currentIndex];
   const linearNextBlockId = blocks[currentIndex + 1]?.id ?? null;
 
+  if (getEndForm(currentBlock.config)) {
+    return null;
+  }
+
   if (!isQuestionBlock(currentBlock.type)) {
     return linearNextBlockId;
   }
@@ -410,7 +415,7 @@ function canUseDefaultPath(block: SerializedBlock) {
   return true;
 }
 
-function getPossibleNextBlockIds(
+export function getPossibleNextBlockIds(
   blocks: SerializedBlock[],
   block: SerializedBlock,
 ) {
@@ -421,6 +426,10 @@ function getPossibleNextBlockIds(
   }
 
   const nextIds = new Set<string>();
+
+  if (getEndForm(block.config)) {
+    return [...nextIds];
+  }
 
   if (!isQuestionBlock(block.type)) {
     const nextLinearBlockId = blocks[blockIndex + 1]?.id;

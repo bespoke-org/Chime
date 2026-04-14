@@ -20,6 +20,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -32,6 +33,7 @@ import {
   AGREEMENT_ANSWER_VALUES,
   branchOperatorNeedsValue,
   getVisibleBranchOperators,
+  isQuestionBlock,
   type BranchOperator,
 } from "@/lib/blocks";
 import {
@@ -276,6 +278,7 @@ export function BranchRulesEditor({
   const branchRuleSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
+  const canConfigureBranchRules = isQuestionBlock(blockDraft.type);
   const branchTargetOptions = getBranchTargetBlocks(allBlocks, blockDraft.id);
   const blockBranchIssues = branchValidationIssues.filter(
     (issue) => issue.blockId === blockDraft.id,
@@ -291,6 +294,8 @@ export function BranchRulesEditor({
     "defaultNextBlockId" in blockDraft.config
       ? blockDraft.config.defaultNextBlockId
       : null;
+  const endForm =
+    "endForm" in blockDraft.config ? blockDraft.config.endForm : false;
   const defaultNextSelectValue = defaultNextBlockId ?? "__linear__";
   const staleDefaultNextMissing = Boolean(
     defaultNextBlockId &&
@@ -373,14 +378,14 @@ export function BranchRulesEditor({
           variant="secondary"
           size="sm"
           onClick={addBranchRule}
-          disabled={branchTargetOptions.length === 0}
+          disabled={endForm || branchTargetOptions.length === 0}
         >
           <Plus className="size-4" />
           {t("builder.addBranchRule")}
         </Button>
       </div>
 
-      {branchRulesDraft.length ? (
+      {!endForm && canConfigureBranchRules && branchRulesDraft.length ? (
         <DndContext
           sensors={branchRuleSensors}
           collisionDetection={closestCenter}
@@ -408,47 +413,61 @@ export function BranchRulesEditor({
         </DndContext>
       ) : null}
 
-      <label className="grid gap-2 text-sm text-[var(--muted)] sm:max-w-md">
-        <span className="font-medium text-[var(--ink)]">
-          {t("builder.branchOtherwise")}
-        </span>
-        <Select
-          value={defaultNextSelectValue}
-          onValueChange={(value) =>
-            updateConfig({
-              defaultNextBlockId: value === "__linear__" ? null : value,
-            })
-          }
-        >
-          <SelectTrigger className="h-10 w-full text-sm font-medium">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__linear__">
-              {t("builder.branchDefaultLinear")}
-            </SelectItem>
-            {staleDefaultNextMissing && defaultNextBlockId ? (
-              <SelectItem value={defaultNextBlockId}>
-                {t("builder.branchMissingTarget")}
+      {!endForm && canConfigureBranchRules ? (
+        <label className="grid gap-2 text-sm text-[var(--muted)] sm:max-w-md">
+          <span className="font-medium text-[var(--ink)]">
+            {t("builder.branchOtherwise")}
+          </span>
+          <Select
+            value={defaultNextSelectValue}
+            onValueChange={(value) =>
+              updateConfig({
+                defaultNextBlockId: value === "__linear__" ? null : value,
+              })
+            }
+          >
+            <SelectTrigger className="h-10 w-full text-sm font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__linear__">
+                {t("builder.branchDefaultLinear")}
               </SelectItem>
-            ) : null}
-            {branchTargetOptions.map((targetBlock) => (
-              <SelectItem key={targetBlock.id} value={targetBlock.id}>
-                {getBlockDisplayLabel(targetBlock)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
+              {staleDefaultNextMissing && defaultNextBlockId ? (
+                <SelectItem value={defaultNextBlockId}>
+                  {t("builder.branchMissingTarget")}
+                </SelectItem>
+              ) : null}
+              {branchTargetOptions.map((targetBlock) => (
+                <SelectItem key={targetBlock.id} value={targetBlock.id}>
+                  {getBlockDisplayLabel(targetBlock)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+      ) : null}
 
-      {branchTargetOptions.length === 0 ? (
+      {!endForm &&
+      canConfigureBranchRules &&
+      branchTargetOptions.length === 0 ? (
         <p className="text-xs text-[var(--muted)]">
           {t("builder.branchingNoTargets")}
         </p>
       ) : null}
-      <p className="text-xs text-[var(--muted)]">
-        {t("builder.branchingHelp", { value: branchRulePlaceholder })}
-      </p>
+      <label className="flex items-center gap-3 text-sm text-[var(--muted)]">
+        <Checkbox
+          checked={endForm}
+          onChange={(event) =>
+            updateConfig({
+              endForm: event.target.checked,
+            })
+          }
+        />
+        <span className="font-medium text-[var(--ink)]">
+          {t("builder.endFormAfterBlock")}
+        </span>
+      </label>
 
       {blockBranchBlockers.length ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-[var(--ink)]">

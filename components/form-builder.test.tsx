@@ -70,7 +70,13 @@ function renderBuilder(initialForm: BuilderForm) {
   );
 }
 
-describe("FormBuilder unsaved block protection", () => {
+async function cleanupAndRestore(restoreDom: () => void) {
+  cleanup();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  restoreDom();
+}
+
+describe("FormBuilder", () => {
   test("switches blocks immediately when there are no unsaved edits", async () => {
     const restoreDom = installTestDom();
     const firstBlock = createBlock({
@@ -95,8 +101,7 @@ describe("FormBuilder unsaved block protection", () => {
     });
     expect(view.queryByText("builder.unsavedBlockChangesTitle")).toBe(null);
 
-    cleanup();
-    restoreDom();
+    await cleanupAndRestore(restoreDom);
   });
 
   test("opens form settings immediately when there are no unsaved edits", async () => {
@@ -117,8 +122,7 @@ describe("FormBuilder unsaved block protection", () => {
     });
     expect(view.queryByText("builder.unsavedBlockChangesTitle")).toBe(null);
 
-    cleanup();
-    restoreDom();
+    await cleanupAndRestore(restoreDom);
   });
 
   test("lets the creator cancel or discard unsaved changes before opening form settings", async () => {
@@ -171,8 +175,7 @@ describe("FormBuilder unsaved block protection", () => {
       expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
     });
 
-    cleanup();
-    restoreDom();
+    await cleanupAndRestore(restoreDom);
   });
 
   test("saves the active block before switching when the creator chooses save changes", async () => {
@@ -239,8 +242,7 @@ describe("FormBuilder unsaved block protection", () => {
     expect(fetchCalls[0]?.init?.body).toContain('"required":true');
 
     globalThis.fetch = previousFetch;
-    cleanup();
-    restoreDom();
+    await cleanupAndRestore(restoreDom);
   });
 
   test("keeps the unsaved-changes dialog open when saving fails", async () => {
@@ -294,7 +296,153 @@ describe("FormBuilder unsaved block protection", () => {
     expect(view.queryByDisplayValue("Second question")).toBe(null);
 
     globalThis.fetch = previousFetch;
-    cleanup();
-    restoreDom();
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("opens graph mode and hides the standard builder sidebar", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+
+    const view = renderBuilder(createForm([firstBlock]));
+
+    fireEvent.click(
+      view.getByRole("button", { name: "builder.openGraphMode" }),
+    );
+
+    await waitFor(() => {
+      expect(view.getByText("Form title") !== null).toBe(true);
+      expect(
+        view.getByRole("button", { name: "builder.exitGraphMode" }) !== null,
+      ).toBe(true);
+    });
+    expect(view.queryByText("builder.blocks")).toBe(null);
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("returns to the standard builder layout when graph mode closes", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+
+    const view = renderBuilder(createForm([firstBlock]));
+
+    fireEvent.click(
+      view.getByRole("button", { name: "builder.openGraphMode" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "builder.exitGraphMode" }) !== null,
+      ).toBe(true);
+    });
+
+    fireEvent.click(
+      view.getByRole("button", { name: "builder.exitGraphMode" }),
+    );
+
+    await waitFor(() => {
+      expect(view.getByText("builder.blocks") !== null).toBe(true);
+    });
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("saves branch edits from graph mode through the existing block save flow", async () => {
+    const restoreDom = installTestDom();
+    const sourceBlock = createBlock({
+      id: "block-1",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      title: "Choose one",
+      config: {
+        ...getDefaultBlockConfig("SINGLE_CHOICE"),
+        options: ["Yes", "No"],
+      },
+    });
+    const targetBlock = createBlock({
+      id: "block-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Follow-up",
+    });
+    const previousFetch = globalThis.fetch;
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({
+          block: {
+            ...sourceBlock,
+            config: {
+              ...sourceBlock.config,
+              branchRules: [
+                {
+                  operator: "equals",
+                  value: "Yes",
+                  targetBlockId: "block-2",
+                },
+              ],
+            },
+          },
+        }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([sourceBlock, targetBlock]));
+
+    fireEvent.click(
+      view.getByRole("button", { name: "builder.openGraphMode" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "builder.exitGraphMode" }) !== null,
+      ).toBe(true);
+    });
+
+    fireEvent.click(
+      view.getByRole("button", {
+        name: "blocks.types.SINGLE_CHOICE Choose one",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "builder.addBranchRule" }) !== null,
+      ).toBe(true);
+    });
+
+    fireEvent.click(
+      view.getByRole("button", { name: "builder.addBranchRule" }),
+    );
+    fireEvent.click(view.getByRole("button", { name: "builder.saveBlock" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/blocks/block-1");
+    expect(fetchCalls[0]?.init?.method).toBe("PATCH");
+    expect(fetchCalls[0]?.init?.body).toContain('"targetBlockId":"block-2"');
+    expect(fetchCalls[0]?.init?.body).toContain('"operator":"equals"');
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
   });
 });

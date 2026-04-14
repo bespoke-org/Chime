@@ -127,6 +127,25 @@ builder:
   unpublish: Снять с публикации
   blocks: Блоки
   newBlock: Новый блок
+  openGraphMode: Открыть граф ветвления
+  graphModeEyebrow: Ветвление
+  graphModeTitle: Граф ветвления
+  graphModeDescription: Просматривайте всю структуру переходов, выбирайте блок и редактируйте маршруты, по которым респонденты проходят форму.
+  exitGraphMode: Назад к редактору
+  graphCanvasAria: Холст графа ветвления
+  graphNodeIndex: "Блок {number}"
+  graphNodeRoutes: "Маршрутов: {count}"
+  graphNodeNoRoutes: Нет исходящих маршрутов
+  graphEmptyTitle: Пока нечего раскладывать на графе
+  graphEmptyDescription: Добавьте блоки, чтобы построить маршрут формы.
+  graphSelectionEyebrow: Маршрутизация
+  graphSelectionTitle: Выберите блок, чтобы редактировать его маршруты
+  graphSelectionDescription: Нажмите на блок или маршрут на графе, чтобы посмотреть и изменить настройки ветвления.
+  graphTextBlockDescription: Текстовые блоки показываются в потоке, но задавать маршруты могут только блоки с ответом.
+  graphSelectedRoute: "Выбранный маршрут: {route} → {target}"
+  graphEditDescription: Проверьте маршрут по умолчанию и правила ветвления для выбранного блока.
+  graphLinearRoute: Дальше
+  graphDefaultRoute: По умолчанию
   settingsTitle: Настройки
   titleField: Название
   shareSlug: Адрес публичного URL
@@ -180,6 +199,9 @@ builder:
   branchNoValueNeeded: Для этого оператора значение не требуется.
   branchingHelp: 'Если ни одно правило не совпало, форма использует маршрут по умолчанию. Пример значения: "{value}".'
   branchingNoTargets: Добавьте более поздний блок, прежде чем создавать правила ветвления для этого вопроса.
+  endFormAfterBlock: Завершить форму после этого блока
+  endFormAfterBlockDescription: Сразу отправить ответ после этого блока вместо перехода к следующему.
+  endFormDisablesBranching: Пока эта опция включена, блок игнорирует сохранённые правила ветвления и маршрут по умолчанию.
   dragBranchRuleAria: "Перетащить правило ветвления {number}"
   removeBranchRuleAria: "Удалить правило ветвления {number}"
   branchMissingTarget: Целевой блок отсутствует

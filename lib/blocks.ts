@@ -199,9 +199,11 @@ const defaultNextBlockIdSchema = z
   .min(1)
   .nullable()
   .default(null);
+const endFormSchema = z.boolean().default(false);
 
 const textConfigSchema = z.object({
   body: z.string().max(2400).default(defaultBlockCopyByLocale.en.textBody),
+  endForm: endFormSchema,
 });
 
 const shortTextConfigSchema = z.object({
@@ -212,6 +214,7 @@ const shortTextConfigSchema = z.object({
   validationRegex: regexPatternSchema.default(null),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
 });
 
 const longTextConfigSchema = z.object({
@@ -222,6 +225,7 @@ const longTextConfigSchema = z.object({
   validationRegex: regexPatternSchema.default(null),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
 });
 
 const numberConfigSchema = z
@@ -235,6 +239,7 @@ const numberConfigSchema = z
     max: numericLimitSchema.default(null),
     branchRules: branchRulesSchema,
     defaultNextBlockId: defaultNextBlockIdSchema,
+    endForm: endFormSchema,
   })
   .superRefine((value, context) => {
     if (!value.allowFloat) {
@@ -271,6 +276,7 @@ const linkConfigSchema = z.object({
     .default(defaultBlockCopyByLocale.en.linkPlaceholder),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
 });
 
 const agreementConfigSchema = z.object({
@@ -281,11 +287,13 @@ const agreementConfigSchema = z.object({
     .default(defaultBlockCopyByLocale.en.agreementLabel),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
 });
 
 const dateConfigSchema = z.object({
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
 });
 
 const optionListSchema = z.object({
@@ -296,20 +304,38 @@ const optionListSchema = z.object({
     .default(defaultBlockCopyByLocale.en.options),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
 });
 
 export type AgreementAnswerValue =
   (typeof AGREEMENT_ANSWER_VALUES)[keyof typeof AGREEMENT_ANSWER_VALUES];
 export type BranchOperator = z.infer<typeof branchOperatorSchema>;
 export type BranchRule = z.infer<typeof branchRuleSchema>;
-export type TextBlockConfig = z.infer<typeof textConfigSchema>;
-export type ShortTextBlockConfig = z.infer<typeof shortTextConfigSchema>;
-export type LongTextBlockConfig = z.infer<typeof longTextConfigSchema>;
-export type NumberBlockConfig = z.infer<typeof numberConfigSchema>;
-export type LinkBlockConfig = z.infer<typeof linkConfigSchema>;
-export type AgreementBlockConfig = z.infer<typeof agreementConfigSchema>;
-export type DateBlockConfig = z.infer<typeof dateConfigSchema>;
-export type ChoiceBlockConfig = z.infer<typeof optionListSchema>;
+export type TextBlockConfig = WithOptionalEndForm<
+  z.infer<typeof textConfigSchema>
+>;
+type WithOptionalEndForm<T> = Omit<T, "endForm"> & { endForm?: boolean };
+export type ShortTextBlockConfig = WithOptionalEndForm<
+  z.infer<typeof shortTextConfigSchema>
+>;
+export type LongTextBlockConfig = WithOptionalEndForm<
+  z.infer<typeof longTextConfigSchema>
+>;
+export type NumberBlockConfig = WithOptionalEndForm<
+  z.infer<typeof numberConfigSchema>
+>;
+export type LinkBlockConfig = WithOptionalEndForm<
+  z.infer<typeof linkConfigSchema>
+>;
+export type AgreementBlockConfig = WithOptionalEndForm<
+  z.infer<typeof agreementConfigSchema>
+>;
+export type DateBlockConfig = WithOptionalEndForm<
+  z.infer<typeof dateConfigSchema>
+>;
+export type ChoiceBlockConfig = WithOptionalEndForm<
+  z.infer<typeof optionListSchema>
+>;
 export type TextAnswerBlockConfig = ShortTextBlockConfig | LongTextBlockConfig;
 export type AnswerableBlockConfig =
   | ShortTextBlockConfig
@@ -530,6 +556,10 @@ export function getBranchRules(config: BlockConfig): BranchRule[] {
 
 export function getDefaultNextBlockId(config: BlockConfig) {
   return "defaultNextBlockId" in config ? config.defaultNextBlockId : null;
+}
+
+export function getEndForm(config: BlockConfig) {
+  return "endForm" in config ? config.endForm : false;
 }
 
 export function serializeBlock(block: FormBlock): SerializedBlock {

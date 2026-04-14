@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  ArrowLeft,
   BadgeCheck,
   CalendarDays,
   GripVertical,
@@ -26,12 +27,14 @@ import {
   Plus,
   Radio,
   Rows3,
+  GitBranch,
   SquareCheck,
   TextCursorInput,
   Type,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { BranchingGraphWorkspace } from "@/components/builder/branching-graph-workspace";
 import {
   BlockEditorPanel,
   BuilderHeader,
@@ -43,6 +46,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PageHeader } from "@/components/ui/page-header";
 import { ToastViewport } from "@/components/ui/toast";
 import {
   getBranchRules,
@@ -67,12 +71,19 @@ import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
 type BlockType = BuilderBlock["type"];
+type BuilderMode = "standard" | "graph";
 
 type Selection = { kind: "form" } | { kind: "block"; blockId: string };
 type PendingNavigation =
-  | { kind: "form" }
-  | { kind: "block"; blockId: string }
-  | { kind: "add-block"; blockType: BlockType };
+  | { kind: "form"; nextBuilderMode?: BuilderMode }
+  | {
+      kind: "block";
+      blockId: string;
+      graphEdgeId?: string | null;
+      nextBuilderMode?: BuilderMode;
+      activateGraphSelection?: boolean;
+    }
+  | { kind: "add-block"; blockType: BlockType; nextBuilderMode?: BuilderMode };
 
 const blockIcons: Record<BlockType, typeof Type> = {
   TEXT: Type,
@@ -242,10 +253,16 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   const { t } = useI18n();
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
+  const [builderMode, setBuilderMode] = useState<BuilderMode>("standard");
   const [selection, setSelection] = useState<Selection>(() =>
     initialForm.blocks[0]
       ? { kind: "block", blockId: initialForm.blocks[0].id }
       : { kind: "form" },
+  );
+  const [hasExplicitGraphSelection, setHasExplicitGraphSelection] =
+    useState(false);
+  const [selectedGraphEdgeId, setSelectedGraphEdgeId] = useState<string | null>(
+    null,
   );
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [busy, setBusy] = useState<string | null>(null);
@@ -295,6 +312,11 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       : [],
   );
   const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
+  const graphSelectedBlockId =
+    hasExplicitGraphSelection && selection.kind === "block"
+      ? selection.blockId
+      : null;
+  const graphSelectedBlockDraft = hasExplicitGraphSelection ? blockDraft : null;
   const hasUnsavedBlockChanges = useMemo(
     () =>
       selection.kind === "block" &&
@@ -358,6 +380,12 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         : [],
     );
   }, [selectedBlock]);
+
+  useEffect(() => {
+    if (selection.kind !== "block") {
+      setSelectedGraphEdgeId(null);
+    }
+  }, [selection]);
 
   useEffect(() => {
     setIsDndReady(true);
@@ -479,16 +507,27 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   }
 
   async function executePendingNavigation(navigation: PendingNavigation) {
+    if (navigation.nextBuilderMode) {
+      setBuilderMode(navigation.nextBuilderMode);
+    }
+
     switch (navigation.kind) {
       case "form": {
         setSelection({ kind: "form" });
+        setHasExplicitGraphSelection(false);
+        setSelectedGraphEdgeId(null);
         break;
       }
       case "block": {
         setSelection({ kind: "block", blockId: navigation.blockId });
+        setHasExplicitGraphSelection(
+          Boolean(navigation.activateGraphSelection),
+        );
+        setSelectedGraphEdgeId(navigation.graphEdgeId ?? null);
         break;
       }
       case "add-block": {
+        setSelectedGraphEdgeId(null);
         await addBlockNow(navigation.blockType);
         break;
       }
@@ -514,6 +553,56 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     }
 
     void executePendingNavigation(navigation);
+  }
+
+  function openGraphMode() {
+    setIsBlockMenuOpen(false);
+    setBuilderMode("graph");
+    setHasExplicitGraphSelection(false);
+    setSelectedGraphEdgeId(null);
+  }
+
+  function exitGraphMode() {
+    setBuilderMode("standard");
+    setHasExplicitGraphSelection(false);
+    setSelectedGraphEdgeId(null);
+  }
+
+  function openSettings() {
+    requestPendingNavigation({
+      kind: "form",
+      nextBuilderMode: builderMode === "graph" ? "standard" : undefined,
+    });
+  }
+
+  function selectGraphBlock(blockId: string) {
+    if (selection.kind === "block" && selection.blockId === blockId) {
+      setHasExplicitGraphSelection(true);
+      setSelectedGraphEdgeId(null);
+      return;
+    }
+
+    requestPendingNavigation({
+      kind: "block",
+      blockId,
+      graphEdgeId: null,
+      activateGraphSelection: true,
+    });
+  }
+
+  function selectGraphEdge(edgeId: string, blockId: string) {
+    if (selection.kind === "block" && selection.blockId === blockId) {
+      setHasExplicitGraphSelection(true);
+      setSelectedGraphEdgeId(edgeId);
+      return;
+    }
+
+    requestPendingNavigation({
+      kind: "block",
+      blockId,
+      graphEdgeId: edgeId,
+      activateGraphSelection: true,
+    });
   }
 
   async function confirmPendingNavigationWithSave() {
@@ -649,6 +738,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   }
 
   const shareHref = `/f/${form.slug}`;
+  const workspaceLabel =
+    form.workspace.kind === "personal"
+      ? t("workspace.personal")
+      : form.workspace.label;
 
   return (
     <>
@@ -703,16 +796,29 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         }
       />
       <div className="space-y-6">
-        <BuilderHeader
-          form={form}
-          settingsSelected={selection.kind === "form"}
-          busy={busy}
-          shareHref={shareHref}
-          onOpenSettings={() => requestPendingNavigation({ kind: "form" })}
-          onPublish={() => setPublished(true)}
-          onUnpublish={() => setPublished(false)}
-          onCopyShareLink={copyShareLink}
-        />
+        {builderMode === "graph" ? (
+          <PageHeader
+            title={form.title}
+            metadata={workspaceLabel}
+            actions={
+              <Button variant="secondary" onClick={exitGraphMode}>
+                <ArrowLeft className="size-4" />
+                {t("builder.exitGraphMode")}
+              </Button>
+            }
+          />
+        ) : (
+          <BuilderHeader
+            form={form}
+            settingsSelected={selection.kind === "form"}
+            busy={busy}
+            shareHref={shareHref}
+            onOpenSettings={openSettings}
+            onPublish={() => setPublished(true)}
+            onUnpublish={() => setPublished(false)}
+            onCopyShareLink={copyShareLink}
+          />
+        )}
 
         {branchingAnalysis.blockers.length ? (
           <div className="rounded-[18px] border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-[var(--ink)]">
@@ -770,142 +876,182 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           </div>
         ) : null}
 
-        <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-3xl text-[var(--ink)]">
-                {t("builder.blocks")}
-              </h2>
-              <div className="relative" ref={blockMenuRef}>
-                <Button
-                  size="sm"
-                  onClick={() => setIsBlockMenuOpen((current) => !current)}
-                  aria-expanded={isBlockMenuOpen}
-                  aria-haspopup="menu"
+        {builderMode === "graph" ? (
+          <BranchingGraphWorkspace
+            allBlocks={form.blocks}
+            selectedBlockId={graphSelectedBlockId}
+            selectedGraphEdgeId={selectedGraphEdgeId}
+            blockDraft={graphSelectedBlockDraft}
+            branchRulesDraft={branchRulesDraft}
+            branchValidationIssues={[
+              ...branchingAnalysis.blockers,
+              ...branchingAnalysis.warnings,
+            ]}
+            setBlockDraft={setBlockDraft}
+            setBranchRulesDraft={setBranchRulesDraft}
+            saveBlock={saveBlock}
+            busy={busy}
+            onSelectBlock={selectGraphBlock}
+            onSelectEdge={selectGraphEdge}
+          />
+        ) : (
+          <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
+            <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display text-3xl text-[var(--ink)]">
+                  {t("builder.blocks")}
+                </h2>
+                <div
+                  className="relative flex items-center gap-2"
+                  ref={blockMenuRef}
                 >
-                  <Plus className="size-4" />
-                  {t("builder.newBlock")}
-                </Button>
-                {isBlockMenuOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
-                    <div className="grid gap-1">
-                      {blockCreationOrder.map((type) => {
-                        const Icon = blockIcons[type];
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    aria-label={t("builder.openGraphMode")}
+                    title={t("builder.openGraphMode")}
+                    onClick={openGraphMode}
+                  >
+                    <GitBranch
+                      size={18}
+                      color="var(--ink)"
+                      strokeWidth={2.25}
+                    />
+                  </Button>
+                  <Button
+                    size="icon"
+                    onClick={() => setIsBlockMenuOpen((current) => !current)}
+                    aria-label={t("builder.newBlock")}
+                    title={t("builder.newBlock")}
+                    aria-expanded={isBlockMenuOpen}
+                    aria-haspopup="menu"
+                  >
+                    <Plus size={18} color="var(--bg)" strokeWidth={2.5} />
+                  </Button>
+                  {isBlockMenuOpen ? (
+                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
+                      <div className="grid gap-1">
+                        {blockCreationOrder.map((type) => {
+                          const Icon = blockIcons[type];
 
-                        return (
-                          <button
-                            key={type}
-                            type="button"
-                            className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
-                            onClick={() =>
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+                              onClick={() =>
+                                requestPendingNavigation({
+                                  kind: "add-block",
+                                  blockType: type,
+                                })
+                              }
+                            >
+                              {busy === `add-${type}` ? (
+                                <LoaderCircle className="size-4 animate-spin" />
+                              ) : (
+                                <Icon className="size-4" />
+                              )}
+                              {t(blockTypeTranslationKeys[type])}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-5 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
+                <div className="space-y-1.5">
+                  {isDndReady ? (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={form.blocks.map((block) => block.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {form.blocks.map((block) => (
+                          <SortableBlockRow
+                            key={block.id}
+                            block={block}
+                            selected={
+                              selection.kind === "block" &&
+                              selection.blockId === block.id
+                            }
+                            onSelect={(blockId) =>
                               requestPendingNavigation({
-                                kind: "add-block",
-                                blockType: type,
+                                kind: "block",
+                                blockId,
                               })
                             }
-                          >
-                            {busy === `add-${type}` ? (
-                              <LoaderCircle className="size-4 animate-spin" />
-                            ) : (
-                              <Icon className="size-4" />
-                            )}
-                            {t(blockTypeTranslationKeys[type])}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    form.blocks.map((block) => (
+                      <StaticBlockRow
+                        key={block.id}
+                        block={block}
+                        selected={
+                          selection.kind === "block" &&
+                          selection.blockId === block.id
+                        }
+                        onSelect={(blockId) =>
+                          requestPendingNavigation({ kind: "block", blockId })
+                        }
+                      />
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            </aside>
 
-            <div className="mt-5 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
-              <div className="space-y-1.5">
-                {isDndReady ? (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={form.blocks.map((block) => block.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {form.blocks.map((block) => (
-                        <SortableBlockRow
-                          key={block.id}
-                          block={block}
-                          selected={
-                            selection.kind === "block" &&
-                            selection.blockId === block.id
-                          }
-                          onSelect={(blockId) =>
-                            requestPendingNavigation({ kind: "block", blockId })
-                          }
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                ) : (
-                  form.blocks.map((block) => (
-                    <StaticBlockRow
-                      key={block.id}
-                      block={block}
-                      selected={
-                        selection.kind === "block" &&
-                        selection.blockId === block.id
-                      }
-                      onSelect={(blockId) =>
-                        requestPendingNavigation({ kind: "block", blockId })
-                      }
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          </aside>
-
-          <section className="min-w-0 border-t border-[color:var(--line)] pt-6 lg:min-h-full lg:border-t-0 lg:pt-0">
-            {selection.kind === "form" ? (
-              <FormSettingsPanel
-                metadataDraft={metadataDraft}
-                setMetadataDraft={setMetadataDraft}
-                shareHref={shareHref}
-                copyShareLink={copyShareLink}
-                deleteForm={deleteForm}
-                saveMetadata={saveMetadata}
-                busy={busy}
-              />
-            ) : blockDraft ? (
-              <BlockEditorPanel
-                allBlocks={form.blocks}
-                blockDraft={blockDraft}
-                selectedBlockIcon={SelectedBlockIcon}
-                choiceOptionsDraft={choiceOptionsDraft}
-                branchRulesDraft={branchRulesDraft}
-                branchValidationIssues={[
-                  ...branchingAnalysis.blockers,
-                  ...branchingAnalysis.warnings,
-                ]}
-                setChoiceOptionsDraft={setChoiceOptionsDraft}
-                setBranchRulesDraft={setBranchRulesDraft}
-                setBlockDraft={setBlockDraft}
-                deleteBlock={deleteBlock}
-                saveBlock={saveBlock}
-                busy={busy}
-              />
-            ) : (
-              <EmptyEditorState
-                onAddShortText={() =>
-                  requestPendingNavigation({
-                    kind: "add-block",
-                    blockType: "SHORT_TEXT",
-                  })
-                }
-              />
-            )}
-          </section>
-        </div>
+            <section className="min-w-0 border-t border-[color:var(--line)] pt-6 lg:min-h-full lg:border-t-0 lg:pt-0">
+              {selection.kind === "form" ? (
+                <FormSettingsPanel
+                  metadataDraft={metadataDraft}
+                  setMetadataDraft={setMetadataDraft}
+                  shareHref={shareHref}
+                  copyShareLink={copyShareLink}
+                  deleteForm={deleteForm}
+                  saveMetadata={saveMetadata}
+                  busy={busy}
+                />
+              ) : blockDraft ? (
+                <BlockEditorPanel
+                  allBlocks={form.blocks}
+                  blockDraft={blockDraft}
+                  selectedBlockIcon={SelectedBlockIcon}
+                  choiceOptionsDraft={choiceOptionsDraft}
+                  branchRulesDraft={branchRulesDraft}
+                  branchValidationIssues={[
+                    ...branchingAnalysis.blockers,
+                    ...branchingAnalysis.warnings,
+                  ]}
+                  setChoiceOptionsDraft={setChoiceOptionsDraft}
+                  setBranchRulesDraft={setBranchRulesDraft}
+                  setBlockDraft={setBlockDraft}
+                  deleteBlock={deleteBlock}
+                  saveBlock={saveBlock}
+                  busy={busy}
+                />
+              ) : (
+                <EmptyEditorState
+                  onAddShortText={() =>
+                    requestPendingNavigation({
+                      kind: "add-block",
+                      blockType: "SHORT_TEXT",
+                    })
+                  }
+                />
+              )}
+            </section>
+          </div>
+        )}
       </div>
     </>
   );
