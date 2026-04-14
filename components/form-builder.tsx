@@ -58,6 +58,7 @@ import {
 import {
   createBranchRuleDrafts,
   createChoiceOptionDrafts,
+  hasBuilderBlockDraftChanges,
   serializeBranchRuleDrafts,
   type BranchRuleDraft,
   type ChoiceOptionDraft,
@@ -68,6 +69,10 @@ import { cn } from "@/lib/utils";
 type BlockType = BuilderBlock["type"];
 
 type Selection = { kind: "form" } | { kind: "block"; blockId: string };
+type PendingNavigation =
+  | { kind: "form" }
+  | { kind: "block"; blockId: string }
+  | { kind: "add-block"; blockType: BlockType };
 
 const blockIcons: Record<BlockType, typeof Type> = {
   TEXT: Type,
@@ -258,6 +263,8 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
   const [isDeleteFormDialogOpen, setIsDeleteFormDialogOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] =
+    useState<PendingNavigation | null>(null);
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedBlock = useMemo(
@@ -288,6 +295,23 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       : [],
   );
   const SelectedBlockIcon = blockDraft ? blockIcons[blockDraft.type] : null;
+  const hasUnsavedBlockChanges = useMemo(
+    () =>
+      selection.kind === "block" &&
+      hasBuilderBlockDraftChanges({
+        savedBlock: selectedBlock,
+        blockDraft,
+        choiceOptionsDraft,
+        branchRulesDraft,
+      }),
+    [
+      blockDraft,
+      branchRulesDraft,
+      choiceOptionsDraft,
+      selectedBlock,
+      selection.kind,
+    ],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -359,12 +383,14 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
     try {
       await runner();
+      return true;
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? caughtError.message
           : t("builder.toasts.genericError");
       showToast(nextError, "error");
+      return false;
     } finally {
       setBusy(null);
     }
@@ -385,8 +411,8 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     });
   }
 
-  async function addBlock(type: BlockType) {
-    await withTask(`add-${type}`, async () => {
+  async function addBlockNow(type: BlockType) {
+    return withTask(`add-${type}`, async () => {
       const payload = await fetchJson<{ block: BuilderBlock }>(
         `/api/forms/${form.id}/blocks`,
         {
@@ -411,10 +437,10 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
   async function saveBlock() {
     if (!blockDraft) {
-      return;
+      return false;
     }
 
-    await withTask(`block-${blockDraft.id}`, async () => {
+    return withTask(`block-${blockDraft.id}`, async () => {
       const serializedBranchRules = serializeBranchRuleDrafts(branchRulesDraft);
       const payload = await fetchJson<{ block: BuilderBlock }>(
         `/api/forms/${form.id}/blocks/${blockDraft.id}`,
@@ -450,6 +476,70 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       }));
       showToast(t("builder.toasts.savedBlock"));
     });
+  }
+
+  async function executePendingNavigation(navigation: PendingNavigation) {
+    switch (navigation.kind) {
+      case "form": {
+        setSelection({ kind: "form" });
+        break;
+      }
+      case "block": {
+        setSelection({ kind: "block", blockId: navigation.blockId });
+        break;
+      }
+      case "add-block": {
+        await addBlockNow(navigation.blockType);
+        break;
+      }
+    }
+  }
+
+  function requestPendingNavigation(navigation: PendingNavigation) {
+    if (navigation.kind === "form" && selection.kind === "form") {
+      return;
+    }
+
+    if (
+      navigation.kind === "block" &&
+      selection.kind === "block" &&
+      selection.blockId === navigation.blockId
+    ) {
+      return;
+    }
+
+    if (hasUnsavedBlockChanges) {
+      setPendingNavigation(navigation);
+      return;
+    }
+
+    void executePendingNavigation(navigation);
+  }
+
+  async function confirmPendingNavigationWithSave() {
+    if (!pendingNavigation) {
+      return;
+    }
+
+    const navigation = pendingNavigation;
+    const didSave = await saveBlock();
+
+    if (!didSave) {
+      return;
+    }
+
+    setPendingNavigation(null);
+    await executePendingNavigation(navigation);
+  }
+
+  async function confirmPendingNavigationWithoutSave() {
+    if (!pendingNavigation) {
+      return;
+    }
+
+    const navigation = pendingNavigation;
+    setPendingNavigation(null);
+    await executePendingNavigation(navigation);
   }
 
   async function deleteBlock(blockId: string) {
@@ -573,13 +663,52 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
         pending={busy === "delete-form"}
         onConfirm={confirmDeleteForm}
       />
+      <ConfirmDialog
+        open={pendingNavigation !== null}
+        onClose={() => setPendingNavigation(null)}
+        title={t("builder.unsavedBlockChangesTitle")}
+        description={t("builder.unsavedBlockChangesDescription")}
+        confirmLabel={t("builder.saveBlockChanges")}
+        cancelLabel={t("ui.cancel")}
+        pending={Boolean(busy?.startsWith("block-"))}
+        actions={
+          <div className="mt-6 flex items-center justify-end gap-2 whitespace-nowrap">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setPendingNavigation(null)}
+              disabled={Boolean(busy?.startsWith("block-"))}
+            >
+              {t("builder.backFromUnsavedBlockChanges")}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => void confirmPendingNavigationWithoutSave()}
+              disabled={Boolean(busy?.startsWith("block-"))}
+            >
+              {t("builder.cancelBlockChanges")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void confirmPendingNavigationWithSave()}
+              disabled={Boolean(busy?.startsWith("block-"))}
+            >
+              {busy?.startsWith("block-") ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : null}
+              {t("builder.saveBlockChanges")}
+            </Button>
+          </div>
+        }
+      />
       <div className="space-y-6">
         <BuilderHeader
           form={form}
           settingsSelected={selection.kind === "form"}
           busy={busy}
           shareHref={shareHref}
-          onOpenSettings={() => setSelection({ kind: "form" })}
+          onOpenSettings={() => requestPendingNavigation({ kind: "form" })}
           onPublish={() => setPublished(true)}
           onUnpublish={() => setPublished(false)}
           onCopyShareLink={copyShareLink}
@@ -668,7 +797,12 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                             key={type}
                             type="button"
                             className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
-                            onClick={() => addBlock(type)}
+                            onClick={() =>
+                              requestPendingNavigation({
+                                kind: "add-block",
+                                blockType: type,
+                              })
+                            }
                           >
                             {busy === `add-${type}` ? (
                               <LoaderCircle className="size-4 animate-spin" />
@@ -706,7 +840,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                             selection.blockId === block.id
                           }
                           onSelect={(blockId) =>
-                            setSelection({ kind: "block", blockId })
+                            requestPendingNavigation({ kind: "block", blockId })
                           }
                         />
                       ))}
@@ -722,7 +856,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                         selection.blockId === block.id
                       }
                       onSelect={(blockId) =>
-                        setSelection({ kind: "block", blockId })
+                        requestPendingNavigation({ kind: "block", blockId })
                       }
                     />
                   ))
@@ -761,7 +895,14 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 busy={busy}
               />
             ) : (
-              <EmptyEditorState onAddShortText={() => addBlock("SHORT_TEXT")} />
+              <EmptyEditorState
+                onAddShortText={() =>
+                  requestPendingNavigation({
+                    kind: "add-block",
+                    blockType: "SHORT_TEXT",
+                  })
+                }
+              />
             )}
           </section>
         </div>

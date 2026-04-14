@@ -222,6 +222,11 @@ builder:
   requiredToggle: Required
   deleteBlock: Delete block
   saveBlock: Save block
+  unsavedBlockChangesTitle: Save changes before leaving this block?
+  unsavedBlockChangesDescription: You have unsaved edits in this block. Save them before switching blocks or opening form settings, or cancel the changes and continue.
+  saveBlockChanges: Save
+  cancelBlockChanges: Reset
+  backFromUnsavedBlockChanges: Back
   nothingSelected: Nothing selected
   nothingSelectedTitle: Select a block or open form settings.
   nothingSelectedDescription: Use the left panel to choose what you want to edit.

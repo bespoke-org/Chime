@@ -222,6 +222,11 @@ builder:
   requiredToggle: Обязательный
   deleteBlock: Удалить блок
   saveBlock: Сохранить блок
+  unsavedBlockChangesTitle: Сохранить изменения перед выходом из блока?
+  unsavedBlockChangesDescription: В этом блоке есть несохранённые правки. Сохраните их перед переключением на другой блок или настройками формы либо отмените изменения и продолжайте.
+  saveBlockChanges: Сохранить
+  cancelBlockChanges: Сбросить
+  backFromUnsavedBlockChanges: Назад
   nothingSelected: Ничего не выбрано
   nothingSelectedTitle: Выберите блок или откройте настройки формы.
   nothingSelectedDescription: Используйте левую панель, чтобы выбрать, что вы хотите редактировать.

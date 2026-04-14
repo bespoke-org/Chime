@@ -1,11 +1,33 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  createBranchRuleDrafts,
   createChoiceOptionDrafts,
   createDefaultBranchRuleDraft,
+  hasBuilderBlockDraftChanges,
   serializeBranchRuleDrafts,
   serializeChoiceOptionDrafts,
 } from "@/lib/form-builder-drafts";
+import { getDefaultBlockConfig } from "@/lib/blocks";
+import type { BuilderBlock } from "@/lib/form-types";
+
+function createBlock(
+  overrides: Partial<BuilderBlock> &
+    Pick<BuilderBlock, "id" | "type" | "position">,
+): BuilderBlock {
+  const now = new Date("2026-04-14T12:00:00.000Z");
+
+  return {
+    formId: "form-1",
+    title: "",
+    description: "",
+    required: false,
+    createdAt: now,
+    updatedAt: now,
+    config: getDefaultBlockConfig(overrides.type),
+    ...overrides,
+  } as BuilderBlock;
+}
 
 describe("form builder draft helpers", () => {
   test("preserves choice option order when drafts are saved back into block config", () => {
@@ -46,5 +68,85 @@ describe("form builder draft helpers", () => {
     expect(draft.operator).toBe("equals");
     expect(draft.value).toBe("agreed");
     expect(draft.targetBlockId).toBe("accepted");
+  });
+
+  test("treats choice drafts with regenerated ids as unchanged when the saved content matches", () => {
+    const savedBlock = createBlock({
+      id: "choice-1",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      title: "Pick one",
+      config: {
+        ...getDefaultBlockConfig("SINGLE_CHOICE"),
+        options: ["Yes", "No"],
+      },
+    });
+
+    expect(
+      hasBuilderBlockDraftChanges({
+        savedBlock,
+        blockDraft: savedBlock,
+        choiceOptionsDraft: createChoiceOptionDrafts(["Yes", "No"]),
+        branchRulesDraft: [],
+      }),
+    ).toBe(false);
+
+    expect(
+      hasBuilderBlockDraftChanges({
+        savedBlock,
+        blockDraft: savedBlock,
+        choiceOptionsDraft: createChoiceOptionDrafts(["Yes", "Maybe"]),
+        branchRulesDraft: [],
+      }),
+    ).toBe(true);
+  });
+
+  test("detects branching edits from serialized rule content instead of draft ids", () => {
+    const savedBlock = createBlock({
+      id: "question-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "Why?",
+      config: {
+        ...getDefaultBlockConfig("SHORT_TEXT"),
+        branchRules: [
+          {
+            operator: "contains",
+            value: "vip",
+            targetBlockId: "priority-review",
+          },
+        ],
+      },
+    });
+
+    expect(
+      hasBuilderBlockDraftChanges({
+        savedBlock,
+        blockDraft: savedBlock,
+        choiceOptionsDraft: [],
+        branchRulesDraft: createBranchRuleDrafts([
+          {
+            operator: "contains",
+            value: "vip",
+            targetBlockId: "priority-review",
+          },
+        ]),
+      }),
+    ).toBe(false);
+
+    expect(
+      hasBuilderBlockDraftChanges({
+        savedBlock,
+        blockDraft: savedBlock,
+        choiceOptionsDraft: [],
+        branchRulesDraft: createBranchRuleDrafts([
+          {
+            operator: "contains",
+            value: "vip-only",
+            targetBlockId: "priority-review",
+          },
+        ]),
+      }),
+    ).toBe(true);
   });
 });
