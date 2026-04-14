@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getServerAuthSession } from "@/lib/auth";
+import {
+  requireServerAuthSession,
+  requireServerSessionUserId,
+} from "@/lib/auth";
 import { createDraftForm } from "@/lib/forms";
 import {
   createOrganization,
@@ -19,16 +22,6 @@ import {
   setActiveWorkspaceCookie,
   getActiveWorkspaceForUser,
 } from "@/lib/workspaces";
-
-async function requireSessionUser() {
-  const session = await getServerAuthSession();
-
-  if (!session?.user?.id) {
-    redirect("/");
-  }
-
-  return session.user.id;
-}
 
 function settingsRedirectTarget(
   formData: FormData,
@@ -55,20 +48,19 @@ function settingsRedirectTarget(
 }
 
 export async function createFormAction() {
-  const userId = await requireSessionUser();
-  const { activeWorkspace } = await getActiveWorkspaceForUser(userId);
-  const session = await getServerAuthSession();
+  const session = await requireServerAuthSession();
+  const { activeWorkspace } = await getActiveWorkspaceForUser(session.user.id);
   const form = await createDraftForm(
-    userId,
+    session.user.id,
     activeWorkspace,
-    session?.user.locale,
+    session.user.locale,
   );
 
   redirect(`/forms/${form.id}/edit`);
 }
 
 export async function setActiveWorkspaceAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   const { options } = await getActiveWorkspaceForUser(userId);
   const nextValue = String(formData.get("workspace") ?? "personal");
   const isValidOption = options.some((option) => option.value === nextValue);
@@ -79,7 +71,7 @@ export async function setActiveWorkspaceAction(formData: FormData) {
 }
 
 export async function createOrganizationAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   const organization = await createOrganization(userId, {
     name: formData.get("name"),
   });
@@ -97,7 +89,7 @@ export async function createOrganizationAction(formData: FormData) {
 }
 
 export async function renameOrganizationAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   const organizationId = String(formData.get("organizationId") ?? "");
   await renameOrganization(userId, organizationId, {
     name: formData.get("name"),
@@ -111,7 +103,7 @@ export async function renameOrganizationAction(formData: FormData) {
 }
 
 export async function deleteOrganizationAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   await deleteOrganization(
     userId,
     String(formData.get("organizationId") ?? ""),
@@ -121,7 +113,7 @@ export async function deleteOrganizationAction(formData: FormData) {
 }
 
 export async function createOrganizationInviteLinkAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   const organizationId = String(formData.get("organizationId") ?? "");
   await createOrganizationInviteLink(userId, organizationId);
   redirect(
@@ -133,7 +125,7 @@ export async function createOrganizationInviteLinkAction(formData: FormData) {
 }
 
 export async function revokeOrganizationInviteLinkAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   const organizationId = String(formData.get("organizationId") ?? "");
   await revokeOrganizationInviteLink(
     userId,
@@ -149,7 +141,7 @@ export async function revokeOrganizationInviteLinkAction(formData: FormData) {
 }
 
 export async function removeOrganizationMemberAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   const organizationId = String(formData.get("organizationId") ?? "");
   await removeOrganizationMember(
     userId,
@@ -165,7 +157,7 @@ export async function removeOrganizationMemberAction(formData: FormData) {
 }
 
 export async function updateProfileAction(formData: FormData) {
-  const userId = await requireSessionUser();
+  const userId = await requireServerSessionUserId();
   await updateProfileSettings(userId, {
     firstName: formData.get("firstName"),
     secondName: formData.get("secondName"),

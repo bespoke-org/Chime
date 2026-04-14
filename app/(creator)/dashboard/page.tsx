@@ -6,18 +6,18 @@ import { DashboardFormBrowser } from "@/components/dashboard-form-browser";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireServerSessionUser } from "@/lib/auth";
 import { listFormsForWorkspace } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { getActiveWorkspaceForUser } from "@/lib/workspaces";
 import { withTitle } from "@/lib/metadata";
 
 async function getDashboardData() {
-  const session = await getServerAuthSession();
+  const user = await requireServerSessionUser();
   const { t } = await getRequestI18n();
-  const workspaceState = await getActiveWorkspaceForUser(session!.user.id);
+  const workspaceState = await getActiveWorkspaceForUser(user.id);
   const forms = await listFormsForWorkspace(
-    session!.user.id,
+    user.id,
     workspaceState.activeWorkspace,
   );
   const workspaceLabel =

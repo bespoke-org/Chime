@@ -15,7 +15,7 @@ import {
   AGREEMENT_ANSWER_VALUES,
   blockTypeTranslationKeys,
 } from "@/lib/blocks";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { listResponsesForOwnedForm } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
@@ -24,10 +24,10 @@ import type { QuestionSummary } from "@/lib/form-types";
 import { cn, formatCalendarDate, formatDate } from "@/lib/utils";
 
 async function getResponsesData(id: string) {
-  const session = await getServerAuthSession();
+  const user = await requireServerSessionUser();
 
   try {
-    return await listResponsesForOwnedForm(session!.user.id, id);
+    return await listResponsesForOwnedForm(user.id, id);
   } catch (error) {
     if (error instanceof AppError && error.status === 404) {
       notFound();

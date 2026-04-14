@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { AGREEMENT_ANSWER_VALUES } from "@/lib/blocks";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
@@ -16,10 +16,10 @@ import { resolveTitle, withTitle } from "@/lib/metadata";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
 
 async function getResponseData(id: string, responseId: string) {
-  const session = await getServerAuthSession();
+  const user = await requireServerSessionUser();
 
   try {
-    return await getOwnedResponseDetail(session!.user.id, id, responseId);
+    return await getOwnedResponseDetail(user.id, id, responseId);
   } catch (error) {
     if (error instanceof AppError && error.status === 404) {
       notFound();

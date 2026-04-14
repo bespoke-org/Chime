@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FormBuilder } from "@/components/form-builder";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { getOwnedFormForBuilder } from "@/lib/forms";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 import { getRequestI18n } from "@/lib/i18n-server";
 
 async function getEditableForm(id: string) {
-  const session = await getServerAuthSession();
+  const user = await requireServerSessionUser();
 
   try {
-    return await getOwnedFormForBuilder(session!.user.id, id);
+    return await getOwnedFormForBuilder(user.id, id);
   } catch (error) {
     if (error instanceof AppError && error.status === 404) {
       notFound();

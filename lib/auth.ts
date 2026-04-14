@@ -1,7 +1,13 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Adapter } from "next-auth/adapters";
-import { getServerSession, type NextAuthOptions } from "next-auth";
+import {
+  getServerSession,
+  type NextAuthOptions,
+  type Session,
+} from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+
+import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { normalizeLocale } from "@/lib/i18n";
@@ -77,4 +83,28 @@ export const authOptions: NextAuthOptions = {
 
 export function getServerAuthSession() {
   return getServerSession(authOptions);
+}
+
+type AuthenticatedSession = Session & {
+  user: NonNullable<Session["user"]> & {
+    id: string;
+  };
+};
+
+export async function requireServerAuthSession(redirectTo = "/") {
+  const session = await getServerAuthSession();
+
+  if (!session?.user?.id) {
+    redirect(redirectTo);
+  }
+
+  return session as AuthenticatedSession;
+}
+
+export async function requireServerSessionUser(redirectTo = "/") {
+  return (await requireServerAuthSession(redirectTo)).user;
+}
+
+export async function requireServerSessionUserId(redirectTo = "/") {
+  return (await requireServerSessionUser(redirectTo)).id;
 }

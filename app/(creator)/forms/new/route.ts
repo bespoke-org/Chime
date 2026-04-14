@@ -1,15 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { getServerAuthSession } from "@/lib/auth";
+import { requireServerAuthSession } from "@/lib/auth";
 import { createDraftForm } from "@/lib/forms";
 import { getActiveWorkspaceForUser } from "@/lib/workspaces";
 
 export async function GET() {
-  const session = await getServerAuthSession();
-
-  if (!session?.user?.id) {
-    redirect("/");
-  }
+  const session = await requireServerAuthSession();
 
   const { activeWorkspace } = await getActiveWorkspaceForUser(session.user.id);
   const form = await createDraftForm(session.user.id, activeWorkspace);

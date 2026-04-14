@@ -1,10 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { AccountMenu } from "@/components/account-menu";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
 import {
   getActiveWorkspaceForUser,
@@ -16,13 +15,9 @@ export default async function CreatorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerAuthSession();
+  const session = await requireServerAuthSession();
   const { t } = await getRequestI18n();
   const appName = t("app.name");
-
-  if (!session?.user?.id) {
-    redirect("/");
-  }
 
   const workspaceState = await getActiveWorkspaceForUser(session.user.id);
 
