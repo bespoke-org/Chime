@@ -4,6 +4,7 @@ import { LaptopMinimal, MoonStar, SunMedium } from "lucide-react";
 
 import { useI18n } from "@/components/i18n-provider";
 import { useThemePreference } from "@/components/theme-provider";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import type { ThemePreference } from "@/lib/theme";
 
@@ -31,14 +32,12 @@ export function ThemeSettingsPanel() {
 
   return (
     <div>
-      <div>
-        <h1 className="font-display text-4xl text-[var(--ink)]">
-          {t("settings.appearance.title")}
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-          {t("settings.appearance.description")}
-        </p>
-      </div>
+      <PageHeader
+        title={t("settings.appearance.title")}
+        description={t("settings.appearance.description")}
+        descriptionClassName="max-w-2xl"
+        className="border-b-0 pb-0"
+      />
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {options.map((option) => {

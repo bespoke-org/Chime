@@ -8,6 +8,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { OrganizationSettingsPanel } from "@/components/organization-settings-panel";
 import { ProfileSettingsPanel } from "@/components/profile-settings-panel";
 import { ThemeSettingsPanel } from "@/components/theme-settings-panel";
+import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import type {
   OrganizationSettingsSummary,
@@ -57,16 +58,11 @@ export function SettingsShell({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">
-            {t("settings.shell.title")}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-            {t("settings.shell.description")}
-          </p>
-        </div>
-      </section>
+      <PageHeader
+        title={t("settings.shell.title")}
+        description={t("settings.shell.description")}
+        descriptionClassName="max-w-2xl"
+      />
 
       <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
         <div className="space-y-2 border-b border-[color:var(--line)] pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">

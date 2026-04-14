@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { AGREEMENT_ANSWER_VALUES } from "@/lib/blocks";
@@ -59,27 +60,21 @@ export default async function ResponseDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">
-            {t("responseDetail.title", {
-              number: response.submissionNumber,
-              date: formatDate(response.submittedAt, locale),
-            })}
-          </h1>
-          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
-            {workspaceLabel}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("responseDetail.description")}
-          </p>
-        </div>
-        <Link href={`/forms/${id}/responses`}>
-          <Button variant="secondary">
-            {t("responseDetail.backToResponses")}
-          </Button>
-        </Link>
-      </section>
+      <PageHeader
+        title={t("responseDetail.title", {
+          number: response.submissionNumber,
+          date: formatDate(response.submittedAt, locale),
+        })}
+        metadata={workspaceLabel}
+        description={t("responseDetail.description")}
+        actions={
+          <Link href={`/forms/${id}/responses`}>
+            <Button variant="secondary">
+              {t("responseDetail.backToResponses")}
+            </Button>
+          </Link>
+        }
+      />
 
       <Card className="p-6">
         <div className="flex flex-wrap items-center gap-3">

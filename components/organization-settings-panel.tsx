@@ -15,6 +15,7 @@ import { DeleteOrganizationButton } from "@/components/delete-organization-butto
 import { useLocalToasts } from "@/components/use-local-toasts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -69,14 +70,11 @@ export function OrganizationSettingsPanel({
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <div>
-        <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">
-            {t("settings.organizations.title")}
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-            {t("settings.organizations.description")}
-          </p>
-        </div>
+        <PageHeader
+          title={t("settings.organizations.title")}
+          description={t("settings.organizations.description")}
+          className="border-b-0 pb-0"
+        />
 
         <div className="mt-8 border-t border-[color:var(--line)] pt-8">
           <form

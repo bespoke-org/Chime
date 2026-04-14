@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { createFormAction } from "@/app/(creator)/actions";
 import { DashboardFormBrowser } from "@/components/dashboard-form-browser";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { getServerAuthSession } from "@/lib/auth";
 import { listFormsForWorkspace } from "@/lib/forms";
@@ -38,22 +39,21 @@ export default async function DashboardPage() {
 
   return forms.length === 0 ? (
     <div className="space-y-8">
-      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">
-            {workspaceLabel}
-          </h1>
-          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">
-            {t("dashboard.description")}
-          </p>
-        </div>
-        <form action={createFormAction}>
-          <Button size="lg" type="submit">
-            <Plus className="size-4" />
-            {t("dashboard.newForm")}
-          </Button>
-        </form>
-      </section>
+      <PageHeader
+        title={workspaceLabel}
+        description={t("dashboard.description")}
+        descriptionClassName="max-w-2xl"
+        titleClassName="leading-tight"
+        className="pb-6"
+        actions={
+          <form action={createFormAction}>
+            <Button size="lg" type="submit">
+              <Plus className="size-4" />
+              {t("dashboard.newForm")}
+            </Button>
+          </form>
+        }
+      />
 
       <EmptyState
         eyebrow={t("dashboard.noFormsEyebrow")}

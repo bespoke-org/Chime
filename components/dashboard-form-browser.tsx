@@ -15,6 +15,7 @@ import { createFormAction } from "@/app/(creator)/actions";
 import { useI18n } from "@/components/i18n-provider";
 import { FormStatusBadge } from "@/components/form-status-badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import type { FormListItem } from "@/lib/form-types";
 import { cn, formatDate } from "@/lib/utils";
@@ -123,54 +124,53 @@ export function DashboardFormBrowser({
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <h1 className="font-display text-4xl leading-tight text-[var(--ink)]">
-            {workspaceLabel}
-          </h1>
-          <p className="max-w-2xl text-sm leading-6 text-[var(--muted)]">
-            {t("dashboard.description")}
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
-            <button
-              type="button"
-              onClick={() => setDashboardView("grid")}
-              className={cn(
-                "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
-                view === "grid"
-                  ? "bg-[var(--ink)] text-[var(--bg)]"
-                  : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
-              )}
-              aria-pressed={view === "grid"}
-            >
-              <LayoutGrid className="size-4" />
-              {t("dashboard.viewGrid")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDashboardView("table")}
-              className={cn(
-                "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
-                view === "table"
-                  ? "bg-[var(--ink)] text-[var(--bg)]"
-                  : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
-              )}
-              aria-pressed={view === "table"}
-            >
-              <TableProperties className="size-4" />
-              {t("dashboard.viewTable")}
-            </button>
+      <PageHeader
+        title={workspaceLabel}
+        description={t("dashboard.description")}
+        descriptionClassName="max-w-2xl"
+        titleClassName="leading-tight"
+        className="pb-6"
+        actions={
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
+              <button
+                type="button"
+                onClick={() => setDashboardView("grid")}
+                className={cn(
+                  "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
+                  view === "grid"
+                    ? "bg-[var(--ink)] text-[var(--bg)]"
+                    : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+                )}
+                aria-pressed={view === "grid"}
+              >
+                <LayoutGrid className="size-4" />
+                {t("dashboard.viewGrid")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardView("table")}
+                className={cn(
+                  "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
+                  view === "table"
+                    ? "bg-[var(--ink)] text-[var(--bg)]"
+                    : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+                )}
+                aria-pressed={view === "table"}
+              >
+                <TableProperties className="size-4" />
+                {t("dashboard.viewTable")}
+              </button>
+            </div>
+            <form action={createFormAction}>
+              <Button size="lg" type="submit">
+                <Plus className="size-4" />
+                {t("dashboard.newForm")}
+              </Button>
+            </form>
           </div>
-          <form action={createFormAction}>
-            <Button size="lg" type="submit">
-              <Plus className="size-4" />
-              {t("dashboard.newForm")}
-            </Button>
-          </form>
-        </div>
-      </section>
+        }
+      />
 
       {view === "grid" ? (
         <section className="grid gap-5 lg:grid-cols-2">

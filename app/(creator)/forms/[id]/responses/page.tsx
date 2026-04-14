@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
 import { ResponseExportActions } from "@/components/response-export-actions";
+import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -99,22 +100,20 @@ export default async function ResponsesPage({
 
   return (
     <div className="space-y-5">
-      <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="font-display text-4xl text-[var(--ink)]">
-            {form.title}
-          </h1>
-          <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
-            {workspaceLabel}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 lg:justify-end">
-          <Link href={`/forms/${form.id}/edit`}>
-            <Button variant="secondary">{t("responses.backToBuilder")}</Button>
-          </Link>
-          <ResponseExportActions formId={form.id} />
-        </div>
-      </section>
+      <PageHeader
+        title={form.title}
+        metadata={workspaceLabel}
+        actions={
+          <>
+            <Link href={`/forms/${form.id}/edit`}>
+              <Button variant="secondary">
+                {t("responses.backToBuilder")}
+              </Button>
+            </Link>
+            <ResponseExportActions formId={form.id} />
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">

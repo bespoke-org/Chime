@@ -8,6 +8,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Select,
   SelectContent,
@@ -44,14 +45,12 @@ export function ProfileSettingsPanel({
 
   return (
     <div>
-      <div>
-        <h1 className="font-display text-4xl text-[var(--ink)]">
-          {t("settings.profile.title")}
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-          {t("settings.profile.description")}
-        </p>
-      </div>
+      <PageHeader
+        title={t("settings.profile.title")}
+        description={t("settings.profile.description")}
+        descriptionClassName="max-w-2xl"
+        className="border-b-0 pb-0"
+      />
 
       <form action={submitProfile} className="mt-8 space-y-8">
         <input type="hidden" name="returnSection" value="profile" />
