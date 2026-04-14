@@ -29,10 +29,6 @@ import { ToastViewport, type ToastData } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AGREEMENT_ANSWER_VALUES,
-  getTextValidationPattern,
-  isValidDateAnswer,
-  isValidLinkAnswer,
-  parseNumericAnswer,
   type ChoiceBlockConfig,
   type LinkBlockConfig,
   type LongTextBlockConfig,
@@ -40,6 +36,7 @@ import {
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
+import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
 import { resolveNextBlockId } from "@/lib/branching";
 import {
   isLegacyDefaultCompletionMessage,
@@ -242,172 +239,67 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return true;
       }
 
-      const value = answerSet[currentBlock.id];
+      const result = validateAndNormalizeAnswer(
+        currentBlock,
+        answerSet[currentBlock.id],
+      );
 
-      if (
-        currentBlock.type === "SHORT_TEXT" ||
-        currentBlock.type === "LONG_TEXT"
-      ) {
-        const textValue = typeof value === "string" ? value.trim() : "";
-
-        if (!textValue) {
-          if (!currentBlock.required) {
-            return true;
-          }
-
-          showToast(t("publicRunner.answerRequired"), "error");
-          return false;
-        }
-
-        const validationRegex = getTextValidationPattern(
-          currentBlock.config as ShortTextBlockConfig | LongTextBlockConfig,
-        );
-
-        if (validationRegex && !new RegExp(validationRegex).test(textValue)) {
-          showToast(t("publicRunner.invalidTextFormat"), "error");
-          return false;
-        }
-
+      if (result.ok) {
         return true;
       }
 
-      if (currentBlock.type === "SINGLE_CHOICE") {
-        if (typeof value === "string" && value.trim()) {
-          return true;
-        }
-
-        if (currentBlock.required) {
+      switch (result.error.code) {
+        case "answer_required":
+          showToast(t("publicRunner.answerRequired"), "error");
+          return false;
+        case "single_choice_required":
           showToast(t("publicRunner.singleChoiceRequired"), "error");
           return false;
-        }
-
-        return true;
-      }
-
-      if (currentBlock.type === "MULTIPLE_CHOICE") {
-        if (Array.isArray(value) && value.length > 0) {
-          return true;
-        }
-
-        if (currentBlock.required) {
+        case "multi_choice_required":
           showToast(t("publicRunner.multiChoiceRequired"), "error");
           return false;
-        }
-
-        return true;
-      }
-
-      if (currentBlock.type === "NUMBER") {
-        const textValue = typeof value === "string" ? value.trim() : "";
-        const config = currentBlock.config as NumberBlockConfig;
-
-        if (!textValue) {
-          if (!currentBlock.required) {
-            return true;
-          }
-
-          showToast(t("publicRunner.answerRequired"), "error");
+        case "invalid_option":
+          showToast(
+            t(
+              currentBlock.type === "MULTIPLE_CHOICE"
+                ? "publicRunner.multiChoiceRequired"
+                : "publicRunner.singleChoiceRequired",
+            ),
+            "error",
+          );
           return false;
-        }
-
-        const numericValue = parseNumericAnswer(textValue);
-
-        if (numericValue === null) {
+        case "agreement_required":
+        case "invalid_agreement":
+          showToast(t("publicRunner.agreementRequired"), "error");
+          return false;
+        case "invalid_text_format":
+          showToast(t("publicRunner.invalidTextFormat"), "error");
+          return false;
+        case "invalid_number":
           showToast(t("publicRunner.invalidNumber"), "error");
           return false;
-        }
-
-        if (!config.allowFloat && !Number.isInteger(numericValue)) {
+        case "whole_number_required":
           showToast(t("publicRunner.wholeNumberRequired"), "error");
           return false;
-        }
-
-        if (config.min !== null && numericValue < config.min) {
+        case "number_below_min":
           showToast(
-            t("publicRunner.numberAtLeast", { min: config.min }),
+            t("publicRunner.numberAtLeast", { min: result.error.min }),
             "error",
           );
           return false;
-        }
-
-        if (config.max !== null && numericValue > config.max) {
+        case "number_above_max":
           showToast(
-            t("publicRunner.numberAtMost", { max: config.max }),
+            t("publicRunner.numberAtMost", { max: result.error.max }),
             "error",
           );
           return false;
-        }
-
-        return true;
-      }
-
-      if (currentBlock.type === "LINK") {
-        const textValue = typeof value === "string" ? value.trim() : "";
-
-        if (!textValue) {
-          if (!currentBlock.required) {
-            return true;
-          }
-
-          showToast(t("publicRunner.answerRequired"), "error");
-          return false;
-        }
-
-        if (!isValidLinkAnswer(textValue)) {
+        case "invalid_link":
           showToast(t("publicRunner.invalidLink"), "error");
           return false;
-        }
-
-        return true;
-      }
-
-      if (currentBlock.type === "DATE") {
-        const textValue = typeof value === "string" ? value.trim() : "";
-
-        if (!textValue) {
-          if (!currentBlock.required) {
-            return true;
-          }
-
-          showToast(t("publicRunner.answerRequired"), "error");
-          return false;
-        }
-
-        if (!isValidDateAnswer(textValue)) {
+        case "invalid_date":
           showToast(t("publicRunner.invalidDate"), "error");
           return false;
-        }
-
-        return true;
       }
-
-      if (currentBlock.type === "AGREEMENT") {
-        const textValue = typeof value === "string" ? value.trim() : "";
-
-        if (!textValue) {
-          if (!currentBlock.required) {
-            return true;
-          }
-
-          showToast(t("publicRunner.agreementRequired"), "error");
-          return false;
-        }
-
-        if (
-          currentBlock.required &&
-          textValue !== AGREEMENT_ANSWER_VALUES.AGREED
-        ) {
-          showToast(t("publicRunner.agreementRequired"), "error");
-          return false;
-        }
-
-        return (
-          textValue === AGREEMENT_ANSWER_VALUES.AGREED ||
-          textValue === AGREEMENT_ANSWER_VALUES.NOT_AGREED
-        );
-      }
-
-      return true;
     },
     [answers, currentBlock, showToast, t],
   );

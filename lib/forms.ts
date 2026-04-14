@@ -12,26 +12,20 @@ import {
   AGREEMENT_ANSWER_VALUES,
   blockTypeSchema,
   getDefaultBlockConfig,
-  isAgreementAnswerValue,
   isChoiceBlock,
   isQuestionBlock,
-  isTextAnswerBlock,
-  isValidDateAnswer,
-  isValidLinkAnswer,
   parseBlockConfig,
-  parseNumericAnswer,
   serializeBlock,
   type BlockConfig,
   type ChoiceBlockConfig,
-  type NumberBlockConfig,
   type SerializedBlock,
-  type TextAnswerBlockConfig,
 } from "@/lib/blocks";
 import {
   getBranchValidationIssueI18n,
   validateBranchingGraph,
   resolveNextBlockId,
 } from "@/lib/branching";
+import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
@@ -398,209 +392,89 @@ function normalizeAnswer(
   block: SerializedBlock,
   rawValue: unknown,
 ): string | string[] | undefined {
-  const config = block.config;
   const questionLabel = getQuestionLabel(block);
+  const result = validateAndNormalizeAnswer(block, rawValue);
 
-  if (!isQuestionBlock(block.type)) {
-    return undefined;
+  if (result.ok) {
+    return result.value;
   }
 
-  if (isTextAnswerBlock(block.type)) {
-    const value = typeof rawValue === "string" ? rawValue.trim() : "";
-    const validationRegex = (config as TextAnswerBlockConfig).validationRegex;
-
-    if (!value) {
-      if (block.required) {
-        throw new AppError(`Please answer “${questionLabel}”.`, 422);
-      }
-
-      return undefined;
-    }
-
-    if (validationRegex && !new RegExp(validationRegex).test(value)) {
-      throw new AppError(
-        `Please use a valid format for “${questionLabel}”.`,
-        422,
-      );
-    }
-
-    return value;
-  }
-
-  if (block.type === FORM_BLOCK_TYPES.SINGLE_CHOICE) {
-    const value = typeof rawValue === "string" ? rawValue.trim() : "";
-    const options = (config as ChoiceBlockConfig).options;
-
-    if (!value) {
-      if (block.required) {
-        throw new AppError(
-          `Please choose an option for “${questionLabel}”.`,
-          422,
-        );
-      }
-
-      return undefined;
-    }
-
-    if (!options.includes(value)) {
-      throw new AppError(
-        `Invalid option submitted for “${questionLabel}”.`,
-        422,
-      );
-    }
-
-    return value;
-  }
-
-  if (block.type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE) {
-    const values = Array.isArray(rawValue)
-      ? rawValue.filter((value): value is string => typeof value === "string")
-      : [];
-    const options = (config as ChoiceBlockConfig).options;
-    const uniqueValues = [
-      ...new Set(values.map((value) => value.trim()).filter(Boolean)),
-    ];
-
-    if (!uniqueValues.length) {
-      if (block.required) {
-        throw new AppError(
-          `Please choose at least one option for “${questionLabel}”.`,
-          422,
-        );
-      }
-
-      return undefined;
-    }
-
-    if (!uniqueValues.every((value) => options.includes(value))) {
-      throw new AppError(
-        `Invalid option submitted for “${questionLabel}”.`,
-        422,
-      );
-    }
-
-    return uniqueValues;
-  }
-
-  if (block.type === FORM_BLOCK_TYPES.NUMBER) {
-    const value = typeof rawValue === "string" ? rawValue.trim() : "";
-    const numberConfig = config as NumberBlockConfig;
-
-    if (!value) {
-      if (block.required) {
+  switch (result.error.code) {
+    case "answer_required":
+      if (block.type === FORM_BLOCK_TYPES.NUMBER) {
         throw new AppError(
           `Please enter a number for “${questionLabel}”.`,
           422,
         );
       }
 
-      return undefined;
-    }
+      if (block.type === FORM_BLOCK_TYPES.LINK) {
+        throw new AppError(`Please enter a link for “${questionLabel}”.`, 422);
+      }
 
-    const numericValue = parseNumericAnswer(value);
+      if (block.type === FORM_BLOCK_TYPES.DATE) {
+        throw new AppError(`Please enter a date for “${questionLabel}”.`, 422);
+      }
 
-    if (numericValue === null) {
+      throw new AppError(`Please answer “${questionLabel}”.`, 422);
+    case "single_choice_required":
+      throw new AppError(
+        `Please choose an option for “${questionLabel}”.`,
+        422,
+      );
+    case "multi_choice_required":
+      throw new AppError(
+        `Please choose at least one option for “${questionLabel}”.`,
+        422,
+      );
+    case "agreement_required":
+      throw new AppError(`Agreement is required for “${questionLabel}”.`, 422);
+    case "invalid_text_format":
+      throw new AppError(
+        `Please use a valid format for “${questionLabel}”.`,
+        422,
+      );
+    case "invalid_option":
+      throw new AppError(
+        `Invalid option submitted for “${questionLabel}”.`,
+        422,
+      );
+    case "invalid_number":
       throw new AppError(
         `Please enter a valid number for “${questionLabel}”.`,
         422,
       );
-    }
-
-    if (!numberConfig.allowFloat && !Number.isInteger(numericValue)) {
+    case "whole_number_required":
       throw new AppError(
         `Please enter a whole number for “${questionLabel}”.`,
         422,
       );
-    }
-
-    if (numberConfig.min !== null && numericValue < numberConfig.min) {
+    case "number_below_min":
       throw new AppError(
-        `Please enter a number greater than or equal to ${numberConfig.min} for “${questionLabel}”.`,
+        `Please enter a number greater than or equal to ${result.error.min} for “${questionLabel}”.`,
         422,
       );
-    }
-
-    if (numberConfig.max !== null && numericValue > numberConfig.max) {
+    case "number_above_max":
       throw new AppError(
-        `Please enter a number less than or equal to ${numberConfig.max} for “${questionLabel}”.`,
+        `Please enter a number less than or equal to ${result.error.max} for “${questionLabel}”.`,
         422,
       );
-    }
-
-    return String(numericValue);
-  }
-
-  if (block.type === FORM_BLOCK_TYPES.LINK) {
-    const value = typeof rawValue === "string" ? rawValue.trim() : "";
-
-    if (!value) {
-      if (block.required) {
-        throw new AppError(`Please enter a link for “${questionLabel}”.`, 422);
-      }
-
-      return undefined;
-    }
-
-    if (!isValidLinkAnswer(value)) {
+    case "invalid_link":
       throw new AppError(
         `Please enter a valid link for “${questionLabel}”.`,
         422,
       );
-    }
-
-    return new URL(value).toString();
-  }
-
-  if (block.type === FORM_BLOCK_TYPES.DATE) {
-    const value = typeof rawValue === "string" ? rawValue.trim() : "";
-
-    if (!value) {
-      if (block.required) {
-        throw new AppError(`Please enter a date for “${questionLabel}”.`, 422);
-      }
-
-      return undefined;
-    }
-
-    if (!isValidDateAnswer(value)) {
+    case "invalid_date":
       throw new AppError(
         `Please enter a valid date for “${questionLabel}”.`,
         422,
       );
-    }
-
-    return value;
-  }
-
-  if (block.type === FORM_BLOCK_TYPES.AGREEMENT) {
-    const value = typeof rawValue === "string" ? rawValue.trim() : "";
-
-    if (!value) {
-      if (block.required) {
-        throw new AppError(
-          `Agreement is required for “${questionLabel}”.`,
-          422,
-        );
-      }
-
-      return undefined;
-    }
-
-    if (!isAgreementAnswerValue(value)) {
+    case "invalid_agreement":
       throw new AppError(
         `Invalid agreement value submitted for “${questionLabel}”.`,
         422,
       );
-    }
-
-    if (block.required && value !== AGREEMENT_ANSWER_VALUES.AGREED) {
-      throw new AppError(`Agreement is required for “${questionLabel}”.`, 422);
-    }
-
-    return value;
   }
-
-  return undefined;
 }
 
 function parseSnapshotBlocks(response: ResponseRecord): SerializedBlock[] {
