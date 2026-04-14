@@ -287,6 +287,8 @@ publicRunner:
   invalidTextFormat: Используйте ожидаемый формат ответа перед продолжением.
   agree: Согласен
   doNotAgree: Не согласен
+  progressRestored: Сохранённый прогресс восстановлен.
+  savedProgressDiscarded: Сохранённый прогресс не удалось восстановить.
   submitError: Не удалось отправить ответ.
   back: Назад
   continue: Далее

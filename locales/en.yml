@@ -287,6 +287,8 @@ publicRunner:
   invalidTextFormat: Use the expected format before continuing.
   agree: Agree
   doNotAgree: Do not agree
+  progressRestored: Saved progress restored.
+  savedProgressDiscarded: Saved progress could not be restored.
   submitError: Could not submit response.
   back: Back
   continue: Continue

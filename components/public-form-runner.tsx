@@ -12,6 +12,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -44,12 +45,20 @@ import {
   isLegacyDefaultCompletionMessage,
   isLegacyDefaultCompletionTitle,
 } from "@/lib/form-defaults";
-import type { PublicForm } from "@/lib/form-types";
+import type { AnswerValue, PublicForm } from "@/lib/form-types";
+import {
+  createPublicFormDraft,
+  getPublicFormDraftStorageKey,
+  readStoredPublicFormDraft,
+  removeStoredPublicFormDraft,
+  validatePublicFormDraft,
+  writeStoredPublicFormDraft,
+} from "@/lib/public-form-draft";
 import { cn } from "@/lib/utils";
 
 async function submitResponse(
   slug: string,
-  answers: Record<string, string | string[]>,
+  answers: Record<string, AnswerValue>,
 ) {
   const response = await fetch(`/api/public/forms/${slug}/responses`, {
     method: "POST",
@@ -76,12 +85,17 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     () => (form.blocks[0] ? [form.blocks[0].id] : []),
     [form.blocks],
   );
+  const storageKey = useMemo(
+    () => getPublicFormDraftStorageKey(form.id),
+    [form.id],
+  );
   const { t } = useI18n();
-  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [route, setRoute] = useState({ history: initialHistory, cursor: 0 });
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [hasResolvedDraft, setHasResolvedDraft] = useState(false);
   const submitLockRef = useRef(false);
 
   const blocksById = useMemo(
@@ -132,7 +146,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const completionLinkLabel = form.completionLinkLabel?.trim() || null;
   const completionLinkUrl = form.completionLinkUrl?.trim() || null;
 
-  function setAnswer(blockId: string, value: string | string[]) {
+  function setAnswer(blockId: string, value: AnswerValue) {
     setAnswers((current) => ({
       ...current,
       [blockId]: value,
@@ -151,8 +165,79 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
+  const hasDraftProgress = useMemo(() => {
+    const hasAnyAnswer = Object.values(answers).some((value) =>
+      typeof value === "string" ? value.trim().length > 0 : value.length > 0,
+    );
+
+    return hasAnyAnswer || cursor > 0 || history.length > initialHistory.length;
+  }, [answers, cursor, history.length, initialHistory.length]);
+
+  useLayoutEffect(() => {
+    const storedDraft = readStoredPublicFormDraft(storageKey);
+
+    if (storedDraft.status !== "ok") {
+      if (storedDraft.status === "invalid") {
+        removeStoredPublicFormDraft(storageKey);
+        showToast(t("publicRunner.savedProgressDiscarded"), "error");
+      }
+
+      setHasResolvedDraft(true);
+      return;
+    }
+
+    const validatedDraft = validatePublicFormDraft(form, storedDraft.draft);
+
+    if (validatedDraft.status === "restored") {
+      setAnswers(validatedDraft.draft.answers);
+      setRoute({
+        history: validatedDraft.draft.history,
+        cursor: validatedDraft.draft.cursor,
+      });
+      showToast(t("publicRunner.progressRestored"));
+    } else {
+      removeStoredPublicFormDraft(storageKey);
+      showToast(t("publicRunner.savedProgressDiscarded"), "error");
+    }
+
+    setHasResolvedDraft(true);
+  }, [form, showToast, storageKey, t]);
+
+  useEffect(() => {
+    if (!hasResolvedDraft || isComplete) {
+      return;
+    }
+
+    if (!hasDraftProgress) {
+      removeStoredPublicFormDraft(storageKey);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      writeStoredPublicFormDraft(
+        storageKey,
+        createPublicFormDraft(form, {
+          answers,
+          history,
+          cursor,
+        }),
+      );
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    answers,
+    cursor,
+    form,
+    hasDraftProgress,
+    hasResolvedDraft,
+    history,
+    isComplete,
+    storageKey,
+  ]);
+
   const validateStep = useCallback(
-    (answerSet: Record<string, string | string[]> = answers) => {
+    (answerSet: Record<string, AnswerValue> = answers) => {
       if (!currentBlock || currentBlock.type === "TEXT") {
         return true;
       }
@@ -328,7 +413,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   );
 
   const handleContinue = useCallback(
-    async (answerSet: Record<string, string | string[]> = answers) => {
+    async (answerSet: Record<string, AnswerValue> = answers) => {
       if (!validateStep(answerSet) || !currentBlock) {
         return;
       }
@@ -350,6 +435,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         try {
           setIsSubmitting(true);
           await submitResponse(form.slug, answerSet);
+          removeStoredPublicFormDraft(storageKey);
           setIsComplete(true);
         } catch (caughtError) {
           showToast(
@@ -384,7 +470,16 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         };
       });
     },
-    [answers, currentBlock, form.blocks, form.slug, showToast, t, validateStep],
+    [
+      answers,
+      currentBlock,
+      form.blocks,
+      form.slug,
+      showToast,
+      storageKey,
+      t,
+      validateStep,
+    ],
   );
 
   const handleBack = useCallback(() => {
@@ -416,7 +511,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
   function handleChoiceEnter(
     event: ReactKeyboardEvent<HTMLButtonElement>,
-    nextAnswer: string | string[],
+    nextAnswer: AnswerValue,
   ) {
     if (
       event.key !== "Enter" ||
@@ -437,7 +532,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   }
 
   useEffect(() => {
-    if (isComplete || isSubmitting || !currentBlock) {
+    if (!hasResolvedDraft || isComplete || isSubmitting || !currentBlock) {
       return;
     }
 
@@ -477,6 +572,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     cursor,
     handleBack,
     handleContinue,
+    hasResolvedDraft,
     isComplete,
     isSubmitting,
   ]);
