@@ -41,9 +41,10 @@ import {
   type FormMetadataDraft,
 } from "@/components/form-builder-panels";
 import { useI18n } from "@/components/i18n-provider";
+import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ToastViewport, type ToastData } from "@/components/ui/toast";
+import { ToastViewport } from "@/components/ui/toast";
 import {
   getBranchRules,
   isQuestionBlock,
@@ -248,7 +249,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       ? { kind: "block", blockId: initialForm.blocks[0].id }
       : { kind: "form" },
   );
-  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const { toasts, showToast, dismissToast } = useLocalToasts();
   const [busy, setBusy] = useState<string | null>(null);
   const [isDndReady, setIsDndReady] = useState(false);
 
@@ -359,18 +360,6 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     window.addEventListener("pointerdown", handlePointerDown);
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [isBlockMenuOpen]);
-
-  function showToast(
-    message: string,
-    variant: ToastData["variant"] = "success",
-  ) {
-    const id = crypto.randomUUID();
-    setToasts((current) => [...current, { id, message, variant }]);
-  }
-
-  function dismissToast(id: string) {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }
 
   async function withTask(task: string, runner: () => Promise<void>) {
     setBusy(task);

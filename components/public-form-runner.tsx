@@ -20,12 +20,13 @@ import {
 } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { Input } from "@/components/ui/input";
-import { ToastViewport, type ToastData } from "@/components/ui/toast";
+import { ToastViewport } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AGREEMENT_ANSWER_VALUES,
@@ -89,7 +90,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const { t } = useI18n();
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [route, setRoute] = useState({ history: initialHistory, cursor: 0 });
-  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const { toasts, showToast, dismissToast } = useLocalToasts();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [hasResolvedDraft, setHasResolvedDraft] = useState(false);
@@ -149,18 +150,6 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       [blockId]: value,
     }));
   }
-
-  const showToast = useCallback(
-    (message: string, variant: ToastData["variant"] = "success") => {
-      const id = crypto.randomUUID();
-      setToasts((current) => [...current, { id, message, variant }]);
-    },
-    [],
-  );
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }, []);
 
   const hasDraftProgress = useMemo(() => {
     const hasAnyAnswer = Object.values(answers).some((value) =>

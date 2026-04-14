@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button } from "@/components/ui/button";
-import { ToastViewport, type ToastData } from "@/components/ui/toast";
+import { ToastViewport } from "@/components/ui/toast";
 
 type ResponseExportFormat = "csv" | "xlsx";
 
@@ -38,20 +39,8 @@ export function ResponseExportActions({ formId }: { formId: string }) {
     null,
   );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const { toasts, showToast, dismissToast } = useLocalToasts();
   const menuRef = useRef<HTMLDivElement | null>(null);
-
-  function showToast(
-    message: string,
-    variant: ToastData["variant"] = "success",
-  ) {
-    const id = crypto.randomUUID();
-    setToasts((current) => [...current, { id, message, variant }]);
-  }
-
-  function dismissToast(id: string) {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {

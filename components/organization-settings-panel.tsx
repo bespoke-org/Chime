@@ -12,6 +12,7 @@ import {
   revokeOrganizationInviteLinkAction,
 } from "@/app/(creator)/actions";
 import { DeleteOrganizationButton } from "@/components/delete-organization-button";
+import { useLocalToasts } from "@/components/use-local-toasts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ToastViewport, type ToastData } from "@/components/ui/toast";
+import { ToastViewport } from "@/components/ui/toast";
 import { useI18n } from "@/components/i18n-provider";
 import { UserAvatar } from "@/components/user-avatar";
 import type { OrganizationSettingsSummary } from "@/lib/form-types";
@@ -43,7 +44,7 @@ export function OrganizationSettingsPanel({
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<
     string | null
   >(initialOrganizationId ?? organizations[0]?.id ?? null);
-  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const { toasts, showToast, dismissToast } = useLocalToasts();
   const selectedOrganization = useMemo(
     () =>
       organizations.find(
@@ -53,18 +54,6 @@ export function OrganizationSettingsPanel({
       null,
     [organizations, selectedOrganizationId],
   );
-
-  function showToast(
-    message: string,
-    variant: ToastData["variant"] = "success",
-  ) {
-    const id = crypto.randomUUID();
-    setToasts((current) => [...current, { id, message, variant }]);
-  }
-
-  function dismissToast(id: string) {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }
 
   async function copyInviteLink(token: string) {
     try {
