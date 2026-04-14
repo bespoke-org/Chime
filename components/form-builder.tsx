@@ -37,7 +37,6 @@ import {
   BuilderHeader,
   EmptyEditorState,
   FormSettingsPanel,
-  type ChoiceOptionDraft,
   type FormMetadataDraft,
 } from "@/components/form-builder-panels";
 import { useI18n } from "@/components/i18n-provider";
@@ -50,21 +49,23 @@ import {
   isQuestionBlock,
   blockTypeTranslationKeys,
   getBlockPreview,
-  type BranchRule,
   type ChoiceBlockConfig,
 } from "@/lib/blocks";
 import {
   analyzeBranchingGraph,
   getBranchValidationIssueI18n,
 } from "@/lib/branching";
+import {
+  createBranchRuleDrafts,
+  createChoiceOptionDrafts,
+  serializeBranchRuleDrafts,
+  type BranchRuleDraft,
+  type ChoiceOptionDraft,
+} from "@/lib/form-builder-drafts";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
 type BlockType = BuilderBlock["type"];
-
-type BranchRuleDraft = BranchRule & {
-  id: string;
-};
 
 type Selection = { kind: "form" } | { kind: "block"; blockId: string };
 
@@ -91,14 +92,6 @@ const blockCreationOrder: BlockType[] = [
   "MULTIPLE_CHOICE",
   "AGREEMENT",
 ];
-
-function createChoiceOptionDrafts(options: string[]): ChoiceOptionDraft[] {
-  return options.map((value) => ({ id: crypto.randomUUID(), value }));
-}
-
-function createBranchRuleDrafts(rules: BranchRule[]): BranchRuleDraft[] {
-  return rules.map((rule) => ({ id: crypto.randomUUID(), ...rule }));
-}
 
 async function fetchJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
@@ -422,11 +415,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     }
 
     await withTask(`block-${blockDraft.id}`, async () => {
-      const serializedBranchRules = branchRulesDraft.map((rule) => ({
-        operator: rule.operator,
-        value: rule.value,
-        targetBlockId: rule.targetBlockId,
-      }));
+      const serializedBranchRules = serializeBranchRuleDrafts(branchRulesDraft);
       const payload = await fetchJson<{ block: BuilderBlock }>(
         `/api/forms/${form.id}/blocks/${blockDraft.id}`,
         {

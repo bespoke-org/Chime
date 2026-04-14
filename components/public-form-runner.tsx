@@ -52,6 +52,15 @@ import {
   validatePublicFormDraft,
   writeStoredPublicFormDraft,
 } from "@/lib/public-form-draft";
+import {
+  advanceRunnerRoute,
+  createInitialRunnerRoute,
+  getCurrentRouteBlockId,
+  getRouteCursor,
+  getVisibleRouteTotal,
+  hasRunnerProgress,
+  retreatRunnerRoute,
+} from "@/lib/public-form-runner-state";
 import { cn } from "@/lib/utils";
 
 async function submitResponse(
@@ -79,8 +88,8 @@ async function submitResponse(
 }
 
 export function PublicFormRunner({ form }: { form: PublicForm }) {
-  const initialHistory = useMemo(
-    () => (form.blocks[0] ? [form.blocks[0].id] : []),
+  const initialRoute = useMemo(
+    () => createInitialRunnerRoute(form.blocks),
     [form.blocks],
   );
   const storageKey = useMemo(
@@ -89,7 +98,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   );
   const { t } = useI18n();
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
-  const [route, setRoute] = useState({ history: initialHistory, cursor: 0 });
+  const [route, setRoute] = useState(initialRoute);
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -101,32 +110,24 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     [form.blocks],
   );
   const history = route.history;
-  const maxCursor = Math.max(history.length - 1, 0);
-  const cursor = Math.min(route.cursor, maxCursor);
-  const currentBlockId = history[cursor] ?? initialHistory[0] ?? null;
+  const cursor = getRouteCursor(route);
+  const currentBlockId = getCurrentRouteBlockId(route, form.blocks);
   const currentBlock = currentBlockId
     ? (blocksById.get(currentBlockId) ?? null)
     : null;
   const nextBlockId = currentBlock
     ? resolveNextBlockId(form.blocks, currentBlock.id, answers)
     : null;
-  const visibleTotal = useMemo(() => {
-    if (!currentBlockId) {
-      return 1;
-    }
-
-    let total = cursor + 1;
-    let nextId = resolveNextBlockId(form.blocks, currentBlockId, answers);
-    let safetyCounter = 0;
-
-    while (nextId && safetyCounter < form.blocks.length) {
-      total += 1;
-      nextId = resolveNextBlockId(form.blocks, nextId, answers);
-      safetyCounter += 1;
-    }
-
-    return Math.max(total, cursor + 1);
-  }, [answers, currentBlockId, cursor, form.blocks]);
+  const visibleTotal = useMemo(
+    () =>
+      getVisibleRouteTotal({
+        blocks: form.blocks,
+        currentBlockId,
+        answers,
+        cursor,
+      }),
+    [answers, currentBlockId, cursor, form.blocks],
+  );
   const progress = useMemo(
     () => ((cursor + 1) / visibleTotal) * 100,
     [cursor, visibleTotal],
@@ -151,13 +152,16 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }));
   }
 
-  const hasDraftProgress = useMemo(() => {
-    const hasAnyAnswer = Object.values(answers).some((value) =>
-      typeof value === "string" ? value.trim().length > 0 : value.length > 0,
-    );
-
-    return hasAnyAnswer || cursor > 0 || history.length > initialHistory.length;
-  }, [answers, cursor, history.length, initialHistory.length]);
+  const hasDraftProgress = useMemo(
+    () =>
+      hasRunnerProgress({
+        answers,
+        cursor,
+        historyLength: history.length,
+        initialHistoryLength: initialRoute.history.length,
+      }),
+    [answers, cursor, history.length, initialRoute.history.length],
+  );
 
   useLayoutEffect(() => {
     const storedDraft = readStoredPublicFormDraft(storageKey);
@@ -333,23 +337,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
-      setRoute((current) => {
-        const activeBlockId = current.history[current.cursor] ?? null;
-
-        if (activeBlockId !== sourceBlockId) {
-          return current;
-        }
-
-        const nextHistory = [
-          ...current.history.slice(0, current.cursor + 1),
-          resolvedNextBlockId,
-        ];
-
-        return {
-          history: nextHistory,
-          cursor: nextHistory.length - 1,
-        };
-      });
+      setRoute((current) =>
+        advanceRunnerRoute(current, sourceBlockId, resolvedNextBlockId),
+      );
     },
     [
       answers,
@@ -364,10 +354,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   );
 
   const handleBack = useCallback(() => {
-    setRoute((current) => ({
-      ...current,
-      cursor: Math.max(0, current.cursor - 1),
-    }));
+    setRoute((current) => retreatRunnerRoute(current));
   }, []);
 
   function handleAdvanceKeyDown(

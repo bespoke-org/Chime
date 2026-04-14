@@ -76,6 +76,14 @@ import {
   getBranchValidationIssueI18n,
   type BranchValidationIssue,
 } from "@/lib/branching";
+import {
+  createChoiceOptionDraft,
+  createDefaultBranchRuleDraft,
+  serializeBranchRuleDrafts,
+  serializeChoiceOptionDrafts,
+  type BranchRuleDraft,
+  type ChoiceOptionDraft,
+} from "@/lib/form-builder-drafts";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 
 export type FormMetadataDraft = {
@@ -86,18 +94,6 @@ export type FormMetadataDraft = {
   completionLinkUrl: string;
   showProgress: boolean;
   slug: string;
-};
-
-export type ChoiceOptionDraft = {
-  id: string;
-  value: string;
-};
-
-export type BranchRuleDraft = {
-  id: string;
-  operator: BranchOperator;
-  value: string | null;
-  targetBlockId: string;
 };
 
 export function BuilderHeader({
@@ -773,7 +769,7 @@ export function BlockEditorPanel({
 
   function syncChoiceOptions(nextOptions: ChoiceOptionDraft[]) {
     setChoiceOptionsDraft(nextOptions);
-    updateConfig({ options: nextOptions.map((option) => option.value) });
+    updateConfig({ options: serializeChoiceOptionDrafts(nextOptions) });
   }
 
   function updateChoiceOption(optionId: string, value: string) {
@@ -791,10 +787,9 @@ export function BlockEditorPanel({
 
     syncChoiceOptions([
       ...choiceOptionsDraft,
-      {
-        id: crypto.randomUUID(),
-        value: t("builder.option", { number: choiceOptionsDraft.length + 1 }),
-      },
+      createChoiceOptionDraft(
+        t("builder.option", { number: choiceOptionsDraft.length + 1 }),
+      ),
     ]);
   }
 
@@ -832,11 +827,7 @@ export function BlockEditorPanel({
   function syncBranchRules(nextRules: BranchRuleDraft[]) {
     setBranchRulesDraft(nextRules);
     updateConfig({
-      branchRules: nextRules.map((rule) => ({
-        operator: rule.operator,
-        value: rule.value,
-        targetBlockId: rule.targetBlockId,
-      })),
+      branchRules: serializeBranchRuleDrafts(nextRules),
     });
   }
 
@@ -862,15 +853,10 @@ export function BlockEditorPanel({
 
     syncBranchRules([
       ...branchRulesDraft,
-      {
-        id: crypto.randomUUID(),
-        operator: getVisibleBranchOperators(blockDraft.type)[0] ?? "equals",
-        value:
-          blockDraft.type === "AGREEMENT"
-            ? AGREEMENT_ANSWER_VALUES.AGREED
-            : null,
+      createDefaultBranchRuleDraft({
+        blockType: blockDraft.type,
         targetBlockId: firstTarget.id,
-      },
+      }),
     ]);
   }
 
