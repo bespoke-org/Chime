@@ -22,7 +22,7 @@ export default async function CreatorLayout({
   const workspaceState = await getActiveWorkspaceForUser(session.user.id);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 py-8 lg:px-10">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 py-4 lg:px-10">
       <header className="mb-8 flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
           <Link

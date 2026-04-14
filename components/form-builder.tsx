@@ -24,6 +24,7 @@ import {
   Hash,
   Link2,
   LoaderCircle,
+  PanelRight,
   Plus,
   Radio,
   Rows3,
@@ -249,11 +250,19 @@ function StaticBlockRow({
   );
 }
 
-export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
+export function FormBuilder({
+  initialForm,
+  initialMode = "standard",
+  immersiveGraphPage = false,
+}: {
+  initialForm: BuilderForm;
+  initialMode?: BuilderMode;
+  immersiveGraphPage?: boolean;
+}) {
   const { t } = useI18n();
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
-  const [builderMode, setBuilderMode] = useState<BuilderMode>("standard");
+  const [builderMode, setBuilderMode] = useState<BuilderMode>(initialMode);
   const [selection, setSelection] = useState<Selection>(() =>
     initialForm.blocks[0]
       ? { kind: "block", blockId: initialForm.blocks[0].id }
@@ -267,6 +276,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [busy, setBusy] = useState<string | null>(null);
   const [isDndReady, setIsDndReady] = useState(false);
+  const [isImmersiveSidebarOpen, setIsImmersiveSidebarOpen] = useState(false);
 
   const [metadataDraft, setMetadataDraft] = useState<FormMetadataDraft>({
     title: initialForm.title,
@@ -342,6 +352,20 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     () => analyzeBranchingGraph(form.blocks),
     [form.blocks],
   );
+
+  useEffect(() => {
+    setBuilderMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (!immersiveGraphPage || builderMode !== "graph") {
+      return;
+    }
+
+    if (graphSelectedBlockId) {
+      setIsImmersiveSidebarOpen(true);
+    }
+  }, [builderMode, graphSelectedBlockId, immersiveGraphPage]);
 
   useEffect(() => {
     setMetadataDraft({
@@ -560,12 +584,14 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     setBuilderMode("graph");
     setHasExplicitGraphSelection(false);
     setSelectedGraphEdgeId(null);
+    router.push(`/forms/${form.id}/graph`);
   }
 
   function exitGraphMode() {
     setBuilderMode("standard");
     setHasExplicitGraphSelection(false);
     setSelectedGraphEdgeId(null);
+    router.push(`/forms/${form.id}/edit`);
   }
 
   function openSettings() {
@@ -586,21 +612,6 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
       kind: "block",
       blockId,
       graphEdgeId: null,
-      activateGraphSelection: true,
-    });
-  }
-
-  function selectGraphEdge(edgeId: string, blockId: string) {
-    if (selection.kind === "block" && selection.blockId === blockId) {
-      setHasExplicitGraphSelection(true);
-      setSelectedGraphEdgeId(edgeId);
-      return;
-    }
-
-    requestPendingNavigation({
-      kind: "block",
-      blockId,
-      graphEdgeId: edgeId,
       activateGraphSelection: true,
     });
   }
@@ -742,6 +753,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
     form.workspace.kind === "personal"
       ? t("workspace.personal")
       : form.workspace.label;
+  const isImmersiveGraphPage = immersiveGraphPage && builderMode === "graph";
 
   return (
     <>
@@ -795,18 +807,26 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           </div>
         }
       />
-      <div className="space-y-6">
+      <div
+        className={cn(
+          "space-y-6",
+          isImmersiveGraphPage &&
+            "relative left-1/2 right-1/2 -mt-8 -mb-8 h-[calc(100dvh-5.5rem)] w-screen -translate-x-1/2 overflow-hidden space-y-0",
+        )}
+      >
         {builderMode === "graph" ? (
-          <PageHeader
-            title={form.title}
-            metadata={workspaceLabel}
-            actions={
-              <Button variant="secondary" onClick={exitGraphMode}>
-                <ArrowLeft className="size-4" />
-                {t("builder.exitGraphMode")}
-              </Button>
-            }
-          />
+          isImmersiveGraphPage ? null : (
+            <PageHeader
+              title={form.title}
+              metadata={workspaceLabel}
+              actions={
+                <Button variant="secondary" onClick={exitGraphMode}>
+                  <ArrowLeft className="size-4" />
+                  {t("builder.exitGraphMode")}
+                </Button>
+              }
+            />
+          )
         ) : (
           <BuilderHeader
             form={form}
@@ -820,7 +840,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           />
         )}
 
-        {branchingAnalysis.blockers.length ? (
+        {!isImmersiveGraphPage && branchingAnalysis.blockers.length ? (
           <div className="rounded-[18px] border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-[var(--ink)]">
             <p className="font-medium">
               {t("builder.branchingBlockersTitle", {
@@ -848,7 +868,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
           </div>
         ) : null}
 
-        {branchingAnalysis.warnings.length ? (
+        {!isImmersiveGraphPage && branchingAnalysis.warnings.length ? (
           <div className="rounded-[18px] border border-sky-500/30 bg-sky-500/10 px-4 py-4 text-sm text-[var(--ink)]">
             <p className="font-medium">
               {t("builder.branchingWarningsTitle", {
@@ -878,6 +898,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
 
         {builderMode === "graph" ? (
           <BranchingGraphWorkspace
+            formId={form.id}
             allBlocks={form.blocks}
             selectedBlockId={graphSelectedBlockId}
             selectedGraphEdgeId={selectedGraphEdgeId}
@@ -887,16 +908,51 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
               ...branchingAnalysis.blockers,
               ...branchingAnalysis.warnings,
             ]}
+            selectedBlockIcon={SelectedBlockIcon}
+            choiceOptionsDraft={choiceOptionsDraft}
+            setChoiceOptionsDraft={setChoiceOptionsDraft}
             setBlockDraft={setBlockDraft}
             setBranchRulesDraft={setBranchRulesDraft}
+            deleteBlock={deleteBlock}
             saveBlock={saveBlock}
             busy={busy}
             onSelectBlock={selectGraphBlock}
-            onSelectEdge={selectGraphEdge}
+            immersive={isImmersiveGraphPage}
+            hideInspector={false}
+            immersiveInspectorOpen={
+              isImmersiveGraphPage && isImmersiveSidebarOpen
+            }
+            immersiveFormTitle={form.title}
+            onCloseImmersiveInspector={() => setIsImmersiveSidebarOpen(false)}
+            overlay={
+              isImmersiveGraphPage ? (
+                <>
+                  <div className="fixed left-4 top-4 z-30 sm:left-4 sm:top-4">
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      aria-label="Toggle block settings"
+                      title="Toggle block settings"
+                      onClick={() =>
+                        setIsImmersiveSidebarOpen((current) => !current)
+                      }
+                    >
+                      <PanelRight className="size-4" />
+                    </Button>
+                  </div>
+                  <div className="fixed z-30 sm:right-4 sm:top-4">
+                    <Button variant="secondary" onClick={exitGraphMode}>
+                      <ArrowLeft className="size-4" />
+                      {t("builder.exitGraphMode")}
+                    </Button>
+                  </div>
+                </>
+              ) : undefined
+            }
           />
         ) : (
           <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
-            <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+            <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:flex lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:flex-col lg:overflow-hidden lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display text-3xl text-[var(--ink)]">
                   {t("builder.blocks")}
@@ -961,7 +1017,7 @@ export function FormBuilder({ initialForm }: { initialForm: BuilderForm }) {
                 </div>
               </div>
 
-              <div className="mt-5 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
+              <div className="mt-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
                 <div className="space-y-1.5">
                   {isDndReady ? (
                     <DndContext

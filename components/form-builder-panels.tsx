@@ -578,7 +578,7 @@ export function BlockEditorPanel({
           {SelectedBlockIcon ? (
             <SelectedBlockIcon className="size-6 text-[var(--ink)]" />
           ) : null}
-          <h2 className="font-display text-4xl text-[var(--ink)]">
+          <h2 className="font-display text-2xl text-[var(--ink)]">
             {t(blockTypeTranslationKeys[blockDraft.type])}
           </h2>
         </div>
@@ -715,10 +715,6 @@ export function BlockEditorPanel({
                   />
                 </label>
               ) : null}
-
-              <p className="text-xs text-[var(--muted)]">
-                {t("builder.regexHelp")}
-              </p>
             </div>
           </>
         )}
@@ -862,9 +858,6 @@ export function BlockEditorPanel({
                 </div>
               </SortableContext>
             </DndContext>
-            <p className="text-xs text-[var(--muted)]">
-              {t("builder.optionsHelp")}
-            </p>
           </div>
         )}
 

@@ -6,8 +6,11 @@ import { getDefaultBlockConfig } from "@/lib/blocks";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { installTestDom } from "@/test/install-dom";
 
+const routerPushCalls: string[] = [];
 const router = {
-  push: () => {},
+  push: (href: string) => {
+    routerPushCalls.push(href);
+  },
   refresh: () => {},
 };
 const { mock } = (await import("bun:test")) as unknown as {
@@ -62,10 +65,13 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
   };
 }
 
-function renderBuilder(initialForm: BuilderForm) {
+function renderBuilder(
+  initialForm: BuilderForm,
+  initialMode?: "standard" | "graph",
+) {
   return render(
     <I18nProvider locale="en" messages={{}}>
-      <FormBuilder initialForm={initialForm} />
+      <FormBuilder initialForm={initialForm} initialMode={initialMode} />
     </I18nProvider>,
   );
 }
@@ -77,6 +83,8 @@ async function cleanupAndRestore(restoreDom: () => void) {
 }
 
 describe("FormBuilder", () => {
+  routerPushCalls.length = 0;
+
   test("switches blocks immediately when there are no unsaved edits", async () => {
     const restoreDom = installTestDom();
     const firstBlock = createBlock({
@@ -300,6 +308,7 @@ describe("FormBuilder", () => {
   });
 
   test("opens graph mode and hides the standard builder sidebar", async () => {
+    routerPushCalls.length = 0;
     const restoreDom = installTestDom();
     const firstBlock = createBlock({
       id: "block-1",
@@ -321,11 +330,34 @@ describe("FormBuilder", () => {
       ).toBe(true);
     });
     expect(view.queryByText("builder.blocks")).toBe(null);
+    expect(routerPushCalls.at(-1)).toBe("/forms/form-1/graph");
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("renders graph mode directly when mounted on the graph route", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+
+    const view = renderBuilder(createForm([firstBlock]), "graph");
+
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "builder.exitGraphMode" }) !== null,
+      ).toBe(true);
+    });
+    expect(view.queryByText("builder.blocks")).toBe(null);
 
     await cleanupAndRestore(restoreDom);
   });
 
   test("returns to the standard builder layout when graph mode closes", async () => {
+    routerPushCalls.length = 0;
     const restoreDom = installTestDom();
     const firstBlock = createBlock({
       id: "block-1",
@@ -352,6 +384,120 @@ describe("FormBuilder", () => {
 
     await waitFor(() => {
       expect(view.getByText("builder.blocks") !== null).toBe(true);
+    });
+    expect(routerPushCalls.at(-1)).toBe("/forms/form-1/edit");
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("restores a persisted graph layout on first mount", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const secondBlock = createBlock({
+      id: "block-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+    });
+
+    window.localStorage.setItem(
+      "lively-forms:branching-graph-layout:form-1",
+      JSON.stringify({ "block-1": { x: 164, y: 132 } }),
+    );
+
+    const view = renderBuilder(createForm([firstBlock, secondBlock]));
+
+    fireEvent.click(
+      view.getByRole("button", { name: "builder.openGraphMode" }),
+    );
+
+    const restoredGraphNode = await view.findByRole("button", {
+      name: "blocks.types.SHORT_TEXT First question",
+    });
+
+    await waitFor(() => {
+      expect(restoredGraphNode.style.left).toBe("164px");
+      expect(restoredGraphNode.style.top).toBe("132px");
+    });
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("persists dragged graph node positions across remounts", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const secondBlock = createBlock({
+      id: "block-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+    });
+
+    const initialForm = createForm([firstBlock, secondBlock]);
+    const firstView = renderBuilder(initialForm);
+
+    fireEvent.click(
+      firstView.getByRole("button", { name: "builder.openGraphMode" }),
+    );
+
+    const graphNode = await firstView.findByRole("button", {
+      name: "blocks.types.SHORT_TEXT First question",
+    });
+
+    expect(graphNode.style.left).toBe("48px");
+    expect(graphNode.style.top).toBe("48px");
+
+    fireEvent.pointerDown(graphNode, {
+      button: 0,
+      pointerId: 1,
+      clientX: 120,
+      clientY: 120,
+    });
+    fireEvent.pointerMove(graphNode, {
+      pointerId: 1,
+      clientX: 200,
+      clientY: 180,
+    });
+    fireEvent.pointerUp(graphNode, {
+      pointerId: 1,
+      clientX: 200,
+      clientY: 180,
+    });
+
+    await waitFor(() => {
+      expect(graphNode.style.left).toBe("128px");
+      expect(graphNode.style.top).toBe("108px");
+    });
+
+    expect(
+      window.localStorage.getItem("lively-forms:branching-graph-layout:form-1"),
+    ).toContain('"block-1":{"x":128,"y":108}');
+
+    cleanup();
+
+    const secondView = renderBuilder(initialForm);
+
+    fireEvent.click(
+      secondView.getByRole("button", { name: "builder.openGraphMode" }),
+    );
+
+    const restoredGraphNode = await secondView.findByRole("button", {
+      name: "blocks.types.SHORT_TEXT First question",
+    });
+
+    await waitFor(() => {
+      expect(restoredGraphNode.style.left).toBe("128px");
+      expect(restoredGraphNode.style.top).toBe("108px");
     });
 
     await cleanupAndRestore(restoreDom);

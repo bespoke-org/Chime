@@ -16,6 +16,11 @@ export type SiteFooterCopy = {
 export function SiteFooter({ copy }: { copy: SiteFooterCopy }) {
   const pathname = usePathname();
   const showPoweredBy = pathname?.startsWith("/f/");
+  const hideFooter = /^\/forms\/[^/]+\/graph$/.test(pathname ?? "");
+
+  if (hideFooter) {
+    return null;
+  }
 
   return (
     <footer>

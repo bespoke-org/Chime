@@ -1,36 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PanelLeftClose } from "lucide-react";
 import type {
   Dispatch,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
   SetStateAction,
-  WheelEvent as ReactWheelEvent,
 } from "react";
 
-import { BranchRulesEditor } from "@/components/builder/branch-rules-editor";
+import { BlockEditorPanel } from "@/components/form-builder-panels";
 import { useI18n } from "@/components/i18n-provider";
-import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  blockTypeTranslationKeys,
-  isQuestionBlock,
-  type BranchOperator,
-} from "@/lib/blocks";
-import {
-  getBlockDisplayLabel,
-  type BranchValidationIssue,
-} from "@/lib/branching";
+import { blockTypeTranslationKeys, type BranchOperator } from "@/lib/blocks";
+import { type BranchValidationIssue } from "@/lib/branching";
 import {
   buildBranchingGraph,
   type BranchingGraphEdge,
 } from "@/lib/branching-graph";
-import type { BranchRuleDraft } from "@/lib/form-builder-drafts";
+import type {
+  BranchRuleDraft,
+  ChoiceOptionDraft,
+} from "@/lib/form-builder-drafts";
 import type { BuilderBlock } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
 function getEdgePath(
   source: { x: number; y: number; width: number; height: number },
@@ -137,8 +133,14 @@ type GraphPanState = {
   pointerId: number;
   startX: number;
   startY: number;
-  scrollLeft: number;
-  scrollTop: number;
+  startCameraX: number;
+  startCameraY: number;
+};
+
+type GraphCamera = {
+  x: number;
+  y: number;
+  zoom: number;
 };
 
 type GraphViewport = {
@@ -148,58 +150,251 @@ type GraphViewport = {
   height: number;
 };
 
+const MIN_GRAPH_ZOOM = 0.5;
+const MAX_GRAPH_ZOOM = 2;
+const DEFAULT_GRAPH_ZOOM = 1;
+
 type GraphNodePositionOverride = {
   x: number;
   y: number;
 };
 
+const GRAPH_LAYOUT_STORAGE_KEY_PREFIX = "lively-forms:branching-graph-layout:";
+const GRAPH_INSPECTOR_WIDTH_STORAGE_KEY_PREFIX =
+  "lively-forms:branching-graph-inspector-width:";
+const GRAPH_CANVAS_PADDING = 720;
+const DEFAULT_IMMERSIVE_INSPECTOR_WIDTH = 560;
+const MIN_IMMERSIVE_INSPECTOR_WIDTH = 420;
+const MAX_IMMERSIVE_INSPECTOR_WIDTH = 960;
+
+type ImmersiveInspectorWidthBounds = {
+  min: number;
+  max: number;
+};
+
+function getGraphLayoutStorageKey(formId: string) {
+  return `${GRAPH_LAYOUT_STORAGE_KEY_PREFIX}${formId}`;
+}
+
+function getGraphInspectorWidthStorageKey(formId: string) {
+  return `${GRAPH_INSPECTOR_WIDTH_STORAGE_KEY_PREFIX}${formId}`;
+}
+
+function getImmersiveInspectorWidthBounds(viewportWidth: number) {
+  const availableWidth = Math.max(280, viewportWidth - 32);
+  const preferredMaxWidth = Math.min(
+    MAX_IMMERSIVE_INSPECTOR_WIDTH,
+    Math.round(viewportWidth * 0.5),
+  );
+  const min = Math.min(MIN_IMMERSIVE_INSPECTOR_WIDTH, availableWidth);
+  const max = Math.max(min, Math.min(availableWidth, preferredMaxWidth));
+
+  return { min, max } satisfies ImmersiveInspectorWidthBounds;
+}
+
+function clampImmersiveInspectorWidth(width: number, viewportWidth: number) {
+  const bounds = getImmersiveInspectorWidthBounds(viewportWidth);
+  return Math.min(bounds.max, Math.max(bounds.min, width));
+}
+
+function readPersistedInspectorWidth(formId: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(
+      getGraphInspectorWidthStorageKey(formId),
+    );
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = Number(rawValue);
+    return Number.isFinite(parsedValue) ? parsedValue : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistInspectorWidth(formId: string, width: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      getGraphInspectorWidthStorageKey(formId),
+      String(width),
+    );
+  } catch {
+    // Ignore storage failures so graph mode remains usable.
+  }
+}
+
+function readPersistedGraphLayout(formId: string) {
+  if (typeof window === "undefined") {
+    return {} as Record<string, GraphNodePositionOverride>;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(
+      getGraphLayoutStorageKey(formId),
+    );
+
+    if (!rawValue) {
+      return {} as Record<string, GraphNodePositionOverride>;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Record<
+      string,
+      Partial<GraphNodePositionOverride>
+    >;
+
+    return Object.fromEntries(
+      Object.entries(parsedValue).flatMap(([blockId, position]) =>
+        typeof position?.x === "number" && typeof position?.y === "number"
+          ? [[blockId, { x: position.x, y: position.y }]]
+          : [],
+      ),
+    );
+  } catch {
+    return {} as Record<string, GraphNodePositionOverride>;
+  }
+}
+
+function persistGraphLayout(
+  formId: string,
+  overrides: Record<string, GraphNodePositionOverride>,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    if (!Object.keys(overrides).length) {
+      window.localStorage.removeItem(getGraphLayoutStorageKey(formId));
+      return;
+    }
+
+    window.localStorage.setItem(
+      getGraphLayoutStorageKey(formId),
+      JSON.stringify(overrides),
+    );
+  } catch {
+    // Ignore storage failures so graph mode remains usable.
+  }
+}
+
 type GraphNodeDragState = {
   pointerId: number;
-  blockId: string;
+  blockIds: string[];
   startClientX: number;
   startClientY: number;
-  startNodeX: number;
-  startNodeY: number;
+  startPositions: Record<string, GraphNodePositionOverride>;
   moved: boolean;
 };
 
+type GraphSelectionRect = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+  additive: boolean;
+};
+
+type ImmersiveInspectorResizeState = {
+  startClientX: number;
+  startWidth: number;
+};
+
+type SafariGestureEvent = Event & {
+  clientX: number;
+  clientY: number;
+  scale: number;
+};
+
 export function BranchingGraphWorkspace({
+  formId,
   allBlocks,
   selectedBlockId,
-  selectedGraphEdgeId,
   blockDraft,
   branchRulesDraft,
   branchValidationIssues,
+  selectedBlockIcon,
+  choiceOptionsDraft,
+  setChoiceOptionsDraft,
   setBlockDraft,
   setBranchRulesDraft,
+  deleteBlock,
   saveBlock,
   busy,
   onSelectBlock,
-  onSelectEdge,
+  immersive = false,
+  hideInspector = false,
+  immersiveInspectorOpen = false,
+  immersiveFormTitle,
+  onCloseImmersiveInspector,
+  overlay,
 }: {
+  formId: string;
   allBlocks: BuilderBlock[];
   selectedBlockId: string | null;
-  selectedGraphEdgeId: string | null;
+  selectedGraphEdgeId?: string | null;
   blockDraft: BuilderBlock | null;
   branchRulesDraft: BranchRuleDraft[];
   branchValidationIssues: BranchValidationIssue[];
+  selectedBlockIcon: LucideIcon | null;
+  choiceOptionsDraft: ChoiceOptionDraft[];
+  setChoiceOptionsDraft: Dispatch<SetStateAction<ChoiceOptionDraft[]>>;
   setBlockDraft: Dispatch<SetStateAction<BuilderBlock | null>>;
   setBranchRulesDraft: Dispatch<SetStateAction<BranchRuleDraft[]>>;
+  deleteBlock: (blockId: string) => void;
   saveBlock: () => Promise<boolean>;
   busy: string | null;
   onSelectBlock: (blockId: string) => void;
-  onSelectEdge: (edgeId: string, sourceBlockId: string) => void;
+  immersive?: boolean;
+  hideInspector?: boolean;
+  immersiveInspectorOpen?: boolean;
+  immersiveFormTitle?: string;
+  onCloseImmersiveInspector?: () => void;
+  overlay?: ReactNode;
 }) {
   const { t } = useI18n();
   const graphScrollRef = useRef<HTMLDivElement | null>(null);
+  const graphSceneRef = useRef<HTMLDivElement | null>(null);
   const graphPanStateRef = useRef<GraphPanState | null>(null);
   const graphNodeDragStateRef = useRef<GraphNodeDragState | null>(null);
+  const immersiveInspectorResizeStateRef =
+    useRef<ImmersiveInspectorResizeState | null>(null);
   const suppressNodeClickRef = useRef<string | null>(null);
   const hasInitializedGraphCameraRef = useRef(false);
+  const hasLoadedPersistedGraphLayoutRef = useRef(false);
+  const graphCameraRef = useRef<GraphCamera>({
+    x: 0,
+    y: 0,
+    zoom: DEFAULT_GRAPH_ZOOM,
+  });
+  const gestureStartZoomRef = useRef(DEFAULT_GRAPH_ZOOM);
+  const isNativeGestureZoomingRef = useRef(false);
   const [isPanningGraph, setIsPanningGraph] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [graphNodePositionOverrides, setGraphNodePositionOverrides] = useState<
     Record<string, GraphNodePositionOverride>
   >({});
+  const [immersiveInspectorWidth, setImmersiveInspectorWidth] = useState(
+    DEFAULT_IMMERSIVE_INSPECTOR_WIDTH,
+  );
+  const [isResizingImmersiveInspector, setIsResizingImmersiveInspector] =
+    useState(false);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(() =>
+    selectedBlockId ? [selectedBlockId] : [],
+  );
+  const [selectionRect, setSelectionRect] = useState<GraphSelectionRect | null>(
+    null,
+  );
   const [graphViewport, setGraphViewport] = useState<GraphViewport>({
     left: 0,
     top: 0,
@@ -207,6 +402,159 @@ export function BranchingGraphWorkspace({
     height: 0,
   });
   const graph = useMemo(() => buildBranchingGraph(allBlocks), [allBlocks]);
+  const viewportPadding = immersive ? GRAPH_CANVAS_PADDING : 0;
+
+  useEffect(() => {
+    const persistedOverrides = readPersistedGraphLayout(formId);
+    const validBlockIds = new Set(allBlocks.map((block) => block.id));
+    const nextOverrides = Object.fromEntries(
+      Object.entries(persistedOverrides).filter(([blockId]) =>
+        validBlockIds.has(blockId),
+      ),
+    );
+
+    hasLoadedPersistedGraphLayoutRef.current = false;
+    setGraphNodePositionOverrides(nextOverrides);
+    persistGraphLayout(formId, nextOverrides);
+    hasLoadedPersistedGraphLayoutRef.current = true;
+  }, [formId, allBlocks]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const persistedWidth = readPersistedInspectorWidth(formId);
+    const nextWidth = clampImmersiveInspectorWidth(
+      persistedWidth ?? DEFAULT_IMMERSIVE_INSPECTOR_WIDTH,
+      window.innerWidth,
+    );
+
+    setImmersiveInspectorWidth(nextWidth);
+    persistInspectorWidth(formId, nextWidth);
+  }, [formId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function handleResize() {
+      setImmersiveInspectorWidth((current) => {
+        const nextWidth = clampImmersiveInspectorWidth(
+          current,
+          window.innerWidth,
+        );
+        persistInspectorWidth(formId, nextWidth);
+        return nextWidth;
+      });
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [formId]);
+
+  useEffect(() => {
+    if (selectedBlockId) {
+      setSelectedNodeIds((current) =>
+        current.length > 1 && current.includes(selectedBlockId)
+          ? current
+          : [selectedBlockId],
+      );
+      return;
+    }
+
+    setSelectedNodeIds((current) => (current.length > 1 ? current : []));
+  }, [selectedBlockId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.code === "Space") {
+        setIsSpacePressed(true);
+      }
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+      if (event.code === "Space") {
+        setIsSpacePressed(false);
+      }
+    }
+
+    function handleBlur() {
+      setIsSpacePressed(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !isResizingImmersiveInspector) {
+      return;
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      const resizeState = immersiveInspectorResizeStateRef.current;
+
+      if (!resizeState) {
+        return;
+      }
+
+      const deltaX = event.clientX - resizeState.startClientX;
+      const nextWidth = clampImmersiveInspectorWidth(
+        resizeState.startWidth + deltaX,
+        window.innerWidth,
+      );
+
+      setImmersiveInspectorWidth(nextWidth);
+    }
+
+    function stopResizing() {
+      immersiveInspectorResizeStateRef.current = null;
+      setIsResizingImmersiveInspector(false);
+    }
+
+    function handlePointerUp() {
+      persistInspectorWidth(formId, immersiveInspectorWidth);
+      stopResizing();
+    }
+
+    function handleBlur() {
+      persistInspectorWidth(formId, immersiveInspectorWidth);
+      stopResizing();
+    }
+
+    const previousBodyCursor = document.body.style.cursor;
+    const previousBodyUserSelect = document.body.style.userSelect;
+
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      document.body.style.cursor = previousBodyCursor;
+      document.body.style.userSelect = previousBodyUserSelect;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [formId, immersiveInspectorWidth, isResizingImmersiveInspector]);
+
   const positionedNodes = useMemo(
     () =>
       graph.nodes.map((node) => {
@@ -219,44 +567,166 @@ export function BranchingGraphWorkspace({
     () => new Map(positionedNodes.map((node) => [node.blockId, node])),
     [positionedNodes],
   );
-  const selectedEdge =
-    graph.edges.find((edge) => edge.id === selectedGraphEdgeId) ?? null;
-  const selectedEdgeTarget = selectedEdge
-    ? (allBlocks.find((block) => block.id === selectedEdge.targetBlockId) ??
-      null)
-    : null;
-  const isSavingSelectedBlock = Boolean(
-    blockDraft && busy === `block-${blockDraft.id}`,
+  const renderedGraphWidth = positionedNodes.length
+    ? Math.max(...positionedNodes.map((node) => node.x + node.width))
+    : graph.width;
+  const renderedGraphHeight = positionedNodes.length
+    ? Math.max(...positionedNodes.map((node) => node.y + node.height))
+    : graph.height;
+  const selectedNodeIdSet = useMemo(
+    () => new Set(selectedNodeIds),
+    [selectedNodeIds],
   );
 
-  function updateConfig(patch: Record<string, unknown>) {
-    setBlockDraft((current) =>
-      current
-        ? {
-            ...current,
-            config: {
-              ...(current.config as Record<string, unknown>),
-              ...patch,
-            } as BuilderBlock["config"],
-          }
-        : current,
-    );
+  function clampGraphZoom(value: number) {
+    return Math.min(MAX_GRAPH_ZOOM, Math.max(MIN_GRAPH_ZOOM, value));
   }
 
-  function syncGraphViewport() {
+  function getGraphCoordinates(clientX: number, clientY: number) {
     const container = graphScrollRef.current;
 
     if (!container) {
-      return;
+      return null;
     }
 
-    setGraphViewport({
-      left: container.scrollLeft,
-      top: container.scrollTop,
-      width: container.clientWidth,
-      height: container.clientHeight,
-    });
+    const rect = container.getBoundingClientRect();
+    return {
+      x:
+        (clientX - rect.left - graphCameraRef.current.x) /
+        graphCameraRef.current.zoom,
+      y:
+        (clientY - rect.top - graphCameraRef.current.y) /
+        graphCameraRef.current.zoom,
+    };
   }
+
+  function getSelectionBounds(rect: GraphSelectionRect) {
+    return {
+      left: Math.min(rect.startX, rect.currentX),
+      right: Math.max(rect.startX, rect.currentX),
+      top: Math.min(rect.startY, rect.currentY),
+      bottom: Math.max(rect.startY, rect.currentY),
+    };
+  }
+
+  function getNodesWithinSelection(rect: GraphSelectionRect) {
+    const bounds = getSelectionBounds(rect);
+
+    return positionedNodes
+      .filter((node) => {
+        const left = node.x;
+        const top = node.y;
+        const right = left + node.width;
+        const bottom = top + node.height;
+
+        return (
+          right >= bounds.left &&
+          left <= bounds.right &&
+          bottom >= bounds.top &&
+          top <= bounds.bottom
+        );
+      })
+      .map((node) => node.blockId);
+  }
+
+  const syncGraphViewport = useCallback(
+    (camera: GraphCamera = graphCameraRef.current) => {
+      const container = graphScrollRef.current;
+
+      if (!container) {
+        return;
+      }
+
+      setGraphViewport({
+        left: -camera.x / camera.zoom,
+        top: -camera.y / camera.zoom,
+        width: container.clientWidth / camera.zoom,
+        height: container.clientHeight / camera.zoom,
+      });
+    },
+    [],
+  );
+
+  const applyGraphCamera = useCallback(
+    (nextCamera: GraphCamera) => {
+      const container = graphScrollRef.current;
+      const zoom = clampGraphZoom(nextCamera.zoom);
+      const scaledWidth = renderedGraphWidth * zoom;
+      const scaledHeight = renderedGraphHeight * zoom;
+
+      let x = nextCamera.x;
+      let y = nextCamera.y;
+
+      if (container) {
+        const extraPanX = viewportPadding;
+        const extraPanY = viewportPadding;
+        const minX = Math.min(
+          0,
+          container.clientWidth - scaledWidth - extraPanX,
+        );
+        const minY = Math.min(
+          0,
+          container.clientHeight - scaledHeight - extraPanY,
+        );
+        const maxX =
+          scaledWidth <= container.clientWidth
+            ? (container.clientWidth - scaledWidth) / 2 + extraPanX
+            : extraPanX;
+        const maxY =
+          scaledHeight <= container.clientHeight
+            ? (container.clientHeight - scaledHeight) / 2 + extraPanY
+            : extraPanY;
+
+        x = Math.min(maxX, Math.max(minX, x));
+        y = Math.min(maxY, Math.max(minY, y));
+      }
+
+      const camera = {
+        x,
+        y,
+        zoom,
+      } satisfies GraphCamera;
+
+      graphCameraRef.current = camera;
+
+      if (graphSceneRef.current) {
+        graphSceneRef.current.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
+      }
+
+      syncGraphViewport(camera);
+    },
+    [
+      renderedGraphHeight,
+      renderedGraphWidth,
+      syncGraphViewport,
+      viewportPadding,
+    ],
+  );
+
+  const updateGraphZoomAtPoint = useCallback(
+    (nextZoom: number, clientX: number, clientY: number) => {
+      const container = graphScrollRef.current;
+      const previousCamera = graphCameraRef.current;
+      const clampedZoom = clampGraphZoom(nextZoom);
+
+      if (!container || clampedZoom === previousCamera.zoom) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
+      const graphX = (localX - previousCamera.x) / previousCamera.zoom;
+      const graphY = (localY - previousCamera.y) / previousCamera.zoom;
+
+      applyGraphCamera({
+        x: localX - graphX * clampedZoom,
+        y: localY - graphY * clampedZoom,
+        zoom: clampedZoom,
+      });
+    },
+    [applyGraphCamera],
+  );
 
   useEffect(() => {
     const container = graphScrollRef.current;
@@ -266,24 +736,135 @@ export function BranchingGraphWorkspace({
       return;
     }
 
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
     if (!hasInitializedGraphCameraRef.current && firstNode) {
-      const nextScrollTop = Math.max(
-        0,
-        firstNode.y + firstNode.height / 2 - container.clientHeight / 2,
-      );
-      container.scrollTop = nextScrollTop;
+      if (containerWidth <= 0 || containerHeight <= 0) {
+        return;
+      }
+
+      applyGraphCamera({
+        x: 0,
+        y:
+          containerHeight / 2 -
+          (firstNode.y + firstNode.height / 2) * DEFAULT_GRAPH_ZOOM,
+        zoom: DEFAULT_GRAPH_ZOOM,
+      });
       hasInitializedGraphCameraRef.current = true;
-    }
-
-    syncGraphViewport();
-  }, [graph.width, graph.height, positionedNodes]);
-
-  function handleGraphPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) {
       return;
     }
 
-    if ((event.target as HTMLElement).closest("button")) {
+    applyGraphCamera(graphCameraRef.current);
+  }, [applyGraphCamera, positionedNodes]);
+
+  useEffect(() => {
+    const container = graphScrollRef.current;
+
+    if (!container || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncGraphViewport();
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [syncGraphViewport]);
+
+  useEffect(() => {
+    const container = graphScrollRef.current;
+
+    if (!container || typeof window === "undefined") {
+      return;
+    }
+
+    function handleNativeWheel(event: WheelEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.ctrlKey) {
+        if (isNativeGestureZoomingRef.current) {
+          return;
+        }
+
+        updateGraphZoomAtPoint(
+          graphCameraRef.current.zoom * Math.exp(-event.deltaY * 0.004),
+          event.clientX,
+          event.clientY,
+        );
+        return;
+      }
+
+      applyGraphCamera({
+        x: graphCameraRef.current.x - event.deltaX,
+        y: graphCameraRef.current.y - event.deltaY,
+        zoom: graphCameraRef.current.zoom,
+      });
+    }
+
+    function handleGestureStart(event: Event) {
+      event.preventDefault();
+      event.stopPropagation();
+      isNativeGestureZoomingRef.current = true;
+      gestureStartZoomRef.current = graphCameraRef.current.zoom;
+
+      if (typeof document !== "undefined") {
+        document.body.style.overscrollBehavior = "none";
+      }
+    }
+
+    function handleGestureChange(event: Event) {
+      const gestureEvent = event as SafariGestureEvent;
+      event.preventDefault();
+      event.stopPropagation();
+      isNativeGestureZoomingRef.current = true;
+      updateGraphZoomAtPoint(
+        gestureStartZoomRef.current * gestureEvent.scale,
+        gestureEvent.clientX,
+        gestureEvent.clientY,
+      );
+    }
+
+    function handleGestureEnd(event: Event) {
+      event.preventDefault();
+      event.stopPropagation();
+      isNativeGestureZoomingRef.current = false;
+      gestureStartZoomRef.current = graphCameraRef.current.zoom;
+
+      if (typeof document !== "undefined") {
+        document.body.style.overscrollBehavior = "";
+      }
+    }
+
+    container.addEventListener("wheel", handleNativeWheel, {
+      passive: false,
+    });
+    container.addEventListener("gesturestart", handleGestureStart, {
+      passive: false,
+    } as AddEventListenerOptions);
+    container.addEventListener("gesturechange", handleGestureChange, {
+      passive: false,
+    } as AddEventListenerOptions);
+    container.addEventListener("gestureend", handleGestureEnd, {
+      passive: false,
+    } as AddEventListenerOptions);
+
+    return () => {
+      container.removeEventListener("wheel", handleNativeWheel);
+      container.removeEventListener("gesturestart", handleGestureStart);
+      container.removeEventListener("gesturechange", handleGestureChange);
+      container.removeEventListener("gestureend", handleGestureEnd);
+
+      if (typeof document !== "undefined") {
+        document.body.style.overscrollBehavior = "";
+      }
+    };
+  }, [applyGraphCamera, updateGraphZoomAtPoint]);
+
+  function handleGraphPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
       return;
     }
 
@@ -293,38 +874,110 @@ export function BranchingGraphWorkspace({
       return;
     }
 
-    graphPanStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop,
-    };
+    if (isSpacePressed) {
+      graphPanStateRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startCameraX: graphCameraRef.current.x,
+        startCameraY: graphCameraRef.current.y,
+      };
 
+      container.setPointerCapture(event.pointerId);
+      setIsPanningGraph(true);
+      return;
+    }
+
+    if ((event.target as HTMLElement).closest("button")) {
+      return;
+    }
+
+    const graphPoint = getGraphCoordinates(event.clientX, event.clientY);
+
+    if (!graphPoint) {
+      return;
+    }
+
+    const nextSelection = {
+      pointerId: event.pointerId,
+      startX: graphPoint.x,
+      startY: graphPoint.y,
+      currentX: graphPoint.x,
+      currentY: graphPoint.y,
+      additive: event.metaKey || event.ctrlKey || event.shiftKey,
+    } satisfies GraphSelectionRect;
+
+    setSelectionRect(nextSelection);
     container.setPointerCapture(event.pointerId);
-    setIsPanningGraph(true);
   }
 
   function handleGraphPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     const container = graphScrollRef.current;
     const panState = graphPanStateRef.current;
+    const activeSelectionRect = selectionRect;
 
-    if (!container || !panState || panState.pointerId !== event.pointerId) {
+    if (container && panState && panState.pointerId === event.pointerId) {
+      applyGraphCamera({
+        x: panState.startCameraX + (event.clientX - panState.startX),
+        y: panState.startCameraY + (event.clientY - panState.startY),
+        zoom: graphCameraRef.current.zoom,
+      });
       return;
     }
 
-    container.scrollLeft =
-      panState.scrollLeft - (event.clientX - panState.startX);
-    container.scrollTop =
-      panState.scrollTop - (event.clientY - panState.startY);
-    syncGraphViewport();
+    if (
+      !container ||
+      !activeSelectionRect ||
+      activeSelectionRect.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    const graphPoint = getGraphCoordinates(event.clientX, event.clientY);
+
+    if (!graphPoint) {
+      return;
+    }
+
+    const nextSelection = {
+      ...activeSelectionRect,
+      currentX: graphPoint.x,
+      currentY: graphPoint.y,
+    } satisfies GraphSelectionRect;
+
+    setSelectionRect(nextSelection);
+
+    const selectedIds = getNodesWithinSelection(nextSelection);
+    setSelectedNodeIds((current) =>
+      nextSelection.additive
+        ? Array.from(new Set([...current, ...selectedIds]))
+        : selectedIds,
+    );
   }
 
   function handleGraphPointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
     const container = graphScrollRef.current;
     const panState = graphPanStateRef.current;
+    const activeSelectionRect = selectionRect;
 
-    if (!container || !panState || panState.pointerId !== event.pointerId) {
+    if (!container) {
+      return;
+    }
+
+    if (panState && panState.pointerId === event.pointerId) {
+      if (container.hasPointerCapture(event.pointerId)) {
+        container.releasePointerCapture(event.pointerId);
+      }
+
+      graphPanStateRef.current = null;
+      setIsPanningGraph(false);
+      return;
+    }
+
+    if (
+      !activeSelectionRect ||
+      activeSelectionRect.pointerId !== event.pointerId
+    ) {
       return;
     }
 
@@ -332,32 +985,63 @@ export function BranchingGraphWorkspace({
       container.releasePointerCapture(event.pointerId);
     }
 
-    graphPanStateRef.current = null;
-    setIsPanningGraph(false);
+    const selectedIds = getNodesWithinSelection(activeSelectionRect);
+    setSelectedNodeIds((current) =>
+      activeSelectionRect.additive
+        ? Array.from(new Set([...current, ...selectedIds]))
+        : selectedIds,
+    );
+    setSelectionRect(null);
   }
 
   function handleGraphNodePointerDown(
     event: ReactPointerEvent<HTMLButtonElement>,
     node: (typeof positionedNodes)[number],
   ) {
-    if (event.button !== 0) {
+    if (event.button !== 0 || isSpacePressed) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
 
+    const isAdditiveSelection =
+      event.metaKey || event.ctrlKey || event.shiftKey;
+
+    if (isAdditiveSelection) {
+      return;
+    }
+
+    const blockIdsToDrag = selectedNodeIdSet.has(node.blockId)
+      ? selectedNodeIds
+      : [node.blockId];
+    const startPositions = Object.fromEntries(
+      blockIdsToDrag.map((blockId) => {
+        const dragNode = nodesById.get(blockId);
+        return [
+          blockId,
+          {
+            x: dragNode?.x ?? 24,
+            y: dragNode?.y ?? 24,
+          },
+        ];
+      }),
+    );
+
+    setSelectedNodeIds(blockIdsToDrag);
+
     graphNodeDragStateRef.current = {
       pointerId: event.pointerId,
-      blockId: node.blockId,
+      blockIds: blockIdsToDrag,
       startClientX: event.clientX,
       startClientY: event.clientY,
-      startNodeX: node.x,
-      startNodeY: node.y,
+      startPositions,
       moved: false,
     };
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (event.currentTarget.setPointerCapture) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function handleGraphNodePointerMove(
@@ -376,36 +1060,82 @@ export function BranchingGraphWorkspace({
       dragState.moved = true;
     }
 
-    setGraphNodePositionOverrides((current) => ({
-      ...current,
-      [dragState.blockId]: {
-        x: Math.max(24, dragState.startNodeX + deltaX),
-        y: Math.max(24, dragState.startNodeY + deltaY),
-      },
-    }));
+    if (!dragState.moved) {
+      return;
+    }
+
+    const nextOverrides = {
+      ...graphNodePositionOverrides,
+    };
+
+    for (const blockId of dragState.blockIds) {
+      const startPosition = dragState.startPositions[blockId];
+
+      if (!startPosition) {
+        continue;
+      }
+
+      nextOverrides[blockId] = {
+        x: Math.max(24, startPosition.x + deltaX / graphCameraRef.current.zoom),
+        y: Math.max(24, startPosition.y + deltaY / graphCameraRef.current.zoom),
+      };
+    }
+
+    setGraphNodePositionOverrides(nextOverrides);
+
+    if (hasLoadedPersistedGraphLayoutRef.current) {
+      persistGraphLayout(formId, nextOverrides);
+    }
   }
 
   function handleGraphNodePointerUp(
     event: ReactPointerEvent<HTMLButtonElement>,
+    node: (typeof positionedNodes)[number],
   ) {
     const dragState = graphNodeDragStateRef.current;
+    const isAdditiveSelection =
+      event.metaKey || event.ctrlKey || event.shiftKey;
 
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (
+      event.currentTarget.hasPointerCapture?.(event.pointerId) &&
+      event.currentTarget.releasePointerCapture
+    ) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
     graphNodeDragStateRef.current = null;
 
-    if (dragState.moved) {
-      suppressNodeClickRef.current = dragState.blockId;
+    if (isSpacePressed) {
       return;
     }
 
-    onSelectBlock(dragState.blockId);
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      if (isAdditiveSelection) {
+        setSelectedNodeIds((current) =>
+          current.includes(node.blockId)
+            ? current.filter((blockId) => blockId !== node.blockId)
+            : [...current, node.blockId],
+        );
+      }
+      return;
+    }
+
+    if (dragState.moved) {
+      suppressNodeClickRef.current = node.blockId;
+      return;
+    }
+
+    if (isAdditiveSelection) {
+      setSelectedNodeIds((current) =>
+        current.includes(node.blockId)
+          ? current.filter((blockId) => blockId !== node.blockId)
+          : [...current, node.blockId],
+      );
+      return;
+    }
+
+    setSelectedNodeIds([node.blockId]);
+    onSelectBlock(node.blockId);
   }
 
   function handleGraphNodeClick(blockId: string) {
@@ -414,73 +1144,110 @@ export function BranchingGraphWorkspace({
       return;
     }
 
-    onSelectBlock(blockId);
-  }
-
-  function handleGraphWheel(event: ReactWheelEvent<HTMLDivElement>) {
-    const container = graphScrollRef.current;
-
-    if (!container) {
+    if (isSpacePressed) {
       return;
     }
 
-    const nextScrollLeft = container.scrollLeft + event.deltaX;
-    const nextScrollTop = container.scrollTop + event.deltaY;
-    const canScrollHorizontally =
-      container.scrollWidth > container.clientWidth && event.deltaX !== 0;
-    const canScrollVertically =
-      container.scrollHeight > container.clientHeight && event.deltaY !== 0;
+    setSelectedNodeIds([blockId]);
+    onSelectBlock(blockId);
+  }
 
-    if (!canScrollHorizontally && !canScrollVertically) {
+  function handleImmersiveInspectorResizeStart(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    if (!immersive) {
       return;
     }
 
     event.preventDefault();
-
-    if (canScrollHorizontally) {
-      container.scrollLeft = nextScrollLeft;
-    }
-
-    if (canScrollVertically) {
-      container.scrollTop = nextScrollTop;
-    }
-
-    syncGraphViewport();
+    event.stopPropagation();
+    immersiveInspectorResizeStateRef.current = {
+      startClientX: event.clientX,
+      startWidth: immersiveInspectorWidth,
+    };
+    setIsResizingImmersiveInspector(true);
   }
+
+  const inspectorContent =
+    !selectedBlockId || !blockDraft ? (
+      <div>
+        <h3 className="font-display text-3xl text-[var(--ink)]">
+          {t("builder.graphSelectionTitle")}
+        </h3>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+          {t("builder.graphSelectionDescription")}
+        </p>
+      </div>
+    ) : (
+      <BlockEditorPanel
+        allBlocks={allBlocks}
+        blockDraft={blockDraft}
+        selectedBlockIcon={selectedBlockIcon}
+        choiceOptionsDraft={choiceOptionsDraft}
+        branchRulesDraft={branchRulesDraft}
+        branchValidationIssues={branchValidationIssues}
+        setChoiceOptionsDraft={setChoiceOptionsDraft}
+        setBranchRulesDraft={setBranchRulesDraft}
+        setBlockDraft={setBlockDraft}
+        deleteBlock={deleteBlock}
+        saveBlock={() => {
+          void saveBlock();
+        }}
+        busy={busy}
+      />
+    );
 
   const minimapWidth = 192;
   const minimapHeight = 128;
   const minimapScale = Math.min(
-    minimapWidth / Math.max(graph.width, 1),
-    minimapHeight / Math.max(graph.height, 1),
+    minimapWidth / Math.max(renderedGraphWidth, 1),
+    minimapHeight / Math.max(renderedGraphHeight, 1),
   );
-  const minimapContentWidth = graph.width * minimapScale;
-  const minimapContentHeight = graph.height * minimapScale;
+  const minimapContentWidth = renderedGraphWidth * minimapScale;
+  const minimapContentHeight = renderedGraphHeight * minimapScale;
   const minimapOffsetX = (minimapWidth - minimapContentWidth) / 2;
   const minimapOffsetY = (minimapHeight - minimapContentHeight) / 2;
 
   return (
-    <div className="space-y-5">
-      <Card className="relative overflow-hidden bg-[var(--bg-strong)] p-0">
+    <div>
+      <Card
+        className={cn(
+          "relative overflow-hidden bg-[var(--bg-strong)] p-0",
+          immersive &&
+            "h-full min-h-[calc(100dvh-5.5rem)] rounded-none border-x-0 border-y-0 bg-transparent shadow-none",
+        )}
+      >
         {graph.nodes.length ? (
           <div
             ref={graphScrollRef}
-            className="relative overflow-x-auto overflow-y-auto p-4 lg:max-h-[calc(100vh-18rem)]"
+            className={cn(
+              "relative overflow-hidden overscroll-x-none",
+              immersive
+                ? "h-full min-h-[calc(100dvh-5.5rem)] bg-transparent"
+                : "h-[420px] lg:h-[calc(100vh-18rem)]",
+            )}
             onPointerDown={handleGraphPointerDown}
             onPointerMove={handleGraphPointerMove}
             onPointerUp={handleGraphPointerEnd}
             onPointerCancel={handleGraphPointerEnd}
-            onWheel={handleGraphWheel}
-            onScroll={syncGraphViewport}
             style={{
-              cursor: isPanningGraph ? "grabbing" : "grab",
+              cursor: isPanningGraph
+                ? "grabbing"
+                : isSpacePressed
+                  ? "grab"
+                  : selectionRect
+                    ? "crosshair"
+                    : "default",
+              overscrollBehavior: "contain",
             }}
           >
             <div
-              className="relative"
+              ref={graphSceneRef}
+              className="absolute left-0 top-0 origin-top-left will-change-transform"
               style={{
-                width: `${graph.width}px`,
-                height: `${graph.height}px`,
+                width: `${renderedGraphWidth}px`,
+                height: `${renderedGraphHeight}px`,
+                transform: `translate(0px, 0px) scale(${DEFAULT_GRAPH_ZOOM})`,
               }}
             >
               <svg
@@ -495,27 +1262,35 @@ export function BranchingGraphWorkspace({
                     return null;
                   }
 
-                  const isSelected = selectedGraphEdgeId === edge.id;
-                  const isActiveFromBlock =
-                    !isSelected && selectedBlockId === edge.sourceBlockId;
+                  const paddedSourceNode = {
+                    ...sourceNode,
+                    x: sourceNode.x,
+                    y: sourceNode.y,
+                  };
+                  const paddedTargetNode = {
+                    ...targetNode,
+                    x: targetNode.x,
+                    y: targetNode.y,
+                  };
+                  const isActiveFromBlock = selectedNodeIdSet.has(
+                    edge.sourceBlockId,
+                  );
 
                   return (
                     <path
                       key={edge.id}
-                      d={getEdgePath(sourceNode, targetNode)}
+                      d={getEdgePath(paddedSourceNode, paddedTargetNode)}
                       fill="none"
                       stroke={
-                        isSelected
-                          ? "var(--accent)"
-                          : isActiveFromBlock
-                            ? "color-mix(in srgb, var(--accent) 65%, var(--line-strong))"
-                            : "color-mix(in srgb, var(--line-strong) 80%, transparent)"
+                        isActiveFromBlock
+                          ? "color-mix(in srgb, var(--accent) 65%, var(--line-strong))"
+                          : "color-mix(in srgb, var(--line-strong) 80%, transparent)"
                       }
-                      strokeWidth={isSelected ? 3 : 2}
+                      strokeWidth={isActiveFromBlock ? 3 : 2}
                       strokeDasharray={
                         edge.kind === "linear" ? undefined : "8 6"
                       }
-                      opacity={isSelected || isActiveFromBlock ? 1 : 0.72}
+                      opacity={isActiveFromBlock ? 1 : 0.72}
                     />
                   );
                 })}
@@ -538,35 +1313,58 @@ export function BranchingGraphWorkspace({
                   return null;
                 }
 
+                const paddedSourceNode = {
+                  ...sourceNode,
+                  x: sourceNode.x,
+                  y: sourceNode.y,
+                };
+                const paddedTargetNode = {
+                  ...targetNode,
+                  x: targetNode.x,
+                  y: targetNode.y,
+                };
+
                 const labelPosition = getEdgeLabelPosition(
-                  sourceNode,
-                  targetNode,
+                  paddedSourceNode,
+                  paddedTargetNode,
                 );
-                const isSelected = selectedGraphEdgeId === edge.id;
+                const isActiveFromBlock = selectedNodeIdSet.has(
+                  edge.sourceBlockId,
+                );
 
                 return (
-                  <button
+                  <div
                     key={`${edge.id}-label`}
-                    type="button"
                     className={cn(
-                      "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-xs font-medium shadow-[var(--shadow-card)] transition",
-                      isSelected
+                      "pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-xs font-medium shadow-[var(--shadow-card)]",
+                      isActiveFromBlock
                         ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                        : "border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]",
+                        : "border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--muted)]",
                     )}
                     style={{
                       left: `${labelPosition.x}px`,
                       top: `${labelPosition.y}px`,
                     }}
-                    onClick={() => onSelectEdge(edge.id, edge.sourceBlockId)}
                   >
                     {edgeLabel}
-                  </button>
+                  </div>
                 );
               })}
 
+              {selectionRect ? (
+                <div
+                  className="pointer-events-none absolute border border-[var(--accent)] bg-[color:color-mix(in_srgb,var(--accent-soft)_55%,transparent)]"
+                  style={{
+                    left: `${Math.min(selectionRect.startX, selectionRect.currentX)}px`,
+                    top: `${Math.min(selectionRect.startY, selectionRect.currentY)}px`,
+                    width: `${Math.abs(selectionRect.currentX - selectionRect.startX)}px`,
+                    height: `${Math.abs(selectionRect.currentY - selectionRect.startY)}px`,
+                  }}
+                />
+              ) : null}
+
               {positionedNodes.map((node) => {
-                const isSelected = selectedBlockId === node.blockId;
+                const isSelected = selectedNodeIdSet.has(node.blockId);
 
                 return (
                   <button
@@ -575,8 +1373,12 @@ export function BranchingGraphWorkspace({
                     className={cn(
                       "absolute flex items-start justify-start rounded-[24px] border p-4 text-left transition",
                       isSelected
-                        ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-elevated)]"
-                        : "border-[color:var(--line)] bg-[var(--bg-start)] hover:border-[var(--line-strong)] hover:bg-[var(--bg)]",
+                        ? immersive
+                          ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] ring-1 ring-[color:color-mix(in_srgb,var(--accent)_28%,transparent)]"
+                          : "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-elevated)]"
+                        : immersive
+                          ? "border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-surface)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
+                          : "border-[color:var(--line)] bg-[var(--bg-start)] hover:border-[var(--line-strong)] hover:bg-[var(--bg)]",
                     )}
                     style={{
                       left: `${node.x}px`,
@@ -588,8 +1390,12 @@ export function BranchingGraphWorkspace({
                       handleGraphNodePointerDown(event, node)
                     }
                     onPointerMove={handleGraphNodePointerMove}
-                    onPointerUp={handleGraphNodePointerUp}
-                    onPointerCancel={handleGraphNodePointerUp}
+                    onPointerUp={(event) =>
+                      handleGraphNodePointerUp(event, node)
+                    }
+                    onPointerCancel={(event) =>
+                      handleGraphNodePointerUp(event, node)
+                    }
                     onClick={() => handleGraphNodeClick(node.blockId)}
                   >
                     <div className="w-full self-start">
@@ -621,9 +1427,20 @@ export function BranchingGraphWorkspace({
           </div>
         )}
 
+        {overlay ? (
+          <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6">
+            {overlay}
+          </div>
+        ) : null}
+
         {graph.nodes.length ? (
-          <div className="pointer-events-none absolute bottom-4 right-4 z-10">
-            <div className="overflow-hidden rounded-[18px] border border-[color:color-mix(in_srgb,var(--line)_45%,transparent)] shadow-[var(--shadow-surface)] backdrop-blur-sm">
+          <div
+            className={cn(
+              "pointer-events-none absolute right-4 z-10",
+              immersive ? "bottom-4 sm:bottom-4" : "bottom-4",
+            )}
+          >
+            <div className="overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)] shadow-[var(--shadow-surface)]">
               <svg
                 aria-hidden="true"
                 width={minimapWidth}
@@ -637,7 +1454,7 @@ export function BranchingGraphWorkspace({
                   width={minimapWidth}
                   height={minimapHeight}
                   rx="14"
-                  fill="color-mix(in srgb, var(--bg-end) 92%, transparent)"
+                  fill="var(--surface)"
                 />
                 {graph.edges.map((edge) => {
                   const sourceNode = nodesById.get(edge.sourceBlockId);
@@ -678,7 +1495,7 @@ export function BranchingGraphWorkspace({
                   );
                 })}
                 {positionedNodes.map((node) => {
-                  const isSelected = selectedBlockId === node.blockId;
+                  const isSelected = selectedNodeIdSet.has(node.blockId);
 
                   return (
                     <rect
@@ -714,99 +1531,52 @@ export function BranchingGraphWorkspace({
         ) : null}
       </Card>
 
-      <Card className="bg-[var(--bg-strong)] p-6">
-        {!selectedBlockId || !blockDraft ? (
-          <div>
-            <h3 className="font-display text-3xl text-[var(--ink)]">
-              {t("builder.graphSelectionTitle")}
-            </h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              {t("builder.graphSelectionDescription")}
-            </p>
-          </div>
-        ) : !isQuestionBlock(blockDraft.type) ? (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h3 className="font-display text-3xl text-[var(--ink)]">
-                  {getBlockDisplayLabel(blockDraft)}
-                </h3>
-                {blockDraft.description ? (
-                  <AuthoredMarkdown
-                    content={blockDraft.description}
-                    className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]"
-                  />
-                ) : null}
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                  {t("builder.graphTextBlockDescription")}
-                </p>
-              </div>
-              <Button
-                onClick={() => void saveBlock()}
-                disabled={isSavingSelectedBlock}
-              >
-                {isSavingSelectedBlock ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : null}
-                {t("builder.saveBlock")}
-              </Button>
-            </div>
-
-            <BranchRulesEditor
-              allBlocks={allBlocks}
-              blockDraft={blockDraft}
-              branchRulesDraft={branchRulesDraft}
-              branchValidationIssues={branchValidationIssues}
-              setBranchRulesDraft={setBranchRulesDraft}
-              updateConfig={updateConfig}
+      {hideInspector ? null : immersive ? (
+        immersiveInspectorOpen ? (
+          <aside
+            className="fixed bottom-4 left-4 top-4 z-20 overflow-hidden rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] sm:bottom-4 sm:left-4 sm:top-4"
+            style={{ width: `${immersiveInspectorWidth}px` }}
+          >
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize block settings panel"
+              className={cn(
+                "absolute inset-y-0 right-0 z-10 w-1 cursor-ew-resize touch-none",
+                isResizingImmersiveInspector && "bg-[var(--accent-soft)]",
+              )}
+              onPointerDown={handleImmersiveInspectorResizeStart}
             />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h3 className="font-display text-3xl text-[var(--ink)]">
-                  {getBlockDisplayLabel(blockDraft)}
-                </h3>
-                {blockDraft.description ? (
-                  <AuthoredMarkdown
-                    content={blockDraft.description}
-                    className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]"
-                  />
-                ) : null}
-                {selectedEdge && selectedEdgeTarget ? (
-                  <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                    {t("builder.graphSelectedRoute", {
-                      route:
-                        getGraphEdgeLabel(t, blockDraft, selectedEdge) ??
-                        t("builder.graphDefaultRoute"),
-                      target: getBlockDisplayLabel(selectedEdgeTarget),
-                    })}
-                  </p>
-                ) : null}
+            <div className="flex h-full flex-col overflow-hidden pr-1">
+              <div className="border-b border-[color:var(--line)] px-5 py-4">
+                <div className="flex items-center gap-4">
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    onClick={onCloseImmersiveInspector}
+                    aria-label="Close block settings"
+                    title="Close block settings"
+                  >
+                    <PanelLeftClose className="size-4" />
+                  </Button>
+                  <div className="min-w-0 flex-1">
+                    {immersiveFormTitle ? (
+                      <p className="truncate font-display text-2xl text-[var(--ink)]">
+                        {immersiveFormTitle}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-              <Button
-                onClick={() => void saveBlock()}
-                disabled={isSavingSelectedBlock}
-              >
-                {isSavingSelectedBlock ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : null}
-                {t("builder.saveBlock")}
-              </Button>
+              <div className="flex-1 overflow-y-auto p-5">
+                {inspectorContent}
+              </div>
             </div>
-
-            <BranchRulesEditor
-              allBlocks={allBlocks}
-              blockDraft={blockDraft}
-              branchRulesDraft={branchRulesDraft}
-              branchValidationIssues={branchValidationIssues}
-              setBranchRulesDraft={setBranchRulesDraft}
-              updateConfig={updateConfig}
-            />
-          </div>
-        )}
-      </Card>
+          </aside>
+        ) : null
+      ) : (
+        <Card className="bg-[var(--bg-strong)] p-6">{inspectorContent}</Card>
+      )}
     </div>
   );
 }

@@ -106,7 +106,7 @@ function SortableBranchRuleRow({
       }}
       className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)] p-3"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <button
           type="button"
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
@@ -116,7 +116,7 @@ function SortableBranchRuleRow({
         >
           <GripVertical className="size-4" />
         </button>
-        <div className="grid min-w-0 flex-1 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(220px,0.9fr)]">
+        <div className="grid min-w-0 flex-1 gap-3">
           <label className="grid gap-2 text-sm text-[var(--muted)]">
             <span className="font-medium text-[var(--ink)]">
               {t("builder.branchOperator")}
@@ -364,16 +364,11 @@ export function BranchRulesEditor({
   }
 
   return (
-    <div className="grid gap-4 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+    <div className="grid gap-4 text-sm text-[var(--muted)]">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-medium text-[var(--ink)]">
-            {t("builder.branchingTitle")}
-          </p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            {t("builder.branchingDescription")}
-          </p>
-        </div>
+        <span className="font-medium text-[var(--ink)]">
+          {t("builder.branchingTitle")}
+        </span>
         <Button
           variant="secondary"
           size="sm"

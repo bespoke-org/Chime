@@ -140,7 +140,7 @@ builder:
   graphEmptyDescription: Добавьте блоки, чтобы построить маршрут формы.
   graphSelectionEyebrow: Маршрутизация
   graphSelectionTitle: Выберите блок, чтобы редактировать его маршруты
-  graphSelectionDescription: Нажмите на блок или маршрут на графе, чтобы посмотреть и изменить настройки ветвления.
+  graphSelectionDescription: Нажмите на блок на графе, чтобы посмотреть и изменить настройки ветвления.
   graphTextBlockDescription: Текстовые блоки показываются в потоке, но задавать маршруты могут только блоки с ответом.
   graphSelectedRoute: "Выбранный маршрут: {route} → {target}"
   graphEditDescription: Проверьте маршрут по умолчанию и правила ветвления для выбранного блока.

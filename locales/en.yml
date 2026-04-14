@@ -140,7 +140,7 @@ builder:
   graphEmptyDescription: Add blocks to start laying out the form flow.
   graphSelectionEyebrow: Routing
   graphSelectionTitle: Select a block to edit its routes
-  graphSelectionDescription: Click a node or route in the graph to inspect its branching settings.
+  graphSelectionDescription: Click a block in the graph to inspect its branching settings.
   graphTextBlockDescription: Text blocks appear in the flow, but only question blocks can define branching routes.
   graphSelectedRoute: "Selected route: {route} → {target}"
   graphEditDescription: Review the selected block's default path and branch rules.
