@@ -284,6 +284,7 @@ export function FormBuilder({
     completionMessage: initialForm.completionMessage,
     completionLinkLabel: initialForm.completionLinkLabel ?? "",
     completionLinkUrl: initialForm.completionLinkUrl ?? "",
+    respondentLocale: initialForm.respondentLocale,
     showProgress: initialForm.showProgress,
     slug: initialForm.slug,
   });
@@ -374,6 +375,7 @@ export function FormBuilder({
       completionMessage: form.completionMessage,
       completionLinkLabel: form.completionLinkLabel ?? "",
       completionLinkUrl: form.completionLinkUrl ?? "",
+      respondentLocale: form.respondentLocale,
       showProgress: form.showProgress,
       slug: form.slug,
     });
@@ -383,6 +385,7 @@ export function FormBuilder({
     form.completionMessage,
     form.completionLinkLabel,
     form.completionLinkUrl,
+    form.respondentLocale,
     form.showProgress,
     form.slug,
   ]);

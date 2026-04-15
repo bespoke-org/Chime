@@ -95,6 +95,7 @@ model Form {
   completionMessage   String        @default("")
   completionLinkLabel String?
   completionLinkUrl   String?
+  respondentLocale    String?
   showProgress        Boolean       @default(true)
   slug                String        @unique
   status              FormStatus    @default(DRAFT)

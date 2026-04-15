@@ -39,7 +39,12 @@ import {
   reorderBlocksSchema,
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
-import { DEFAULT_LOCALE, translate, type AppLocale } from "@/lib/i18n";
+import {
+  DEFAULT_LOCALE,
+  normalizeLocale,
+  translate,
+  type AppLocale,
+} from "@/lib/i18n";
 import { getMessages } from "@/lib/i18n-server";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
 import {
@@ -122,6 +127,9 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     completionMessage: form.completionMessage,
     completionLinkLabel: form.completionLinkLabel,
     completionLinkUrl: form.completionLinkUrl,
+    respondentLocale: form.respondentLocale
+      ? normalizeLocale(form.respondentLocale)
+      : null,
     showProgress: form.showProgress,
     slug: form.slug,
     status: form.status,
@@ -141,6 +149,9 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
     completionMessage: form.completionMessage,
     completionLinkLabel: form.completionLinkLabel,
     completionLinkUrl: form.completionLinkUrl,
+    respondentLocale: form.respondentLocale
+      ? normalizeLocale(form.respondentLocale)
+      : null,
     showProgress: form.showProgress,
     slug: form.slug,
     blocks: form.blocks.map(serializeBlock),

@@ -11,6 +11,7 @@ export const formMetadataSchema = z
     completionMessage: z.string().trim().max(600).default(""),
     completionLinkLabel: z.string().trim().max(80).default(""),
     completionLinkUrl: z.string().trim().max(2048).default(""),
+    respondentLocale: z.enum(supportedLocales).nullable().default(null),
     showProgress: z.boolean().default(true),
     slug: z
       .string()
@@ -59,6 +60,7 @@ export const formMetadataSchema = z
   })
   .transform((value) => ({
     ...value,
+    respondentLocale: value.respondentLocale ?? null,
     completionLinkLabel: value.completionLinkLabel || null,
     completionLinkUrl: value.completionLinkUrl || null,
   }));

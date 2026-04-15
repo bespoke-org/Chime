@@ -161,6 +161,10 @@ builder:
   publicRouteHelp: Published forms accept anonymous submissions. Changes to a published form go live immediately.
   appearance: Appearance
   appearanceDescription: Control what respondents see while moving through the form.
+  respondentLanguage: Respondent interface language
+  respondentLanguageHelp: Choose the language used for buttons, validation, progress, and other interface text in the public form.
+  respondentLanguageOptions:
+    visitor: Use visitor's language
   showProgress: Show form progress
   copyLink: Copy link
   openRunner: Open runner

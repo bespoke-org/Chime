@@ -47,6 +47,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   blockTypeTranslationKeys,
@@ -66,6 +73,7 @@ import {
   type ChoiceOptionDraft,
 } from "@/lib/form-builder-drafts";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
+import { supportedLocales, type AppLocale } from "@/lib/i18n";
 
 export type FormMetadataDraft = {
   title: string;
@@ -73,6 +81,7 @@ export type FormMetadataDraft = {
   completionMessage: string;
   completionLinkLabel: string;
   completionLinkUrl: string;
+  respondentLocale: AppLocale | null;
   showProgress: boolean;
   slug: string;
 };
@@ -301,6 +310,39 @@ export function FormSettingsPanel({
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {t("builder.appearanceDescription")}
           </p>
+        </div>
+
+        <div className="grid gap-2 text-sm text-[var(--muted)]">
+          <span className="font-medium text-[var(--ink)]">
+            {t("builder.respondentLanguage")}
+          </span>
+          <Select
+            value={metadataDraft.respondentLocale ?? "visitor"}
+            onValueChange={(value) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                respondentLocale:
+                  value === "visitor" ? null : (value as AppLocale),
+              }))
+            }
+          >
+            <SelectTrigger className="h-11 px-4 text-sm font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="visitor">
+                {t("builder.respondentLanguageOptions.visitor")}
+              </SelectItem>
+              {supportedLocales.map((localeOption) => (
+                <SelectItem key={localeOption} value={localeOption}>
+                  {t(`settings.profile.localeOptions.${localeOption}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-[var(--muted)]">
+            {t("builder.respondentLanguageHelp")}
+          </span>
         </div>
 
         <label className="flex items-start gap-3 text-sm text-[var(--muted)]">

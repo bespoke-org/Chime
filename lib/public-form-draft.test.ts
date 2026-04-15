@@ -17,6 +17,7 @@ function createForm(blocks: SerializedBlock[]): PublicForm {
     completionMessage: "Done",
     completionLinkLabel: null,
     completionLinkUrl: null,
+    respondentLocale: null,
     showProgress: true,
     slug: "demo-form",
     blocks,

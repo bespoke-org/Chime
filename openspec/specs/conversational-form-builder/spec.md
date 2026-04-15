@@ -129,6 +129,21 @@ The system SHALL allow an authenticated creator to edit the completion content f
 - **WHEN** an authenticated creator leaves the follow-up link label or URL empty
 - **THEN** the system does not save or expose a partial follow-up link for the form
 
+### Requirement: Creator can configure respondent interface locale per form
+The system SHALL allow an authenticated creator to configure a form-level respondent interface locale in form settings for any accessible form. The setting SHALL support a `Use visitor's language` option and any currently supported explicit locale override.
+
+#### Scenario: Creator uses visitor-language mode
+- **WHEN** an authenticated creator leaves the respondent interface locale setting on `Use visitor's language`
+- **THEN** the system saves the form without an explicit locale override
+
+#### Scenario: Creator selects a supported explicit locale
+- **WHEN** an authenticated creator chooses a supported locale such as English or Russian in form settings and saves
+- **THEN** the system persists that locale as the form's respondent interface override
+
+#### Scenario: Creator reopens form settings with an existing locale override
+- **WHEN** an authenticated creator opens settings for a form that already has a saved respondent interface locale override
+- **THEN** the system shows the saved override as the current selected value
+
 ### Requirement: Builder reflects the active workspace context
 The system SHALL show the active workspace context when a creator creates or edits a form so they can tell whether the form belongs to their personal workspace or an organization.
 

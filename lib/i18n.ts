@@ -20,6 +20,17 @@ export function normalizeLocale(value: string | null | undefined): AppLocale {
   return isSupportedLocale(base) ? base : DEFAULT_LOCALE;
 }
 
+export function resolveAppLocale(
+  preferredLocale: string | null | undefined,
+  overrideLocale?: string | null,
+): AppLocale {
+  if (typeof overrideLocale !== "undefined" && overrideLocale !== null) {
+    return normalizeLocale(overrideLocale);
+  }
+
+  return normalizeLocale(preferredLocale);
+}
+
 export function resolveBrowserLocale(
   headerValue: string | null | undefined,
 ): AppLocale {

@@ -1,6 +1,7 @@
 import type { FormStatus, OrganizationMemberRole } from "@prisma/client";
 
 import type { SerializedBlock } from "@/lib/blocks";
+import type { AppLocale } from "@/lib/i18n";
 
 export type BuilderBlock = SerializedBlock;
 export type PublicBlock = SerializedBlock;
@@ -44,6 +45,7 @@ export type BuilderForm = {
   completionMessage: string;
   completionLinkLabel: string | null;
   completionLinkUrl: string | null;
+  respondentLocale: AppLocale | null;
   showProgress: boolean;
   slug: string;
   status: FormStatus;
@@ -61,6 +63,7 @@ export type PublicForm = {
   completionMessage: string;
   completionLinkLabel: string | null;
   completionLinkUrl: string | null;
+  respondentLocale: AppLocale | null;
   showProgress: boolean;
   slug: string;
   blocks: PublicBlock[];
