@@ -166,6 +166,9 @@ builder:
   respondentLanguageOptions:
     visitor: Использовать язык посетителя
   showProgress: Показывать прогресс формы
+  showProgressHelp: Показывать респондентам, на каком шаге формы они находятся.
+  allowBackNavigation: Разрешить возврат к предыдущим шагам
+  allowBackNavigationHelp: Разрешить респондентам возвращаться к уже пройденным шагам в публичном раннере формы.
   copyLink: Скопировать ссылку
   openRunner: Открыть раннер
   deleteForm: Удалить форму

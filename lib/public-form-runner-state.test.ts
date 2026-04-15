@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { SerializedBlock } from "@/lib/blocks";
+import { resolveNextBlockId } from "@/lib/branching";
 import {
   advanceRunnerRoute,
   createInitialRunnerRoute,
@@ -99,6 +100,37 @@ describe("public form runner state helpers", () => {
     expect(total).toBe(2);
   });
 
+  test("branches correctly during forward-only progression", () => {
+    const blocks = [
+      createBlock({
+        id: "path",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [
+            { operator: "equals", value: "yes", targetBlockId: "finish" },
+          ],
+          defaultNextBlockId: "fallback",
+        },
+      }),
+      createBlock({ id: "fallback", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "finish", type: "SHORT_TEXT", position: 2 }),
+    ];
+    const nextBlockId = resolveNextBlockId(blocks, "path", { path: "yes" });
+    const nextRoute = advanceRunnerRoute(
+      createInitialRunnerRoute(blocks),
+      "path",
+      nextBlockId ?? "fallback",
+    );
+
+    expect(nextBlockId).toBe("finish");
+    expect(JSON.stringify(nextRoute.history)).toBe(
+      JSON.stringify(["path", "finish"]),
+    );
+    expect(nextRoute.cursor).toBe(1);
+  });
+
   test("detects saved progress from answers, cursor movement, or history growth", () => {
     expect(
       hasRunnerProgress({
@@ -135,6 +167,21 @@ describe("public form runner state helpers", () => {
     });
 
     expect(route.cursor).toBe(1);
+    expect(JSON.stringify(route.history)).toBe(
+      JSON.stringify(["intro", "question", "finish"]),
+    );
+  });
+
+  test("does not move backward when back navigation is disabled", () => {
+    const route = retreatRunnerRoute(
+      {
+        history: ["intro", "question", "finish"],
+        cursor: 2,
+      },
+      { allowBackNavigation: false },
+    );
+
+    expect(route.cursor).toBe(2);
     expect(JSON.stringify(route.history)).toBe(
       JSON.stringify(["intro", "question", "finish"]),
     );

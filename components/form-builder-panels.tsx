@@ -83,6 +83,7 @@ export type FormMetadataDraft = {
   completionLinkUrl: string;
   respondentLocale: AppLocale | null;
   showProgress: boolean;
+  allowBackNavigation: boolean;
   slug: string;
 };
 
@@ -355,9 +356,34 @@ export function FormSettingsPanel({
               }))
             }
           />
-          <span className="font-medium text-[var(--ink)]">
-            {t("builder.showProgress")}
-          </span>
+          <div className="grid gap-1">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.showProgress")}
+            </span>
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.showProgressHelp")}
+            </span>
+          </div>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+          <Checkbox
+            checked={metadataDraft.allowBackNavigation}
+            onChange={(event) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                allowBackNavigation: event.target.checked,
+              }))
+            }
+          />
+          <div className="grid gap-1">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.allowBackNavigation")}
+            </span>
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.allowBackNavigationHelp")}
+            </span>
+          </div>
         </label>
       </div>
 

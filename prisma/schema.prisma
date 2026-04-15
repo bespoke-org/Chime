@@ -97,6 +97,7 @@ model Form {
   completionLinkUrl   String?
   respondentLocale    String?
   showProgress        Boolean       @default(true)
+  allowBackNavigation Boolean       @default(true)
   slug                String        @unique
   status              FormStatus    @default(DRAFT)
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)

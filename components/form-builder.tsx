@@ -286,6 +286,7 @@ export function FormBuilder({
     completionLinkUrl: initialForm.completionLinkUrl ?? "",
     respondentLocale: initialForm.respondentLocale,
     showProgress: initialForm.showProgress,
+    allowBackNavigation: initialForm.allowBackNavigation,
     slug: initialForm.slug,
   });
 
@@ -377,6 +378,7 @@ export function FormBuilder({
       completionLinkUrl: form.completionLinkUrl ?? "",
       respondentLocale: form.respondentLocale,
       showProgress: form.showProgress,
+      allowBackNavigation: form.allowBackNavigation,
       slug: form.slug,
     });
   }, [
@@ -387,6 +389,7 @@ export function FormBuilder({
     form.completionLinkUrl,
     form.respondentLocale,
     form.showProgress,
+    form.allowBackNavigation,
     form.slug,
   ]);
 

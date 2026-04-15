@@ -55,6 +55,7 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
     completionLinkUrl: null,
     respondentLocale: null,
     showProgress: true,
+    allowBackNavigation: true,
     slug: "demo-form",
     status: "DRAFT",
     updatedAt: "2026-04-14T12:00:00.000Z",
@@ -159,6 +160,7 @@ describe("FormBuilder", () => {
           form: {
             ...createForm([firstBlock]),
             respondentLocale: "ru",
+            allowBackNavigation: true,
           },
         }),
       } as Response;
@@ -241,8 +243,151 @@ describe("FormBuilder", () => {
     expect(String(fetchCalls[0]?.init?.body)).toContain(
       '"respondentLocale":null',
     );
+    expect(String(fetchCalls[0]?.init?.body)).toContain(
+      '"allowBackNavigation":true',
+    );
 
     globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("saves allowBackNavigation as enabled by default from form settings", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({
+          form: createForm([firstBlock]),
+        }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock]), undefined, {
+      builder: { saveFormSettings: "Save form settings" },
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+
+    await waitFor(() => {
+      expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "Save form settings" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(String(fetchCalls[0]?.init?.body)).toContain(
+      '"allowBackNavigation":true',
+    );
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("saves a disabled allowBackNavigation value from form settings", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({
+          form: {
+            ...createForm([firstBlock]),
+            allowBackNavigation: false,
+          },
+        }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock]), undefined, {
+      builder: {
+        saveFormSettings: "Save form settings",
+        allowBackNavigation: "Allow going back",
+      },
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+
+    await waitFor(() => {
+      expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
+    });
+
+    fireEvent.click(view.getAllByRole("checkbox")[1] as HTMLInputElement);
+    fireEvent.click(view.getByRole("button", { name: "Save form settings" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(String(fetchCalls[0]?.init?.body)).toContain(
+      '"allowBackNavigation":false',
+    );
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("reopens form settings with a saved disabled allowBackNavigation value", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+
+    const view = renderBuilder(
+      {
+        ...createForm([firstBlock]),
+        allowBackNavigation: false,
+      },
+      undefined,
+      {
+        builder: {
+          allowBackNavigation: "Allow going back",
+        },
+      },
+    );
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+
+    await waitFor(() => {
+      expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
+    });
+
+    expect((view.getAllByRole("checkbox")[1] as HTMLInputElement).checked).toBe(
+      false,
+    );
+
     await cleanupAndRestore(restoreDom);
   });
 

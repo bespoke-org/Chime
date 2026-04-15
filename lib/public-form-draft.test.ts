@@ -19,6 +19,7 @@ function createForm(blocks: SerializedBlock[]): PublicForm {
     completionLinkUrl: null,
     respondentLocale: null,
     showProgress: true,
+    allowBackNavigation: true,
     slug: "demo-form",
     blocks,
   };

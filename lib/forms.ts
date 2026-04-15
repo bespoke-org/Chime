@@ -88,9 +88,10 @@ const builderFormInclude = {
   },
 } satisfies Prisma.FormInclude;
 
-type BuilderFormRecord = Prisma.FormGetPayload<{
-  include: typeof builderFormInclude;
-}>;
+type BuilderFormRecord = Form &
+  Prisma.FormGetPayload<{
+    include: typeof builderFormInclude;
+  }>;
 
 export type {
   BuilderForm,
@@ -131,6 +132,7 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
       ? normalizeLocale(form.respondentLocale)
       : null,
     showProgress: form.showProgress,
+    allowBackNavigation: form.allowBackNavigation,
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -153,6 +155,7 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
       ? normalizeLocale(form.respondentLocale)
       : null,
     showProgress: form.showProgress,
+    allowBackNavigation: form.allowBackNavigation,
     slug: form.slug,
     blocks: form.blocks.map(serializeBlock),
   };
@@ -465,6 +468,7 @@ export async function createDraftForm(
       completionTitle: copy.completionTitle,
       completionMessage: copy.completionMessage,
       showProgress: true,
+      allowBackNavigation: true,
       slug,
       blocks: {
         create: initialBlocks(locale),

@@ -47,6 +47,7 @@ export type BuilderForm = {
   completionLinkUrl: string | null;
   respondentLocale: AppLocale | null;
   showProgress: boolean;
+  allowBackNavigation: boolean;
   slug: string;
   status: FormStatus;
   updatedAt: string;
@@ -65,6 +66,7 @@ export type PublicForm = {
   completionLinkUrl: string | null;
   respondentLocale: AppLocale | null;
   showProgress: boolean;
+  allowBackNavigation: boolean;
   slug: string;
   blocks: PublicBlock[];
 };

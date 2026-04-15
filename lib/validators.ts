@@ -13,6 +13,7 @@ export const formMetadataSchema = z
     completionLinkUrl: z.string().trim().max(2048).default(""),
     respondentLocale: z.enum(supportedLocales).nullable().default(null),
     showProgress: z.boolean().default(true),
+    allowBackNavigation: z.boolean().default(true),
     slug: z
       .string()
       .trim()
@@ -63,6 +64,7 @@ export const formMetadataSchema = z
     respondentLocale: value.respondentLocale ?? null,
     completionLinkLabel: value.completionLinkLabel || null,
     completionLinkUrl: value.completionLinkUrl || null,
+    allowBackNavigation: value.allowBackNavigation,
   }));
 
 export const createBlockSchema = z.object({

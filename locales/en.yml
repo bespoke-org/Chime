@@ -166,6 +166,9 @@ builder:
   respondentLanguageOptions:
     visitor: Use visitor's language
   showProgress: Show form progress
+  showProgressHelp: Show respondents where they are in the form.
+  allowBackNavigation: Allow going back to previous steps
+  allowBackNavigationHelp: Let respondents return to earlier visited steps in the public form runner.
   copyLink: Copy link
   openRunner: Open runner
   deleteForm: Delete form

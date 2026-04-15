@@ -21,4 +21,23 @@ describe("formMetadataSchema", () => {
 
     expect(parsed.respondentLocale).toBe(null);
   });
+
+  test("defaults allowBackNavigation to true", () => {
+    const parsed = formMetadataSchema.parse({
+      title: "Demo form",
+      slug: "demo-form",
+    });
+
+    expect(parsed.allowBackNavigation).toBe(true);
+  });
+
+  test("preserves an explicit disabled allowBackNavigation value", () => {
+    const parsed = formMetadataSchema.parse({
+      title: "Demo form",
+      slug: "demo-form",
+      allowBackNavigation: false,
+    });
+
+    expect(parsed.allowBackNavigation).toBe(false);
+  });
 });

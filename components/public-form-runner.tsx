@@ -144,6 +144,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       : form.completionMessage.trim();
   const completionLinkLabel = form.completionLinkLabel?.trim() || null;
   const completionLinkUrl = form.completionLinkUrl?.trim() || null;
+  const allowBackNavigation = form.allowBackNavigation;
 
   function setAnswer(blockId: string, value: AnswerValue) {
     setAnswers((current) => ({
@@ -354,8 +355,8 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   );
 
   const handleBack = useCallback(() => {
-    setRoute((current) => retreatRunnerRoute(current));
-  }, []);
+    setRoute((current) => retreatRunnerRoute(current, { allowBackNavigation }));
+  }, [allowBackNavigation]);
 
   function handleAdvanceKeyDown(
     event: ReactKeyboardEvent<HTMLElement>,
@@ -427,7 +428,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
-      if (event.key === "Escape" && cursor > 0) {
+      if (event.key === "Escape" && cursor > 0 && allowBackNavigation) {
         event.preventDefault();
         handleBack();
       }
@@ -437,6 +438,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   }, [
     currentBlock,
+    allowBackNavigation,
     cursor,
     handleBack,
     handleContinue,
@@ -830,16 +832,20 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           </AnimatePresence>
 
           <div className="mt-6 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-4">
-            <Button
-              variant="secondary"
-              onClick={handleBack}
-              disabled={cursor === 0 || isSubmitting}
-            >
-              {t("publicRunner.back")}
-              <span className="ml-1 inline-flex h-5 items-center rounded-md border border-current/20 bg-black/10 px-1.5 text-[10px] font-medium opacity-90 dark:bg-white/10">
-                Esc
-              </span>
-            </Button>
+            {allowBackNavigation ? (
+              <Button
+                variant="secondary"
+                onClick={handleBack}
+                disabled={cursor === 0 || isSubmitting}
+              >
+                {t("publicRunner.back")}
+                <span className="ml-1 inline-flex h-5 items-center rounded-md border border-current/20 bg-black/10 px-1.5 text-[10px] font-medium opacity-90 dark:bg-white/10">
+                  Esc
+                </span>
+              </Button>
+            ) : (
+              <div />
+            )}
             <Button
               onClick={() => void handleContinue()}
               disabled={isSubmitting}

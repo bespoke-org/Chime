@@ -91,7 +91,14 @@ export function advanceRunnerRoute(
   };
 }
 
-export function retreatRunnerRoute(route: PublicFormRunnerRoute) {
+export function retreatRunnerRoute(
+  route: PublicFormRunnerRoute,
+  options: { allowBackNavigation?: boolean } = {},
+) {
+  if (options.allowBackNavigation === false) {
+    return route;
+  }
+
   return {
     ...route,
     cursor: Math.max(0, route.cursor - 1),
