@@ -53,8 +53,22 @@ export function installTestDom() {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 
-  if (!window.HTMLElement.prototype.scrollIntoView) {
-    window.HTMLElement.prototype.scrollIntoView = () => {};
+  const htmlElementPrototype = window.HTMLElement
+    .prototype as typeof window.HTMLElement.prototype & {
+    attachEvent?: () => void;
+    detachEvent?: () => void;
+  };
+
+  if (!htmlElementPrototype.scrollIntoView) {
+    htmlElementPrototype.scrollIntoView = () => {};
+  }
+
+  if (!htmlElementPrototype.attachEvent) {
+    htmlElementPrototype.attachEvent = () => {};
+  }
+
+  if (!htmlElementPrototype.detachEvent) {
+    htmlElementPrototype.detachEvent = () => {};
   }
 
   return () => {

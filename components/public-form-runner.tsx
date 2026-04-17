@@ -17,19 +17,22 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { useI18n } from "@/components/i18n-provider";
-import { useLocalToasts } from "@/components/use-local-toasts";
+import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { Input } from "@/components/ui/input";
-import { ToastViewport } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
+import { ToastViewport } from "@/components/ui/toast";
+import { useI18n } from "@/components/i18n-provider";
+import { useLocalToasts } from "@/components/use-local-toasts";
+import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
 import {
   AGREEMENT_ANSWER_VALUES,
+  type AgreementBlockConfig,
   type ChoiceBlockConfig,
   type LinkBlockConfig,
   type LongTextBlockConfig,
@@ -37,13 +40,12 @@ import {
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
-import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
 import { resolveNextBlockId } from "@/lib/branching";
+import type { AnswerValue, PublicForm, PublicBlock } from "@/lib/form-types";
 import {
   isLegacyDefaultCompletionMessage,
   isLegacyDefaultCompletionTitle,
 } from "@/lib/form-defaults";
-import type { AnswerValue, PublicForm } from "@/lib/form-types";
 import {
   createPublicFormDraft,
   getPublicFormDraftStorageKey,
@@ -62,6 +64,19 @@ import {
   retreatRunnerRoute,
 } from "@/lib/public-form-runner-state";
 import { cn } from "@/lib/utils";
+
+const CHOICE_SHORTCUT_KEYS = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "0",
+] as const;
 
 async function submitResponse(
   slug: string,
@@ -87,6 +102,73 @@ async function submitResponse(
   return payload.responseId;
 }
 
+function getShortcutKey(index: number) {
+  return CHOICE_SHORTCUT_KEYS[index] ?? null;
+}
+
+function getShortcutIndex(key: string) {
+  if (key === "0") {
+    return 9;
+  }
+
+  if (!/^[1-9]$/.test(key)) {
+    return null;
+  }
+
+  return Number(key) - 1;
+}
+
+function isTextLikeBlock(
+  block: PublicBlock | null,
+): block is Extract<
+  PublicBlock,
+  { type: "SHORT_TEXT" | "LONG_TEXT" | "NUMBER" | "LINK" | "DATE" }
+> {
+  return (
+    block?.type === "SHORT_TEXT" ||
+    block?.type === "LONG_TEXT" ||
+    block?.type === "NUMBER" ||
+    block?.type === "LINK" ||
+    block?.type === "DATE"
+  );
+}
+
+function isTextEntryTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable)
+  );
+}
+
+function isRunnerChoiceControlTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('[data-runner-choice-control="true"]') !== null
+  );
+}
+
+function isGlobalAdvanceBlockedTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "BUTTON" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable)
+  );
+}
+
+function ShortcutBadge({ shortcut }: { shortcut: string }) {
+  return (
+    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)] px-2 text-xs font-semibold text-[var(--muted)]">
+      {shortcut}
+    </span>
+  );
+}
+
 export function PublicFormRunner({ form }: { form: PublicForm }) {
   const initialRoute = useMemo(
     () => createInitialRunnerRoute(form.blocks),
@@ -104,6 +186,74 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [isComplete, setIsComplete] = useState(false);
   const [hasResolvedDraft, setHasResolvedDraft] = useState(false);
   const submitLockRef = useRef(false);
+  const activeInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(
+    null,
+  );
+  const currentBlockIdRef = useRef<string | null>(null);
+  const currentBlockIsTextLikeRef = useRef(false);
+  const pendingFocusBlockIdRef = useRef<string | null>(null);
+  const focusInputNode = useCallback(
+    (node: HTMLInputElement | HTMLTextAreaElement | null) => {
+      activeInputRef.current = node;
+
+      if (!node || isComplete || isSubmitting) {
+        return;
+      }
+
+      const requestFrame =
+        globalThis.requestAnimationFrame ??
+        ((callback: FrameRequestCallback) =>
+          window.setTimeout(() => callback(Date.now()), 0));
+
+      requestFrame(() => {
+        if (activeInputRef.current !== node) {
+          return;
+        }
+
+        node.focus();
+        const value = "value" in node ? node.value : "";
+
+        if (typeof value === "string") {
+          const cursorPosition = value.length;
+          node.setSelectionRange?.(cursorPosition, cursorPosition);
+        }
+      });
+    },
+    [isComplete, isSubmitting],
+  );
+  const setActiveInputNode = useCallback(
+    (node: HTMLInputElement | null) => {
+      activeInputRef.current = node;
+
+      if (!node || !currentBlockIsTextLikeRef.current) {
+        return;
+      }
+
+      if (pendingFocusBlockIdRef.current !== currentBlockIdRef.current) {
+        return;
+      }
+
+      focusInputNode(node);
+    },
+    [focusInputNode],
+  );
+  const setActiveTextareaNode = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      activeInputRef.current = node;
+
+      if (!node || !currentBlockIsTextLikeRef.current) {
+        return;
+      }
+
+      if (pendingFocusBlockIdRef.current !== currentBlockIdRef.current) {
+        return;
+      }
+
+      focusInputNode(node);
+    },
+    [focusInputNode],
+  );
+  const answersRef = useRef<Record<string, AnswerValue>>(answers);
 
   const blocksById = useMemo(
     () => new Map(form.blocks.map((block) => [block.id, block])),
@@ -118,6 +268,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const nextBlockId = currentBlock
     ? resolveNextBlockId(form.blocks, currentBlock.id, answers)
     : null;
+
+  currentBlockIdRef.current = currentBlock?.id ?? null;
+  currentBlockIsTextLikeRef.current = isTextLikeBlock(currentBlock);
   const visibleTotal = useMemo(
     () =>
       getVisibleRouteTotal({
@@ -195,6 +348,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   }, [form, showToast, storageKey, t]);
 
   useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
     if (!hasResolvedDraft || isComplete) {
       return;
     }
@@ -225,6 +382,36 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     history,
     isComplete,
     storageKey,
+  ]);
+
+  useLayoutEffect(() => {
+    if (
+      !hasResolvedDraft ||
+      isComplete ||
+      isSubmitting ||
+      !isTextLikeBlock(currentBlock)
+    ) {
+      return;
+    }
+
+    if (currentBlockId) {
+      pendingFocusBlockIdRef.current = currentBlockId;
+    }
+    focusInputNode(activeInputRef.current);
+
+    const timeoutId = window.setTimeout(() => {
+      focusInputNode(activeInputRef.current);
+      pendingFocusBlockIdRef.current = null;
+    }, 280);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    currentBlock,
+    currentBlockId,
+    focusInputNode,
+    hasResolvedDraft,
+    isComplete,
+    isSubmitting,
   ]);
 
   const validateStep = useCallback(
@@ -338,6 +525,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
+      pendingFocusBlockIdRef.current = resolvedNextBlockId;
+
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+
       setRoute((current) =>
         advanceRunnerRoute(current, sourceBlockId, resolvedNextBlockId),
       );
@@ -357,6 +550,59 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const handleBack = useCallback(() => {
     setRoute((current) => retreatRunnerRoute(current, { allowBackNavigation }));
   }, [allowBackNavigation]);
+
+  const applyChoiceShortcut = useCallback(
+    (shortcutIndex: number) => {
+      if (
+        !currentBlock ||
+        (currentBlock.type !== "SINGLE_CHOICE" &&
+          currentBlock.type !== "MULTIPLE_CHOICE" &&
+          currentBlock.type !== "AGREEMENT")
+      ) {
+        return null;
+      }
+
+      if (currentBlock.type === "AGREEMENT") {
+        if (shortcutIndex !== 0) {
+          return null;
+        }
+
+        const isSelected =
+          answers[currentBlock.id] === AGREEMENT_ANSWER_VALUES.AGREED;
+
+        return {
+          ...answers,
+          [currentBlock.id]: isSelected ? "" : AGREEMENT_ANSWER_VALUES.AGREED,
+        };
+      }
+
+      const options = (currentBlock.config as ChoiceBlockConfig).options;
+      const option = options[shortcutIndex];
+
+      if (!option) {
+        return null;
+      }
+
+      if (currentBlock.type === "SINGLE_CHOICE") {
+        return {
+          ...answers,
+          [currentBlock.id]: option,
+        };
+      }
+
+      const rawValues = answers[currentBlock.id];
+      const currentValues = Array.isArray(rawValues) ? rawValues : [];
+      const nextValues = currentValues.includes(option)
+        ? currentValues.filter((value) => value !== option)
+        : [...currentValues, option];
+
+      return {
+        ...answers,
+        [currentBlock.id]: nextValues,
+      };
+    },
+    [answers, currentBlock],
+  );
 
   function handleAdvanceKeyDown(
     event: ReactKeyboardEvent<HTMLElement>,
@@ -378,26 +624,26 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     void handleContinue();
   }
 
-  function handleChoiceEnter(
+  function preventPointerFocusSteal(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+  }
+
+  function handleChoiceControlKeyDown(
     event: ReactKeyboardEvent<HTMLButtonElement>,
-    nextAnswer: AnswerValue,
   ) {
     if (
       event.key !== "Enter" ||
       event.nativeEvent.isComposing ||
-      isSubmitting ||
-      !currentBlock
+      isSubmitting
     ) {
       return;
     }
 
     event.preventDefault();
-    const nextAnswers = {
-      ...answers,
-      [currentBlock.id]: nextAnswer,
-    };
-    setAnswers(nextAnswers);
-    void handleContinue(nextAnswers);
+    event.stopPropagation();
+    void handleContinue(answersRef.current);
   }
 
   useEffect(() => {
@@ -410,21 +656,26 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
-      const target = event.target;
+      const shortcutIndex = getShortcutIndex(event.key);
 
-      if (
-        target instanceof HTMLElement &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "BUTTON" ||
-          target.tagName === "SELECT")
-      ) {
+      if (shortcutIndex !== null && !isTextEntryTarget(event.target)) {
+        const nextAnswers = applyChoiceShortcut(shortcutIndex);
+
+        if (nextAnswers) {
+          event.preventDefault();
+          setAnswers(nextAnswers);
+        }
+
         return;
       }
 
-      if (event.key === "Enter") {
+      if (
+        event.key === "Enter" &&
+        (isRunnerChoiceControlTarget(event.target) ||
+          !isGlobalAdvanceBlockedTarget(event.target))
+      ) {
         event.preventDefault();
-        void handleContinue();
+        void handleContinue(answersRef.current);
         return;
       }
 
@@ -437,9 +688,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     window.addEventListener("keydown", handleWindowKeyDown);
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   }, [
-    currentBlock,
     allowBackNavigation,
+    applyChoiceShortcut,
     cursor,
+    currentBlock,
     handleBack,
     handleContinue,
     hasResolvedDraft,
@@ -532,6 +784,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.24, ease: "easeOut" }}
+              onAnimationComplete={() => {
+                if (isTextLikeBlock(currentBlock) && currentBlockId) {
+                  pendingFocusBlockIdRef.current = currentBlockId;
+                  focusInputNode(activeInputRef.current);
+                }
+              }}
               className="min-h-[280px]"
             >
               {currentBlock.type === "TEXT" ? (
@@ -576,8 +834,13 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                         {t("publicRunner.selectAll")}
                       </p>
                     ) : null}
+
                     {currentBlock.type === "SHORT_TEXT" ? (
                       <Input
+                        ref={setActiveInputNode}
+                        autoFocus={
+                          hasResolvedDraft && !isSubmitting && !isComplete
+                        }
                         className="h-12 text-base placeholder:text-[var(--muted)]/65"
                         placeholder={
                           (currentBlock.config as ShortTextBlockConfig)
@@ -597,6 +860,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                     {currentBlock.type === "LONG_TEXT" ? (
                       <Textarea
+                        ref={setActiveTextareaNode}
+                        autoFocus={
+                          hasResolvedDraft && !isSubmitting && !isComplete
+                        }
                         className="min-h-[140px] text-base placeholder:text-[var(--muted)]/65"
                         placeholder={
                           (currentBlock.config as LongTextBlockConfig)
@@ -618,6 +885,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                     {currentBlock.type === "NUMBER" ? (
                       <Input
+                        ref={setActiveInputNode}
+                        autoFocus={
+                          hasResolvedDraft && !isSubmitting && !isComplete
+                        }
                         type="number"
                         step={
                           (currentBlock.config as NumberBlockConfig).allowFloat
@@ -642,6 +913,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                     {currentBlock.type === "LINK" ? (
                       <Input
+                        ref={setActiveInputNode}
+                        autoFocus={
+                          hasResolvedDraft && !isSubmitting && !isComplete
+                        }
                         type="url"
                         className="h-12 text-base placeholder:text-[var(--muted)]/65"
                         placeholder={
@@ -665,6 +940,10 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
                           return (
                             <DatePickerInput
+                              ref={setActiveInputNode}
+                              autoFocus={
+                                hasResolvedDraft && !isSubmitting && !isComplete
+                              }
                               className="text-base"
                               value={
                                 typeof currentValue === "string"
@@ -684,26 +963,29 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                     {currentBlock.type === "SINGLE_CHOICE" ? (
                       <div className="grid gap-3">
                         {(currentBlock.config as ChoiceBlockConfig).options.map(
-                          (option) => {
+                          (option, index) => {
                             const selected =
                               answers[currentBlock.id] === option;
+                            const shortcut = getShortcutKey(index);
 
                             return (
                               <button
                                 key={option}
                                 type="button"
+                                data-runner-choice-control="true"
+                                aria-pressed={selected}
+                                aria-keyshortcuts={shortcut ?? undefined}
                                 className={cn(
-                                  "flex items-center justify-between rounded-[16px] border px-4 py-3 text-left transition",
+                                  "flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                   selected
                                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                                 )}
+                                onPointerDown={preventPointerFocusSteal}
                                 onClick={() =>
                                   setAnswer(currentBlock.id, option)
                                 }
-                                onKeyDown={(event) =>
-                                  handleChoiceEnter(event, option)
-                                }
+                                onKeyDown={handleChoiceControlKeyDown}
                               >
                                 <div className="flex items-center gap-3">
                                   <span className="inline-flex size-5 items-center justify-center rounded-full border border-[color:var(--line)] bg-[var(--surface)]">
@@ -715,6 +997,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                   </span>
                                   <span>{option}</span>
                                 </div>
+                                {shortcut ? (
+                                  <ShortcutBadge shortcut={shortcut} />
+                                ) : null}
                               </button>
                             );
                           },
@@ -725,7 +1010,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                     {currentBlock.type === "MULTIPLE_CHOICE" ? (
                       <div className="grid gap-3">
                         {(currentBlock.config as ChoiceBlockConfig).options.map(
-                          (option) => {
+                          (option, index) => {
                             const rawValues = answers[currentBlock.id];
                             const currentValues: string[] = Array.isArray(
                               rawValues,
@@ -733,17 +1018,22 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               ? rawValues
                               : [];
                             const selected = currentValues.includes(option);
+                            const shortcut = getShortcutKey(index);
 
                             return (
                               <button
                                 key={option}
                                 type="button"
+                                data-runner-choice-control="true"
+                                aria-pressed={selected}
+                                aria-keyshortcuts={shortcut ?? undefined}
                                 className={cn(
-                                  "flex items-center justify-between rounded-[16px] border px-4 py-3 text-left transition",
+                                  "flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                   selected
                                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                                 )}
+                                onPointerDown={preventPointerFocusSteal}
                                 onClick={() => {
                                   const nextValues = selected
                                     ? currentValues.filter(
@@ -752,16 +1042,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                     : [...currentValues, option];
                                   setAnswer(currentBlock.id, nextValues);
                                 }}
-                                onKeyDown={(event) =>
-                                  handleChoiceEnter(
-                                    event,
-                                    selected
-                                      ? currentValues.filter(
-                                          (value) => value !== option,
-                                        )
-                                      : [...currentValues, option],
-                                  )
-                                }
+                                onKeyDown={handleChoiceControlKeyDown}
                               >
                                 <div className="flex items-center gap-3">
                                   <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
@@ -773,6 +1054,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                   </span>
                                   <span>{option}</span>
                                 </div>
+                                {shortcut ? (
+                                  <ShortcutBadge shortcut={shortcut} />
+                                ) : null}
                               </button>
                             );
                           },
@@ -787,9 +1071,8 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                             answers[currentBlock.id] ===
                             AGREEMENT_ANSWER_VALUES.AGREED;
                           const label =
-                            "label" in currentBlock.config
-                              ? currentBlock.config.label
-                              : t("publicRunner.agree");
+                            (currentBlock.config as AgreementBlockConfig)
+                              .label ?? t("publicRunner.agree");
                           const nextValue = selected
                             ? ""
                             : AGREEMENT_ANSWER_VALUES.AGREED;
@@ -797,18 +1080,20 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                           return (
                             <button
                               type="button"
+                              data-runner-choice-control="true"
+                              aria-pressed={selected}
+                              aria-keyshortcuts="1"
                               className={cn(
-                                "flex items-center justify-between rounded-[16px] border px-4 py-3 text-left transition",
+                                "flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                 selected
                                   ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                   : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                               )}
+                              onPointerDown={preventPointerFocusSteal}
                               onClick={() =>
                                 setAnswer(currentBlock.id, nextValue)
                               }
-                              onKeyDown={(event) =>
-                                handleChoiceEnter(event, nextValue)
-                              }
+                              onKeyDown={handleChoiceControlKeyDown}
                             >
                               <div className="flex items-center gap-3">
                                 <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
@@ -820,6 +1105,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 </span>
                                 <span>{label}</span>
                               </div>
+                              <ShortcutBadge shortcut="1" />
                             </button>
                           );
                         })()}
@@ -835,6 +1121,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
             {allowBackNavigation ? (
               <Button
                 variant="secondary"
+                onPointerDown={preventPointerFocusSteal}
                 onClick={handleBack}
                 disabled={cursor === 0 || isSubmitting}
               >
@@ -847,6 +1134,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
               <div />
             )}
             <Button
+              onPointerDown={preventPointerFocusSteal}
               onClick={() => void handleContinue()}
               disabled={isSubmitting}
             >

@@ -2,14 +2,15 @@
 
 import { CalendarIcon } from "lucide-react";
 import {
+  forwardRef,
   useMemo,
   useState,
   type InputHTMLAttributes,
   type KeyboardEventHandler,
 } from "react";
 
-import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -45,14 +46,13 @@ function formatDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function DatePickerInput({
-  className,
-  onChange,
-  onKeyDown,
-  openCalendarLabel,
-  value,
-  ...props
-}: DatePickerInputProps) {
+export const DatePickerInput = forwardRef<
+  HTMLInputElement,
+  DatePickerInputProps
+>(function DatePickerInput(
+  { className, onChange, onKeyDown, openCalendarLabel, value, ...props },
+  ref,
+) {
   const [open, setOpen] = useState(false);
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
   const [visibleMonth, setVisibleMonth] = useState<Date>(
@@ -63,6 +63,7 @@ export function DatePickerInput({
     <div className="relative">
       <Input
         {...props}
+        ref={ref}
         type="text"
         inputMode="numeric"
         autoComplete="off"
@@ -108,4 +109,4 @@ export function DatePickerInput({
       </Popover>
     </div>
   );
-}
+});

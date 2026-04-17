@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 
 import { I18nProvider } from "@/components/i18n-provider";
 import { PublicFormRunner } from "@/components/public-form-runner";
@@ -10,12 +10,75 @@ import { installTestDom } from "@/test/install-dom";
 
 function createBlock(overrides: {
   id: string;
-  type: "TEXT" | "SHORT_TEXT" | "SINGLE_CHOICE";
+  type:
+    | "TEXT"
+    | "SHORT_TEXT"
+    | "LONG_TEXT"
+    | "SINGLE_CHOICE"
+    | "MULTIPLE_CHOICE"
+    | "AGREEMENT"
+    | "NUMBER"
+    | "LINK"
+    | "DATE";
   position: number;
   title?: string;
   config?: Record<string, unknown>;
 }): SerializedBlock {
   const now = new Date("2026-04-15T12:00:00.000Z");
+
+  const config = (() => {
+    switch (overrides.type) {
+      case "TEXT":
+        return { body: "Intro", endForm: false };
+      case "SINGLE_CHOICE":
+      case "MULTIPLE_CHOICE":
+        return {
+          options: ["yes", "no"],
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "AGREEMENT":
+        return {
+          label: "I agree",
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "NUMBER":
+        return {
+          placeholder: "42",
+          allowFloat: true,
+          min: null,
+          max: null,
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "LINK":
+        return {
+          placeholder: "https://example.com",
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "DATE":
+        return {
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "SHORT_TEXT":
+      case "LONG_TEXT":
+        return {
+          placeholder: "",
+          validationRegex: null,
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+    }
+  })();
 
   return {
     id: overrides.id,
@@ -27,22 +90,7 @@ function createBlock(overrides: {
     position: overrides.position,
     createdAt: now,
     updatedAt: now,
-    config:
-      overrides.config ??
-      (overrides.type === "TEXT"
-        ? { body: "Intro" }
-        : overrides.type === "SINGLE_CHOICE"
-          ? {
-              options: ["yes", "no"],
-              branchRules: [],
-              defaultNextBlockId: null,
-            }
-          : {
-              placeholder: "",
-              validationRegex: null,
-              branchRules: [],
-              defaultNextBlockId: null,
-            }),
+    config: overrides.config ?? config,
   } as SerializedBlock;
 }
 
@@ -78,6 +126,10 @@ function renderRunner(form: PublicForm) {
           submit: "Submit",
           progressRestored: "Progress restored",
           savedProgressDiscarded: "Saved progress discarded",
+          chooseOne: "Choose one option.",
+          selectAll: "Select all that apply.",
+          defaultTextTitle: "Take a breath before the next step.",
+          openCalendar: "Open calendar",
         },
       }}
     >
@@ -196,6 +248,186 @@ describe("PublicFormRunner", () => {
       expect(view.getByText("Progress restored") !== null).toBe(true);
     });
     expect(view.getByRole("button", { name: /Back/i }) !== null).toBe(true);
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("autofocuses the active short-text input", async () => {
+    const restoreDom = installTestDom();
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "name",
+          type: "SHORT_TEXT",
+          position: 0,
+          title: "Name",
+        }),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(view.getByRole("textbox") === document.activeElement).toBe(true);
+    });
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("autofocuses the active date input", async () => {
+    const restoreDom = installTestDom();
+    const view = renderRunner(
+      createForm([
+        createBlock({ id: "dob", type: "DATE", position: 0, title: "Date" }),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(
+        view.getByPlaceholderText("YYYY-MM-DD") === document.activeElement,
+      ).toBe(true);
+    });
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("shows visible shortcut hints and responds to digit shortcuts for choice questions", async () => {
+    const restoreDom = installTestDom();
+    const singleChoiceView = renderRunner(
+      createForm([
+        createBlock({
+          id: "choice",
+          type: "SINGLE_CHOICE",
+          position: 0,
+          title: "Pick one",
+        }),
+      ]),
+    );
+
+    expect(
+      singleChoiceView.getByRole("button", { name: /yes 1/i }) !== null,
+    ).toBe(true);
+
+    fireEvent.keyDown(window, { key: "2" });
+
+    await waitFor(() => {
+      expect(
+        singleChoiceView
+          .getByRole("button", { name: /no 2/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    cleanup();
+
+    const multiChoiceView = renderRunner(
+      createForm([
+        createBlock({
+          id: "multi",
+          type: "MULTIPLE_CHOICE",
+          position: 0,
+          title: "Pick many",
+        }),
+      ]),
+    );
+
+    fireEvent.keyDown(window, { key: "1" });
+    await waitFor(() => {
+      expect(
+        multiChoiceView
+          .getByRole("button", { name: /yes 1/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    fireEvent.keyDown(window, { key: "1" });
+    await waitFor(() => {
+      expect(
+        multiChoiceView
+          .getByRole("button", { name: /yes 1/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("false");
+    });
+
+    cleanup();
+
+    const agreementView = renderRunner(
+      createForm([
+        createBlock({
+          id: "agree",
+          type: "AGREEMENT",
+          position: 0,
+          title: "Agreement",
+        }),
+      ]),
+    );
+
+    fireEvent.keyDown(window, { key: "1" });
+
+    await waitFor(() => {
+      expect(
+        agreementView
+          .getByRole("button", { name: /I agree 1/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    fireEvent.keyDown(window, { key: "1" });
+
+    await waitFor(() => {
+      expect(
+        agreementView
+          .getByRole("button", { name: /I agree 1/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("false");
+    });
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("pressing Enter on a focused choice control does not toggle to that focused option", async () => {
+    const restoreDom = installTestDom();
+    const branchingChoice = createBlock({
+      id: "choice",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      title: "Pick a path",
+    });
+
+    const view = renderRunner(
+      createForm([
+        branchingChoice,
+        createBlock({
+          id: "after-choice",
+          type: "SHORT_TEXT",
+          position: 1,
+          title: "After choice",
+        }),
+      ]),
+    );
+
+    fireEvent.click(view.getByRole("button", { name: /yes 1/i }));
+
+    await waitFor(() => {
+      expect(
+        view
+          .getByRole("button", { name: /yes 1/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    const noButton = view.getByRole("button", { name: /no 2/i });
+    noButton.focus();
+    fireEvent.keyDown(noButton, {
+      key: "Enter",
+      code: "Enter",
+      keyCode: 13,
+      charCode: 13,
+      which: 13,
+    });
+
+    expect(
+      view.getByRole("button", { name: /yes 1/i }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(noButton.getAttribute("aria-pressed")).toBe("false");
 
     await cleanupAndRestore(restoreDom);
   });
