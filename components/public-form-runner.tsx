@@ -823,18 +823,6 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                   ) : null}
 
                   <div className="mt-6 space-y-3">
-                    {currentBlock.type === "SINGLE_CHOICE" ? (
-                      <p className="text-sm font-medium text-[var(--muted)]">
-                        {t("publicRunner.chooseOne")}
-                      </p>
-                    ) : null}
-
-                    {currentBlock.type === "MULTIPLE_CHOICE" ? (
-                      <p className="text-sm font-medium text-[var(--muted)]">
-                        {t("publicRunner.selectAll")}
-                      </p>
-                    ) : null}
-
                     {currentBlock.type === "SHORT_TEXT" ? (
                       <Input
                         ref={setActiveInputNode}
@@ -961,7 +949,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                       : null}
 
                     {currentBlock.type === "SINGLE_CHOICE" ? (
-                      <div className="grid gap-3">
+                      <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
                         {(currentBlock.config as ChoiceBlockConfig).options.map(
                           (option, index) => {
                             const selected =
@@ -976,7 +964,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 aria-pressed={selected}
                                 aria-keyshortcuts={shortcut ?? undefined}
                                 className={cn(
-                                  "flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
+                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                   selected
                                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -1008,7 +996,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                     ) : null}
 
                     {currentBlock.type === "MULTIPLE_CHOICE" ? (
-                      <div className="grid gap-3">
+                      <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
                         {(currentBlock.config as ChoiceBlockConfig).options.map(
                           (option, index) => {
                             const rawValues = answers[currentBlock.id];
@@ -1028,7 +1016,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 aria-pressed={selected}
                                 aria-keyshortcuts={shortcut ?? undefined}
                                 className={cn(
-                                  "flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
+                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                   selected
                                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -1065,7 +1053,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                     ) : null}
 
                     {currentBlock.type === "AGREEMENT" ? (
-                      <div className="grid gap-3">
+                      <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
                         {(() => {
                           const selected =
                             answers[currentBlock.id] ===
@@ -1084,7 +1072,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               aria-pressed={selected}
                               aria-keyshortcuts="1"
                               className={cn(
-                                "flex items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
+                                "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                 selected
                                   ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
                                   : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",

@@ -126,8 +126,6 @@ function renderRunner(form: PublicForm) {
           submit: "Submit",
           progressRestored: "Progress restored",
           savedProgressDiscarded: "Saved progress discarded",
-          chooseOne: "Choose one option.",
-          selectAll: "Select all that apply.",
           defaultTextTitle: "Take a breath before the next step.",
           openCalendar: "Open calendar",
         },

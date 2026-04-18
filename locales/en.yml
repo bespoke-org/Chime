@@ -305,8 +305,6 @@ publicRunner:
   context: Context
   defaultTextTitle: Take a breath before the next step.
   required: Required
-  chooseOne: Choose one option.
-  selectAll: Select all that apply.
   answerRequired: Please answer before continuing.
   singleChoiceRequired: Choose one option before continuing.
   multiChoiceRequired: Choose at least one option before continuing.

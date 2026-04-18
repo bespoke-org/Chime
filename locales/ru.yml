@@ -305,8 +305,6 @@ publicRunner:
   context: Контекст
   defaultTextTitle: Сделайте паузу перед следующим шагом.
   required: Обязательно
-  chooseOne: Выберите один вариант.
-  selectAll: Выберите все подходящие варианты.
   answerRequired: Пожалуйста, ответьте перед продолжением.
   singleChoiceRequired: Выберите один вариант перед продолжением.
   multiChoiceRequired: Выберите хотя бы один вариант перед продолжением.
