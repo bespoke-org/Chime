@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { AppLocale, DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n";
+import { normalizeLocale } from "@/lib/i18n";
 import { AppError } from "@/lib/errors";
 import type { ProfileSettingsUserSummary } from "@/lib/form-types";
 import { getComposedName, splitNameParts } from "@/lib/user-identity";
@@ -81,12 +81,11 @@ export async function updateProfileSettings(
   });
 }
 
-type GoogleProfilePayload = {
-  name?: string | null;
-  given_name?: string | null;
-  family_name?: string | null;
-  picture?: string | null;
-  locale?: string | null;
+type AtprotoProfilePayload = {
+  did?: string | null;
+  handle?: string | null;
+  displayName?: string | null;
+  avatar?: string | null;
 };
 
 function clean(value: string | null | undefined, maxLength = 120) {
@@ -113,9 +112,9 @@ function normalizeImageUrl(value: string | null | undefined) {
   return null;
 }
 
-export async function syncGoogleProfileFields(
+export async function syncAtprotoProfileFields(
   userId: string,
-  profile: GoogleProfilePayload | null | undefined,
+  profile: AtprotoProfilePayload | null | undefined,
 ) {
   if (!profile) {
     return;
@@ -129,6 +128,7 @@ export async function syncGoogleProfileFields(
       firstName: true,
       secondName: true,
       locale: true,
+      email: true,
       image: true,
     },
   });
@@ -137,22 +137,19 @@ export async function syncGoogleProfileFields(
     return;
   }
 
-  const parsedName = splitNameParts(clean(profile.name));
-  const nextFirstName = clean(profile.given_name, 60) ?? parsedName.firstName;
-  const nextSecondName =
-    clean(profile.family_name, 60) ?? parsedName.secondName;
+  const displayName =
+    clean(profile.displayName) ?? clean(profile.handle) ?? clean(profile.did);
+  const parsedName = splitNameParts(displayName);
+  const nextFirstName = parsedName.firstName;
+  const nextSecondName = parsedName.secondName;
   const nextName =
-    clean(profile.name) ?? getComposedName(nextFirstName, nextSecondName);
-  const nextImage = normalizeImageUrl(profile.picture);
-  const hasProvidedLocale =
-    typeof profile.locale === "string" && profile.locale.trim().length > 0;
-  const nextLocale = hasProvidedLocale ? normalizeLocale(profile.locale) : null;
+    displayName ?? getComposedName(nextFirstName, nextSecondName);
+  const nextImage = normalizeImageUrl(profile.avatar);
 
   const data: {
     firstName?: string;
     secondName?: string;
     name?: string;
-    locale?: AppLocale;
     image?: string;
   } = {};
 
@@ -166,10 +163,6 @@ export async function syncGoogleProfileFields(
 
   if (!currentUser.name?.trim() && nextName) {
     data.name = nextName;
-  }
-
-  if (!currentUser.locale && hasProvidedLocale) {
-    data.locale = nextLocale ?? DEFAULT_LOCALE;
   }
 
   if (!currentUser.image?.trim() && nextImage) {

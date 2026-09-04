@@ -27,7 +27,7 @@ const errorMessages: Record<
     eyebrow: "Something broke",
     title: "The forms hit an unexpected error.",
     description:
-      "Try the action again. If it keeps happening, check your environment variables, Google OAuth setup, and local Postgres container.",
+      "Try the action again. If it keeps happening, check your environment variables, ATProto OAuth setup, and local Postgres container.",
     tryAgain: "Try again",
     footer: {
       poweredBy: "Built with",
@@ -41,7 +41,7 @@ const errorMessages: Record<
     eyebrow: "Что-то сломалось",
     title: "В формах произошла непредвиденная ошибка.",
     description:
-      "Попробуйте выполнить действие ещё раз. Если это повторяется, проверьте переменные окружения, настройку Google OAuth и локальный контейнер Postgres.",
+      "Попробуйте выполнить действие ещё раз. Если это повторяется, проверьте переменные окружения, настройку ATProto OAuth и локальный контейнер Postgres.",
     tryAgain: "Попробовать снова",
     footer: {
       poweredBy: "Сделано с помощью",

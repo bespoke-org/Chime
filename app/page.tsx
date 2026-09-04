@@ -1,50 +1,62 @@
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sprout } from "lucide-react";
 
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { AuthErrorAlert } from "@/components/auth/auth-error-alert";
+import { AtprotoSignInForm } from "@/components/auth/atproto-sign-in-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ authError?: string }>;
+}) {
   const session = await getServerAuthSession();
   const { t } = await getRequestI18n();
+  const params = await searchParams;
+  const authError = params?.authError;
   const appName = t("app.name");
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-8 lg:px-10 lg:py-10">
-      <section className="flex flex-1 items-center justify-center py-16 lg:py-24">
-        <Card className="w-full max-w-3xl p-8 lg:p-10">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-4">
-              <Image
-                src="/sproute.png"
-                alt={appName}
-                width={72}
-                height={72}
-                priority
-                className="size-18"
-              />
-              <h1 className="font-display text-5xl leading-none text-[var(--ink)] sm:text-6xl">
-                {appName}
-              </h1>
-            </div>
-            <p className="mt-6 max-w-xl text-base leading-7 text-[var(--muted)] sm:text-lg">
-              {t("home.description")}
+    <main className="flex w-full flex-1 items-center justify-center px-5 py-12 sm:px-8">
+      <section className="w-full max-w-lg">
+        <Card className="w-full bg-[var(--surface-strong)] p-6 sm:p-10">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+              <Sprout className="size-5" aria-hidden="true" />
+            </span>
+            <span className="font-display text-2xl text-[var(--ink)]">
+              {appName}
+            </span>
+          </div>
+
+          <div className="mt-9">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
+              {session?.user ? t("home.welcomeBack") : t("auth.title")}
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)] sm:text-base">
+              {session?.user
+                ? t("home.signedInDescription")
+                : t("auth.description")}
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-7">
               {session?.user ? (
                 <Link href="/dashboard">
-                  <Button size="lg">
+                  <Button size="lg" className="w-full">
                     {t("home.openDashboard")}
                     <ArrowRight className="size-4" />
                   </Button>
                 </Link>
               ) : (
-                <GoogleSignInButton />
+                <div className="flex flex-col gap-4">
+                  {authError ? (
+                    <AuthErrorAlert message={t("auth.atprotoError")} />
+                  ) : null}
+                  <AtprotoSignInForm />
+                </div>
               )}
             </div>
           </div>

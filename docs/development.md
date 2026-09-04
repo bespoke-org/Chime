@@ -7,7 +7,7 @@ This document covers day-to-day local development for Lively Forms.
 - Bun
 - Podman + Podman Compose
 - PostgreSQL container support via `compose.yaml`
-- A Google OAuth client for creator sign-in during local development
+- ATProto OAuth/client metadata for creator sign-in during local development
 
 ## Local setup
 
@@ -20,7 +20,7 @@ bun run prisma:migrate
 bun run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://127.0.0.1:3000`.
 
 For environment variables and OAuth setup details, see [deployment.md](./deployment.md).
 

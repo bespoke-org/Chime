@@ -4,6 +4,8 @@ app:
   goToDashboardAria: Перейти в дашборд
 home:
   description: "Как семя в хорошей почве, каждый продуманный вопрос может помочь чему-то вырасти. Создавайте формы, которые ощущаются живыми — мягкими приглашениями подумать, ответить и понять, что действительно важно."
+  welcomeBack: С возвращением
+  signedInDescription: Ваше рабочее пространство готово.
   openDashboard: Открыть дашборд
 footer:
   poweredBy: Сделано с помощью
@@ -18,7 +20,13 @@ meta:
   joinOrganization: Вступить в организацию
   notFound: Не найдено
 auth:
-  continueWithGoogle: Продолжить с Google
+  title: Войти в Живые формы
+  description: Используйте аккаунт Bluesky или другую идентичность AT Protocol.
+  continueWithAtproto: Продолжить через ATProto
+  atprotoIdentifierLabel: Хэндл Bluesky
+  atprotoIdentifierPlaceholder: alice.bsky.social
+  atprotoHelp: Пользовательские домены и DID тоже поддерживаются.
+  atprotoError: Не удалось войти. Проверьте хэндл и попробуйте снова.
 workspace:
   selectAria: Выбрать рабочее пространство
   personal: Личное пространство
@@ -59,7 +67,7 @@ settings:
     firstName: Имя
     secondName: Фамилия
     imageUrl: URL изображения профиля
-    imageUrlHelp: Google может заполнить это поле изначально. Позже вы можете заменить его любым публичным URL изображения.
+    imageUrlHelp: ATProto может сначала заполнить это поле аватаром из вашего профиля. Позже вы можете заменить его любым публичным URL изображения.
     locale: Язык
     localeHelp: Выберите язык интерфейса для вашего аккаунта.
     save: Сохранить

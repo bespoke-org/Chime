@@ -4,6 +4,8 @@ app:
   goToDashboardAria: Go to dashboard
 home:
   description: "Like a seed in good soil, every thoughtful question has the power to make something grow. Build forms that feel alive—gentle invitations to reflect, respond, and uncover what matters most."
+  welcomeBack: Welcome back
+  signedInDescription: Your workspace is ready when you are.
   openDashboard: Open dashboard
 footer:
   poweredBy: Built with
@@ -18,7 +20,13 @@ meta:
   joinOrganization: Join organization
   notFound: Not found
 auth:
-  continueWithGoogle: Continue with Google
+  title: Sign in to Lively Forms
+  description: Use your Bluesky account or another AT Protocol identity.
+  continueWithAtproto: Continue with ATProto
+  atprotoIdentifierLabel: Bluesky handle
+  atprotoIdentifierPlaceholder: alice.bsky.social
+  atprotoHelp: Custom domains and DIDs work too.
+  atprotoError: We couldn't sign you in. Check your handle and try again.
 workspace:
   selectAria: Select workspace
   personal: Personal workspace
@@ -59,7 +67,7 @@ settings:
     firstName: First name
     secondName: Second name
     imageUrl: Profile image URL
-    imageUrlHelp: Google can populate this initially. You can replace it with any public image URL.
+    imageUrlHelp: ATProto can populate this initially from your profile avatar. You can replace it with any public image URL.
     locale: Language
     localeHelp: Choose the language used across the app for your account.
     save: Save
