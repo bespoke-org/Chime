@@ -89,7 +89,11 @@ describe("BranchingGraphWorkspace", () => {
     });
 
     expect(addButtons.length).toBe(1);
-    expect(addButtons[0]?.getAttribute("data-graph-node-id")).toBe("block-1");
+    expect(
+      addButtons[0]
+        ?.closest("[data-graph-node-id]")
+        ?.getAttribute("data-graph-node-id"),
+    ).toBe("block-1");
 
     cleanup();
     restoreDom();

@@ -159,7 +159,7 @@ builder:
   graphLinearRoute: Дальше
   graphDefaultRoute: По умолчанию
   settingsTitle: Настройки
-  titleField: Название
+  editTitle: Изменить название
   shareSlug: Адрес публичного URL
   afterSubmission: После отправки
   afterSubmissionDescription: Настройте то, что увидят респонденты после завершения формы, включая необязательную ссылку на следующий шаг.
@@ -182,10 +182,10 @@ builder:
   allowBackNavigation: Разрешить возврат к предыдущим шагам
   allowBackNavigationHelp: Разрешить респондентам возвращаться к уже пройденным шагам в публичном раннере формы.
   webhook: Вебхук
-  webhookDescription: Отправлять каждый новый ответ на ваш адрес сразу после сохранения.
+  webhookDescription: Отправлять POST-запрос на ваш сервер при каждом новом ответе.
   webhookUrl: URL вебхука
   webhookUrlPlaceholder: https://example.com/hooks/lively-forms
-  webhookUrlHelp: Публичный адрес https://. Мы отправляем POST с JSON, в котором есть форма, идентификатор ответа и ответы. Адреса в частных сетях отклоняются.
+  webhookUrlHelp: Публичный адрес сервера (https://). Мы отправляем POST с JSON, в котором есть форма, идентификатор ответа и ответы. Адреса в частных сетях отклоняются.
   webhookSecret: Секрет подписи
   webhookSecretHelp: Необязательно. Если задан, каждый запрос содержит заголовок X-Lively-Forms-Signature с HMAC-SHA256 от метки времени и тела, чтобы ваш сервер мог проверить отправителя.
   notifications: Уведомления
@@ -317,6 +317,7 @@ builder:
   toasts:
     genericError: Что-то пошло не так.
     savedFormSettings: Настройки формы сохранены
+    renamedForm: Название сохранено
     addedBlock: "Добавлен блок: {type}"
     savedBlock: Блок сохранён
     removedBlock: Блок удалён

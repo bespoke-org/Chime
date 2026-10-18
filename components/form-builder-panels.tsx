@@ -37,6 +37,7 @@ import * as React from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { BranchRulesEditor } from "@/components/builder/branch-rules-editor";
+import { InlineTitleEditor } from "@/components/builder/inline-title-editor";
 import { useI18n } from "@/components/i18n-provider";
 import { FormStatusBadge } from "@/components/form-status-badge";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,7 @@ export function BuilderHeader({
   onPublish,
   onUnpublish,
   onCopyShareLink,
+  onRenameForm,
 }: {
   form: BuilderForm;
   settingsSelected: boolean;
@@ -127,6 +129,7 @@ export function BuilderHeader({
   onPublish: () => void;
   onUnpublish: () => void;
   onCopyShareLink: () => void;
+  onRenameForm: (title: string) => void;
 }) {
   const { t } = useI18n();
   const workspaceLabel =
@@ -146,9 +149,11 @@ export function BuilderHeader({
     <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-4xl text-[var(--ink)]">
-            {form.title}
-          </h1>
+          <InlineTitleEditor
+            title={form.title}
+            disabled={busy === "rename"}
+            onCommit={onRenameForm}
+          />
           <FormStatusBadge status={form.status} closed={!availability.open} />
         </div>
         <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
@@ -304,23 +309,6 @@ export function FormSettingsPanel({
         </h2>
       </div>
 
-      <div className="grid gap-5">
-        <label className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">
-            {t("builder.titleField")}
-          </span>
-          <Input
-            value={metadataDraft.title}
-            onChange={(event) =>
-              setMetadataDraft((current) => ({
-                ...current,
-                title: event.target.value,
-              }))
-            }
-          />
-        </label>
-      </div>
-
       <div className="grid gap-5 border-t border-[color:var(--line)] pt-6">
         <div>
           <p className="text-xs font-semibold uppercase text-[var(--accent)]">
@@ -370,90 +358,6 @@ export function FormSettingsPanel({
             )}
           </div>
         </div>
-      </div>
-
-      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-            {t("builder.appearance")}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.appearanceDescription")}
-          </p>
-        </div>
-
-        <div className="grid gap-2 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--ink)]">
-            {t("builder.respondentLanguage")}
-          </span>
-          <Select
-            value={metadataDraft.respondentLocale ?? "visitor"}
-            onValueChange={(value) =>
-              setMetadataDraft((current) => ({
-                ...current,
-                respondentLocale:
-                  value === "visitor" ? null : (value as AppLocale),
-              }))
-            }
-          >
-            <SelectTrigger className="h-11 px-4 text-sm font-medium">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="visitor">
-                {t("builder.respondentLanguageOptions.visitor")}
-              </SelectItem>
-              {supportedLocales.map((localeOption) => (
-                <SelectItem key={localeOption} value={localeOption}>
-                  {t(`settings.profile.localeOptions.${localeOption}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-[var(--muted)]">
-            {t("builder.respondentLanguageHelp")}
-          </span>
-        </div>
-
-        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
-          <Checkbox
-            checked={metadataDraft.showProgress}
-            onChange={(event) =>
-              setMetadataDraft((current) => ({
-                ...current,
-                showProgress: event.target.checked,
-              }))
-            }
-          />
-          <div className="grid gap-1">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.showProgress")}
-            </span>
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.showProgressHelp")}
-            </span>
-          </div>
-        </label>
-
-        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
-          <Checkbox
-            checked={metadataDraft.allowBackNavigation}
-            onChange={(event) =>
-              setMetadataDraft((current) => ({
-                ...current,
-                allowBackNavigation: event.target.checked,
-              }))
-            }
-          />
-          <div className="grid gap-1">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.allowBackNavigation")}
-            </span>
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.allowBackNavigationHelp")}
-            </span>
-          </div>
-        </label>
       </div>
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
@@ -528,99 +432,6 @@ export function FormSettingsPanel({
             </label>
           </div>
         </div>
-      </div>
-
-      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-            {t("builder.webhook")}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.webhookDescription")}
-          </p>
-        </div>
-
-        <div className="grid gap-5">
-          <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.webhookUrl")}
-            </span>
-            <Input
-              value={metadataDraft.webhookUrl}
-              placeholder={t("builder.webhookUrlPlaceholder")}
-              onChange={(event) =>
-                setMetadataDraft((current) => ({
-                  ...current,
-                  webhookUrl: event.target.value,
-                }))
-              }
-            />
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.webhookUrlHelp")}
-            </span>
-          </label>
-          <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.webhookSecret")}
-            </span>
-            <Input
-              value={metadataDraft.webhookSecret}
-              autoComplete="off"
-              onChange={(event) =>
-                setMetadataDraft((current) => ({
-                  ...current,
-                  webhookSecret: event.target.value,
-                }))
-              }
-            />
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.webhookSecretHelp")}
-            </span>
-          </label>
-        </div>
-      </div>
-
-      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-            {t("builder.notifications")}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.notificationsDescription")}
-          </p>
-        </div>
-
-        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
-          <Checkbox
-            checked={metadataDraft.notifyOnResponse}
-            onChange={(event) =>
-              setMetadataDraft((current) => ({
-                ...current,
-                notifyOnResponse: event.target.checked,
-              }))
-            }
-          />
-          <div className="grid gap-1">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.notifyOnResponse")}
-            </span>
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.notifyOnResponseHelp")}
-            </span>
-          </div>
-        </label>
-
-        {form.ownerHasNotificationEmail ? null : (
-          <p className="text-sm leading-6 text-[var(--muted)]">
-            {t("builder.notifyOnResponseMissingEmail")}{" "}
-            <Link
-              href="/settings?section=profile"
-              className="font-medium text-[var(--ink)] underline underline-offset-4"
-            >
-              {t("builder.notifyOnResponseOpenSettings")}
-            </Link>
-          </p>
-        )}
       </div>
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
@@ -715,6 +526,183 @@ export function FormSettingsPanel({
             />
             <span className="text-xs text-[var(--muted)]">
               {t("builder.closedMessageHelp")}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.notifications")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.notificationsDescription")}
+          </p>
+        </div>
+
+        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+          <Checkbox
+            checked={metadataDraft.notifyOnResponse}
+            onChange={(event) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                notifyOnResponse: event.target.checked,
+              }))
+            }
+          />
+          <div className="grid gap-1">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.notifyOnResponse")}
+            </span>
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.notifyOnResponseHelp")}
+            </span>
+          </div>
+        </label>
+
+        {form.ownerHasNotificationEmail ? null : (
+          <p className="text-sm leading-6 text-[var(--muted)]">
+            {t("builder.notifyOnResponseMissingEmail")}{" "}
+            <Link
+              href="/settings?section=profile"
+              className="font-medium text-[var(--ink)] underline underline-offset-4"
+            >
+              {t("builder.notifyOnResponseOpenSettings")}
+            </Link>
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.appearance")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.appearanceDescription")}
+          </p>
+        </div>
+
+        <div className="grid gap-2 text-sm text-[var(--muted)]">
+          <span className="font-medium text-[var(--ink)]">
+            {t("builder.respondentLanguage")}
+          </span>
+          <Select
+            value={metadataDraft.respondentLocale ?? "visitor"}
+            onValueChange={(value) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                respondentLocale:
+                  value === "visitor" ? null : (value as AppLocale),
+              }))
+            }
+          >
+            <SelectTrigger className="h-11 px-4 text-sm font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="visitor">
+                {t("builder.respondentLanguageOptions.visitor")}
+              </SelectItem>
+              {supportedLocales.map((localeOption) => (
+                <SelectItem key={localeOption} value={localeOption}>
+                  {t(`settings.profile.localeOptions.${localeOption}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-[var(--muted)]">
+            {t("builder.respondentLanguageHelp")}
+          </span>
+        </div>
+
+        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+          <Checkbox
+            checked={metadataDraft.showProgress}
+            onChange={(event) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                showProgress: event.target.checked,
+              }))
+            }
+          />
+          <div className="grid gap-1">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.showProgress")}
+            </span>
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.showProgressHelp")}
+            </span>
+          </div>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+          <Checkbox
+            checked={metadataDraft.allowBackNavigation}
+            onChange={(event) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                allowBackNavigation: event.target.checked,
+              }))
+            }
+          />
+          <div className="grid gap-1">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.allowBackNavigation")}
+            </span>
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.allowBackNavigationHelp")}
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.webhook")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.webhookDescription")}
+          </p>
+        </div>
+
+        <div className="grid gap-5">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.webhookUrl")}
+            </span>
+            <Input
+              value={metadataDraft.webhookUrl}
+              placeholder={t("builder.webhookUrlPlaceholder")}
+              onChange={(event) =>
+                setMetadataDraft((current) => ({
+                  ...current,
+                  webhookUrl: event.target.value,
+                }))
+              }
+            />
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.webhookUrlHelp")}
+            </span>
+          </label>
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.webhookSecret")}
+            </span>
+            <Input
+              value={metadataDraft.webhookSecret}
+              autoComplete="off"
+              onChange={(event) =>
+                setMetadataDraft((current) => ({
+                  ...current,
+                  webhookSecret: event.target.value,
+                }))
+              }
+            />
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.webhookSecretHelp")}
             </span>
           </label>
         </div>

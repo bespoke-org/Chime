@@ -457,22 +457,33 @@ export function FormBuilder({
     }
   }
 
+  function patchMetadata(draft: FormMetadataDraft) {
+    return fetchJson<{ form: BuilderForm }>(`/api/forms/${form.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...draft,
+        closesAt: fromDateTimeLocalValue(draft.closesAt),
+        maxResponses: parseMaxResponsesDraft(draft.maxResponses),
+      }),
+    });
+  }
+
   async function saveMetadata() {
     await withTask("metadata", async () => {
-      const payload = await fetchJson<{ form: BuilderForm }>(
-        `/api/forms/${form.id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            ...metadataDraft,
-            closesAt: fromDateTimeLocalValue(metadataDraft.closesAt),
-            maxResponses: parseMaxResponsesDraft(metadataDraft.maxResponses),
-          }),
-        },
-      );
+      const payload = await patchMetadata(metadataDraft);
 
       setForm(payload.form);
       showToast(t("builder.toasts.savedFormSettings"));
+    });
+  }
+
+  async function renameForm(title: string) {
+    await withTask("rename", async () => {
+      const payload = await patchMetadata({ ...metadataDraft, title });
+
+      setForm(payload.form);
+      setMetadataDraft((current) => ({ ...current, title }));
+      showToast(t("builder.toasts.renamedForm"));
     });
   }
 
@@ -930,6 +941,7 @@ export function FormBuilder({
             onPublish={() => setPublished(true)}
             onUnpublish={requestUnpublish}
             onCopyShareLink={copyShareLink}
+            onRenameForm={renameForm}
           />
         )}
 

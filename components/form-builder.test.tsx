@@ -420,7 +420,7 @@ describe("FormBuilder", () => {
       expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
     });
 
-    fireEvent.click(view.getAllByRole("checkbox")[1] as HTMLInputElement);
+    fireEvent.click(view.getByLabelText(/Allow going back/));
     fireEvent.click(view.getByRole("button", { name: "Save form settings" }));
 
     await waitFor(() => {
@@ -463,9 +463,9 @@ describe("FormBuilder", () => {
       expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
     });
 
-    expect((view.getAllByRole("checkbox")[1] as HTMLInputElement).checked).toBe(
-      false,
-    );
+    expect(
+      (view.getByLabelText(/Allow going back/) as HTMLInputElement).checked,
+    ).toBe(false);
 
     await cleanupAndRestore(restoreDom);
   });
@@ -928,6 +928,61 @@ describe("FormBuilder", () => {
     globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);
   });
+  test("renames the form from the header and saves the title with the other metadata", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const form = createForm([firstBlock]);
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({ form: { ...form, title: "Renamed form" } }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(form);
+
+    fireEvent.click(view.getByRole("button", { name: "builder.editTitle" }));
+    const titleInput = view.getByLabelText(
+      "builder.editTitle",
+    ) as HTMLInputElement;
+    expect(titleInput.value).toBe("Form title");
+
+    typeIntoInput(titleInput, "Renamed form");
+    fireEvent.keyDown(titleInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1");
+    expect(fetchCalls[0]?.init?.method).toBe("PATCH");
+    expect(fetchCalls[0]?.init?.body).toContain('"title":"Renamed form"');
+    expect(fetchCalls[0]?.init?.body).toContain('"slug":"demo-form"');
+    expect(fetchCalls[0]?.init?.body).toContain('"completionTitle":"Done"');
+
+    await waitFor(() => {
+      expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+        "Renamed form",
+      );
+    });
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
   test("edits rating labels in the block panel and saves them with the scale", async () => {
     const restoreDom = installTestDom();
     const ratingBlock = createBlock({

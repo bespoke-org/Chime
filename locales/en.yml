@@ -159,7 +159,7 @@ builder:
   graphLinearRoute: Next
   graphDefaultRoute: Default
   settingsTitle: Settings
-  titleField: Title
+  editTitle: Edit title
   shareSlug: Public URL address
   afterSubmission: After submission
   afterSubmissionDescription: Customize what respondents see after they finish the form, including an optional next-step link.
@@ -182,7 +182,7 @@ builder:
   allowBackNavigation: Allow going back to previous steps
   allowBackNavigationHelp: Let respondents return to earlier visited steps in the public form runner.
   webhook: Webhook
-  webhookDescription: Send every new response to your own endpoint as soon as it is stored.
+  webhookDescription: Send a POST request to your server for each new response.
   webhookUrl: Webhook URL
   webhookUrlPlaceholder: https://example.com/hooks/lively-forms
   webhookUrlHelp: A public https:// address. We POST a JSON body with the form, response id, and answers. Addresses on private networks are rejected.
@@ -317,6 +317,7 @@ builder:
   toasts:
     genericError: Something went wrong.
     savedFormSettings: Saved form settings
+    renamedForm: Title updated
     addedBlock: "Added {type}"
     savedBlock: Saved block
     removedBlock: Removed block
