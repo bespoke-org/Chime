@@ -5,7 +5,7 @@ This document covers day-to-day local development for Lively Forms.
 ## Prerequisites
 
 - Bun
-- Podman + Podman Compose
+- Podman + Podman Compose, or Docker with Compose
 - PostgreSQL container support via `compose.yaml`
 - ATProto OAuth/client metadata for creator sign-in during local development
 
@@ -104,9 +104,10 @@ bun run hooks:install
 
 Notes:
 
-- The pre-commit hook runs `bun run check`, which includes formatting, linting, type-checking, and a production build.
+- The pre-commit hook runs `bun run check`, which includes formatting, unit tests, linting, type-checking, and a production build.
 - `bun run build` also validates translation resources before the Next.js build.
-- There is currently no separate test suite command in `package.json`.
+- `bun test` runs the unit tests, `bun run test:e2e` runs the Playwright tests in `e2e/`.
+- `bun run deploy` runs `scripts/deploy.sh`, which ships the working tree to the stage host over ssh.
 
 ## Important directories
 

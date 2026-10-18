@@ -14,6 +14,8 @@ ATPROTO_PUBLIC_URL="http://127.0.0.1:3000"
 ATPROTO_CLIENT_ID="http://localhost?redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fapi%2Fauth%2Fatproto%2Fcallback&scope=atproto%20transition%3Ageneric"
 ATPROTO_REDIRECT_URI="http://127.0.0.1:3000/api/auth/atproto/callback"
 ATPROTO_CLIENT_NAME="Lively Forms"
+# Optional, defaults to "atproto transition:generic"
+# ATPROTO_SCOPE="atproto transition:generic"
 ```
 
 Generate a strong auth secret, for example:

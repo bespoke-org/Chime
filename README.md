@@ -1,13 +1,7 @@
 <h1 align="center">
-  <img src="https://codeberg.org/chernigin/lively-forms/raw/branch/main/public/sproute.png" alt="Lively Forms icon" width="64" height="64" align="center">
+  <img src="public/sproute.png" alt="Lively Forms icon" width="64" height="64" align="center">
   Lively Forms
 </h1>
-
-<p align="center">
-  <a href="https://codeberg.org/chernigin/lively-forms/actions?workflow=ci.yml&actor=0&status=0">
-    <img src="https://codeberg.org/chernigin/lively-forms/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status">
-  </a>
-</p>
 
 Lively Forms is a conversational form builder inspired by Typeform. It lets creators build multi-step forms, publish them publicly, collect anonymous responses, and review/export submissions across personal or shared organization workspaces.
 
@@ -30,7 +24,7 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - dnd-kit
 - Framer Motion
 - Bun for package management
-- Podman Compose for local Postgres
+- Podman Compose or Docker Compose for local Postgres
 
 ## Quick start
 
