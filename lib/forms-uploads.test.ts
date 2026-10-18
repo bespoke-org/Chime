@@ -18,6 +18,8 @@ let createdResponses: Array<Record<string, unknown>> = [];
 let updateManyCalls: Array<Record<string, unknown>> = [];
 let headSizes: Record<string, number | null> = {};
 let headCalls: string[] = [];
+let deletedKeys: string[] = [];
+let deletedForms: string[] = [];
 
 const { mock } = (await import("bun:test")) as unknown as {
   mock: {
@@ -30,6 +32,10 @@ mock.module("server-only", () => ({}));
 const dbMock = {
   form: {
     findFirst: async () => currentForm,
+    delete: async (args: { where: { id: string } }) => {
+      deletedForms.push(args.where.id);
+      deletedKeys.push("<db>");
+    },
   },
   response: {
     count: async () => 0,
@@ -43,8 +49,14 @@ const dbMock = {
     },
   },
   upload: {
-    findMany: async (args: { where: { id: { in: string[] } } }) =>
-      uploads.filter((upload) => args.where.id.in.includes(upload.id)),
+    findMany: async (args: {
+      where: { id?: { in: string[] }; formId?: string };
+    }) =>
+      uploads.filter((upload) =>
+        args.where.id
+          ? args.where.id.in.includes(upload.id)
+          : upload.formId === args.where.formId,
+      ),
     findFirst: async (args: {
       where: { id: string; formId: string; status: string };
     }) =>
@@ -88,6 +100,7 @@ mock.module("@/lib/db", () => ({ db: dbMock }));
 
 const {
   createAnonymousResponse,
+  deleteOwnedForm,
   getOwnedUploadDownloadUrl,
   requestAnonymousUpload,
 } = await import("@/lib/forms");
@@ -103,7 +116,9 @@ setObjectStorage({
     const size = headSizes[key];
     return typeof size === "number" ? { size, contentType: "x" } : null;
   },
-  deleteObject: async () => {},
+  deleteObject: async (key) => {
+    deletedKeys.push(key);
+  },
 });
 
 function block(id: string, type: string, config: Record<string, unknown>) {
@@ -157,6 +172,8 @@ function reset(upload: UploadRecord | null, headSize: number | null) {
   updateManyCalls = [];
   headSizes = upload ? { [upload.key]: headSize } : {};
   headCalls = [];
+  deletedKeys = [];
+  deletedForms = [];
 }
 
 async function submit(uploadId = "up-1") {
@@ -309,6 +326,24 @@ describe("getOwnedUploadDownloadUrl", () => {
 
     expect(await getOwnedUploadDownloadUrl("owner", "form-1", "up-1")).toBe(
       "https://files.example/forms/form-1/file/up-1/cv.pdf?get&name=cv.pdf",
+    );
+  });
+});
+
+describe("deleteOwnedForm", () => {
+  test("removes the form's objects after the row is gone", async () => {
+    reset(pendingUpload(), MB);
+    uploads.push(
+      pendingUpload({ id: "up-2", key: "forms/form-1/file/up-2/photo.png" }),
+      pendingUpload({ id: "up-3", formId: "form-2", key: "forms/form-2/x" }),
+    );
+    currentForm = { ...currentForm, blocks: [], user: {}, organization: null };
+
+    await deleteOwnedForm("owner", "form-1");
+
+    expect(deletedForms.join(",")).toBe("form-1");
+    expect(deletedKeys.join(",")).toBe(
+      "<db>,forms/form-1/file/up-1/cv.pdf,forms/form-1/file/up-2/photo.png",
     );
   });
 });

@@ -1,15 +1,14 @@
 // Deletes pending uploads older than a day from storage and the database.
 // Run it from cron, for example hourly: `bun run uploads:cleanup`.
 import { db } from "../lib/db";
-import { getObjectStorage } from "../lib/object-storage";
+import { isObjectStorageConfigured } from "../lib/object-storage";
+import { deleteStoredObjects } from "../lib/upload-cleanup";
 import {
   isExpiredPendingUpload,
   UPLOAD_PENDING_MAX_AGE_MS,
 } from "../lib/uploads";
 
-const storage = getObjectStorage();
-
-if (!storage) {
+if (!isObjectStorageConfigured()) {
   console.error("Object storage is not configured (S3_* variables).");
   process.exit(1);
 }
@@ -24,17 +23,24 @@ const candidates = await db.upload.findMany({
   take: 1000,
 });
 
+const expired = candidates.filter((upload) =>
+  isExpiredPendingUpload(upload, now),
+);
+
 let removed = 0;
 
-for (const upload of candidates) {
-  if (!isExpiredPendingUpload(upload, now)) {
+for (const upload of expired) {
+  const { failed } = await deleteStoredObjects([upload.key]);
+
+  if (failed > 0) {
     continue;
   }
 
-  await storage.deleteObject(upload.key);
   await db.upload.delete({ where: { id: upload.id } });
   removed += 1;
 }
 
-console.log(`Removed ${removed} pending upload(s).`);
+console.log(
+  `Removed ${removed} of ${expired.length} expired pending upload(s).`,
+);
 await db.$disconnect();

@@ -7,6 +7,7 @@ import type {
   OrganizationMemberSummary,
   OrganizationSettingsSummary,
 } from "@/lib/form-types";
+import { removeUploadsFor } from "@/lib/upload-cleanup";
 import {
   assertOrganizationMember,
   assertOrganizationOwner,
@@ -154,8 +155,10 @@ export async function deleteOrganization(
 ) {
   await assertOrganizationOwner(userId, organizationId);
 
-  await db.organization.delete({
-    where: { id: organizationId },
+  await removeUploadsFor({ organizationId }, async () => {
+    await db.organization.delete({
+      where: { id: organizationId },
+    });
   });
 }
 

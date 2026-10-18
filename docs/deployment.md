@@ -25,6 +25,7 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # OIDC_CLIENT_ID=""
 # OIDC_CLIENT_SECRET=""
 # OIDC_PROVIDER_NAME="SSO"               # sign-in button label
+# OIDC_PROVIDER_ICON_URL=""              # optional monochrome SVG shown on the button
 # OIDC_SCOPE="openid profile email"
 # Optional public submission limits, defaults shown
 # SUBMISSION_RATE_LIMIT=5            # submissions per form per client IP per window
@@ -112,7 +113,7 @@ Put the client id and secret into `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
 
 ### OpenID Connect (Keycloak)
 
-`OIDC_ISSUER` is the issuer URL, for example `https://auth.example.com/realms/master`; the app reads `<issuer>/.well-known/openid-configuration` at the first sign-in, so the issuer must be reachable from the server. The provider must support the authorization code flow with PKCE (S256) and the scopes in `OIDC_SCOPE` (default `openid profile email`). `OIDC_PROVIDER_NAME` is the label on the sign-in button ("Continue with SSO" by default). The callback path is `/api/auth/callback/oidc`.
+`OIDC_ISSUER` is the issuer URL, for example `https://auth.example.com/realms/master`; the app reads `<issuer>/.well-known/openid-configuration` at the first sign-in, so the issuer must be reachable from the server. The provider must support the authorization code flow with PKCE (S256) and the scopes in `OIDC_SCOPE` (default `openid profile email`). `OIDC_PROVIDER_NAME` is the label on the sign-in button ("Continue with SSO" by default) and `OIDC_PROVIDER_ICON_URL` an optional URL of a monochrome SVG rendered next to it in the text color. The callback path is `/api/auth/callback/oidc`.
 
 In Keycloak create a client in the realm:
 
@@ -273,7 +274,7 @@ Uploads that were requested but never attached to a response stay `PENDING`. Rem
 0 * * * * cd /opt/lively-forms && set -a && . ./.env && set +a && bun run uploads:cleanup
 ```
 
-The script deletes pending uploads older than 24 hours in batches of 1000. Deleting a form cascades to its upload rows but not to the objects in storage; remove those with the bucket's own tooling if needed.
+The script deletes pending uploads older than 24 hours in batches of 1000. Deleting a form, a file block or an organization removes the objects of its uploads from storage after the rows are gone; a failed object delete is logged and does not fail the request. Responses cannot be deleted individually, so their files stay with the form.
 
 ## Notes
 

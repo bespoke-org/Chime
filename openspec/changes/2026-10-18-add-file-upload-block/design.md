@@ -12,7 +12,7 @@ Question blocks are threaded through the system by their `FormBlockType` value (
 
 **Non-Goals:**
 - Several files per block, image previews, virus scanning or content sniffing.
-- Deleting objects when a form or response is deleted.
+- Deleting objects when a single response is deleted (responses are not individually deletable).
 - Public or respondent-facing downloads after submission.
 
 ## Decisions
@@ -43,6 +43,8 @@ The pure parts (matching answers to blocks and limits, the accept or reject deci
 ### 6. Cleanup from cron
 `scripts/cleanup-uploads.ts` deletes `PENDING` uploads older than 24 hours from storage and the database, 1000 per run. The selection rule is a pure function with tests. No in-process scheduler: the app is one request-driven process, and a cron line is simpler to reason about and to run again after a failure.
 
+When a form, a file block or an organization is deleted, `lib/upload-cleanup.ts` reads the keys of the affected uploads first, lets the caller run its database delete (the rows cascade), then deletes the objects one by one. A failed object delete is logged with a count, never with the key, and does not fail the request; when storage is not configured the step is skipped. The same `deleteStoredObjects` is used by the cron script.
+
 ### 7. Runner keeps filenames in memory only
 The runner stores the upload id like any string answer, so draft persistence needs no change. The filename shown next to the remove button is kept in component state; after a restored draft the control says "File attached" without the name. Removing a file only clears the answer; the pending upload is left for cleanup.
 
@@ -50,7 +52,7 @@ The runner stores the upload id like any string answer, so draft persistence nee
 
 - [Content type is client-declared] → Denylist, attachment disposition and no inline rendering anywhere in the app. Sniffing would need the bytes to pass through the app.
 - [Public endpoint can fill storage with pending objects] → Per-IP rate limit, the form must be open, every object is bounded by the block limit and the deployment cap, and cleanup removes abandoned objects after a day.
-- [Deleting a form leaves objects behind] → Rows cascade; objects stay until removed with bucket tooling. Documented.
+- [Object delete fails after the rows are gone] → The request still succeeds and the failure is logged; the object stays until removed with bucket tooling.
 - [Creator sets 25 MB while the deployment cap is lower] → The browser pre-check uses the block limit; the server rejects at the cap with a message naming the effective limit.
 - [Multi-instance deployments] → The rate limiter is per process, as for submissions.
 

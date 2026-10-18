@@ -55,6 +55,7 @@ import {
 import { getMessages } from "@/lib/i18n-server";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
 import { getObjectStorage } from "@/lib/object-storage";
+import { removeUploadsFor } from "@/lib/upload-cleanup";
 import {
   buildUploadKey,
   collectFileUploadAnswers,
@@ -500,8 +501,10 @@ export async function updateOwnedFormMetadata(
 export async function deleteOwnedForm(userId: string, formId: string) {
   await assertAccessibleForm(userId, formId);
 
-  await db.form.delete({
-    where: { id: formId },
+  await removeUploadsFor({ formId }, async () => {
+    await db.form.delete({
+      where: { id: formId },
+    });
   });
 }
 
@@ -629,24 +632,26 @@ export async function deleteOwnedBlock(
     throw new AppError("Block not found.", 404);
   }
 
-  await db.$transaction(async (tx) => {
-    await tx.formBlock.delete({
-      where: { id: blockId },
-    });
+  await removeUploadsFor({ blockId }, async () => {
+    await db.$transaction(async (tx) => {
+      await tx.formBlock.delete({
+        where: { id: blockId },
+      });
 
-    const remainingBlocks = await tx.formBlock.findMany({
-      where: { formId },
-      orderBy: { position: "asc" },
-    });
+      const remainingBlocks = await tx.formBlock.findMany({
+        where: { formId },
+        orderBy: { position: "asc" },
+      });
 
-    await Promise.all(
-      remainingBlocks.map((remainingBlock, index) =>
-        tx.formBlock.update({
-          where: { id: remainingBlock.id },
-          data: { position: index },
-        }),
-      ),
-    );
+      await Promise.all(
+        remainingBlocks.map((remainingBlock, index) =>
+          tx.formBlock.update({
+            where: { id: remainingBlock.id },
+            data: { position: index },
+          }),
+        ),
+      );
+    });
   });
 }
 

@@ -90,3 +90,22 @@ The system SHALL provide `bun run uploads:cleanup`, which deletes the object and
 #### Scenario: Recent pending or attached upload
 - **WHEN** the script runs and an upload is pending for 2 hours, or attached at any age
 - **THEN** the upload is kept
+
+### Requirement: Stored objects are removed with their owner
+When a form, a file block or an organization is deleted, the system SHALL read the keys of the uploads it owns before the database delete and SHALL delete those objects from storage after the delete has committed. A failed object delete SHALL be logged without the key and SHALL NOT fail the request. When object storage is not configured, the system SHALL skip the object delete.
+
+#### Scenario: Form with uploads is deleted
+- **WHEN** a creator deletes a form that has uploads
+- **THEN** the upload rows are gone with the form and each upload's object is deleted from storage
+
+#### Scenario: Block with uploads is deleted
+- **WHEN** a creator deletes a file block that has uploads
+- **THEN** the objects of those uploads are deleted from storage
+
+#### Scenario: Organization is deleted
+- **WHEN** an owner deletes an organization
+- **THEN** the objects of every upload of the organization's forms are deleted from storage
+
+#### Scenario: Storage refuses one delete
+- **WHEN** one object cannot be deleted
+- **THEN** the remaining objects are still deleted, the failure is logged and the request succeeds
