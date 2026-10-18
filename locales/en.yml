@@ -38,6 +38,7 @@ account:
 statuses:
   draft: Draft
   published: Published
+  closed: Closed
 loading:
   page: "Loading {title}…"
   titles:
@@ -184,6 +185,20 @@ builder:
   webhookUrlHelp: A public https:// address. We POST a JSON body with the form, response id, and answers. Addresses on private networks are rejected.
   webhookSecret: Signing secret
   webhookSecretHelp: Optional. When set, each request carries an X-Lively-Forms-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
+  availability: Availability
+  availabilityDescription: Stop accepting responses at a set time, after a number of responses, or right now. Respondents then see the closed message instead of the form.
+  closesAt: Close at
+  closesAtHelp: Local time. Leave empty to keep the form open.
+  maxResponses: Response limit
+  maxResponsesHelp: The form closes once this many responses are stored. Leave empty for no limit.
+  closedManually: Close form manually
+  closedManuallyHelp: Stops accepting responses as soon as settings are saved, while the form stays published.
+  closedMessage: Closed message
+  closedMessageHelp: Shown to respondents while the form is closed.
+  closedStatus:
+    manual: "This form is closed manually. Respondents see the closed message."
+    deadline: "This form closed at {closesAt}. Respondents see the closed message."
+    cap: "This form reached its limit of {max} responses. Respondents see the closed message."
   copyLink: Copy link
   openRunner: Open runner
   deleteForm: Delete form
@@ -345,6 +360,8 @@ publicRunner:
   savedProgressDiscarded: Saved progress could not be restored.
   submitError: Could not submit response.
   tooManySubmissions: Too many submissions from your network. Please try again in a few minutes.
+  formClosed: Form closed
+  defaultClosedMessage: This form is no longer accepting responses.
   back: Back
   continue: Continue
   submit: Submit

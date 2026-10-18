@@ -120,6 +120,7 @@ function createForm(
     respondentLocale: null,
     showProgress: false,
     allowBackNavigation: true,
+    closedMessage: "",
     slug: "demo-form",
     blocks,
     ...overrides,
@@ -136,6 +137,7 @@ function renderRunner(form: PublicForm) {
           continue: "Continue",
           submit: "Submit",
           tooManySubmissions: "Slow down",
+          defaultClosedMessage: "Closed by default",
           progressRestored: "Progress restored",
           savedProgressDiscarded: "Saved progress discarded",
           defaultTextTitle: "Take a breath before the next step.",
@@ -419,6 +421,76 @@ describe("PublicFormRunner", () => {
 
     await waitFor(() => {
       expect(view.queryByText("Slow down") !== null).toBe(true);
+    });
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("shows the form's closed message on a 410 response", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async () =>
+      ({
+        ok: false,
+        status: 410,
+        json: async () => ({ error: "Gone." }),
+      }) as Response) as typeof fetch;
+
+    const view = renderRunner(
+      createForm(
+        [
+          createBlock({
+            id: "name",
+            type: "SHORT_TEXT",
+            position: 0,
+            title: "Name",
+          }),
+        ],
+        { closedMessage: "Applications are closed." },
+      ),
+    );
+
+    typeIntoInput(view.getByRole("textbox"), "Ada");
+    fireEvent.click(view.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(view.queryByText("Applications are closed.") !== null).toBe(true);
+    });
+    expect(view.queryByText("Gone.")).toBe(null);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("falls back to the default closed message on a 410 response", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async () =>
+      ({
+        ok: false,
+        status: 410,
+        json: async () => ({ error: "Gone." }),
+      }) as Response) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "name",
+          type: "SHORT_TEXT",
+          position: 0,
+          title: "Name",
+        }),
+      ]),
+    );
+
+    typeIntoInput(view.getByRole("textbox"), "Ada");
+    fireEvent.click(view.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(view.queryByText("Closed by default") !== null).toBe(true);
     });
 
     globalThis.fetch = previousFetch;

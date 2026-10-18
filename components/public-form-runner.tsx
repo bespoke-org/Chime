@@ -347,6 +347,8 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       : form.completionMessage.trim();
   const completionLinkLabel = form.completionLinkLabel?.trim() || null;
   const completionLinkUrl = form.completionLinkUrl?.trim() || null;
+  const closedMessage =
+    form.closedMessage.trim() || t("publicRunner.defaultClosedMessage");
   const allowBackNavigation = form.allowBackNavigation;
 
   function setAnswer(blockId: string, value: AnswerValue) {
@@ -579,11 +581,14 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         } catch (caughtError) {
           showToast(
             caughtError instanceof SubmitResponseError &&
-              caughtError.status === 429
-              ? t("publicRunner.tooManySubmissions")
-              : caughtError instanceof Error
-                ? caughtError.message
-                : t("publicRunner.submitError"),
+              caughtError.status === 410
+              ? closedMessage
+              : caughtError instanceof SubmitResponseError &&
+                  caughtError.status === 429
+                ? t("publicRunner.tooManySubmissions")
+                : caughtError instanceof Error
+                  ? caughtError.message
+                  : t("publicRunner.submitError"),
             "error",
           );
         } finally {
@@ -606,6 +611,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     },
     [
       answers,
+      closedMessage,
       currentBlock,
       form.blocks,
       form.slug,

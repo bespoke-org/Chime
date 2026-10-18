@@ -17,6 +17,10 @@ import {
 } from "@/lib/branching";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
+import {
+  getFormAvailability,
+  type FormAvailability,
+} from "@/lib/form-availability";
 import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
 import {
   assertReorderMatchesForm,
@@ -138,6 +142,10 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     allowBackNavigation: form.allowBackNavigation,
     webhookUrl: form.webhookUrl,
     webhookSecret: form.webhookSecret,
+    closesAt: form.closesAt ? form.closesAt.toISOString() : null,
+    maxResponses: form.maxResponses,
+    closedManually: form.closedManually,
+    closedMessage: form.closedMessage,
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -161,9 +169,27 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
       : null,
     showProgress: form.showProgress,
     allowBackNavigation: form.allowBackNavigation,
+    closedMessage: form.closedMessage,
     slug: form.slug,
     blocks: form.blocks.map(serializeBlock),
   };
+}
+
+// Counts responses only when a cap is set, so forms without one cost no
+// extra query on every public page view or submission.
+async function resolveFormAvailability(
+  form: Pick<
+    Form,
+    "id" | "status" | "closesAt" | "maxResponses" | "closedManually"
+  >,
+  now = new Date(),
+): Promise<FormAvailability> {
+  const responseCount =
+    form.maxResponses === null
+      ? 0
+      : await db.response.count({ where: { formId: form.id } });
+
+  return getFormAvailability(form, responseCount, now);
 }
 
 const defaultFormCopyByLocale: Record<
@@ -345,12 +371,15 @@ export async function listFormsForWorkspace(
     },
   });
 
+  const now = new Date();
+
   return forms.map((form) => ({
     id: form.id,
     title: form.title,
     description: form.description,
     slug: form.slug,
     status: form.status,
+    closed: !getFormAvailability(form, form._count.responses, now).open,
     updatedAt: form.updatedAt.toISOString(),
     responseCount: form._count.responses,
     workspace: toWorkspaceReference(form),
@@ -612,7 +641,10 @@ export async function getPublicFormBySlug(slug: string) {
     return null;
   }
 
-  return toPublicForm(form);
+  return {
+    form: toPublicForm(form),
+    availability: await resolveFormAvailability(form),
+  };
 }
 
 export async function createAnonymousResponse(slug: string, payload: unknown) {
@@ -639,6 +671,14 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     form.blocks.map(serializeBlock),
     answersInput,
   );
+
+  // Checked right before the insert. Two submissions that both pass the
+  // count can still exceed the cap by one; that is accepted.
+  const availability = await resolveFormAvailability(form);
+
+  if (!availability.open) {
+    throw new AppError("This form is no longer accepting responses.", 410);
+  }
 
   const response = await db.response.create({
     data: {

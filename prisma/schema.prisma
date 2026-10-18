@@ -118,6 +118,10 @@ model Form {
   allowBackNavigation Boolean       @default(true)
   webhookUrl          String?
   webhookSecret       String?
+  closesAt            DateTime?
+  maxResponses        Int?
+  closedManually      Boolean       @default(false)
+  closedMessage       String        @default("")
   slug                String        @unique
   status              FormStatus    @default(DRAFT)
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)

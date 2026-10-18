@@ -64,8 +64,11 @@ import {
 import {
   createBranchRuleDrafts,
   createChoiceOptionDrafts,
+  fromDateTimeLocalValue,
   hasBuilderBlockDraftChanges,
+  parseMaxResponsesDraft,
   serializeBranchRuleDrafts,
+  toDateTimeLocalValue,
   type BranchRuleDraft,
   type ChoiceOptionDraft,
 } from "@/lib/form-builder-drafts";
@@ -292,6 +295,11 @@ export function FormBuilder({
     allowBackNavigation: initialForm.allowBackNavigation,
     webhookUrl: initialForm.webhookUrl ?? "",
     webhookSecret: initialForm.webhookSecret ?? "",
+    closesAt: toDateTimeLocalValue(initialForm.closesAt),
+    maxResponses:
+      initialForm.maxResponses === null ? "" : String(initialForm.maxResponses),
+    closedManually: initialForm.closedManually,
+    closedMessage: initialForm.closedMessage,
     slug: initialForm.slug,
   });
 
@@ -386,6 +394,10 @@ export function FormBuilder({
       allowBackNavigation: form.allowBackNavigation,
       webhookUrl: form.webhookUrl ?? "",
       webhookSecret: form.webhookSecret ?? "",
+      closesAt: toDateTimeLocalValue(form.closesAt),
+      maxResponses: form.maxResponses === null ? "" : String(form.maxResponses),
+      closedManually: form.closedManually,
+      closedMessage: form.closedMessage,
       slug: form.slug,
     });
   }, [
@@ -399,6 +411,10 @@ export function FormBuilder({
     form.allowBackNavigation,
     form.webhookUrl,
     form.webhookSecret,
+    form.closesAt,
+    form.maxResponses,
+    form.closedManually,
+    form.closedMessage,
     form.slug,
   ]);
 
@@ -469,7 +485,11 @@ export function FormBuilder({
         `/api/forms/${form.id}`,
         {
           method: "PATCH",
-          body: JSON.stringify(metadataDraft),
+          body: JSON.stringify({
+            ...metadataDraft,
+            closesAt: fromDateTimeLocalValue(metadataDraft.closesAt),
+            maxResponses: parseMaxResponsesDraft(metadataDraft.maxResponses),
+          }),
         },
       );
 
@@ -1084,6 +1104,7 @@ export function FormBuilder({
             <section className="min-w-0 border-t border-[color:var(--line)] pt-6 lg:min-h-full lg:border-t-0 lg:pt-0">
               {selection.kind === "form" ? (
                 <FormSettingsPanel
+                  form={form}
                   metadataDraft={metadataDraft}
                   setMetadataDraft={setMetadataDraft}
                   shareHref={shareHref}

@@ -50,6 +50,10 @@ export type BuilderForm = {
   allowBackNavigation: boolean;
   webhookUrl: string | null;
   webhookSecret: string | null;
+  closesAt: string | null;
+  maxResponses: number | null;
+  closedManually: boolean;
+  closedMessage: string;
   slug: string;
   status: FormStatus;
   updatedAt: string;
@@ -69,6 +73,7 @@ export type PublicForm = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
+  closedMessage: string;
   slug: string;
   blocks: PublicBlock[];
 };
@@ -79,6 +84,7 @@ export type FormListItem = {
   description: string;
   slug: string;
   status: FormStatus;
+  closed: boolean;
   updatedAt: string;
   responseCount: number;
   workspace: WorkspaceReference;

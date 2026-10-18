@@ -93,6 +93,7 @@ const form: PublicForm = {
   respondentLocale: "en",
   showProgress: true,
   allowBackNavigation: true,
+  closedMessage: "",
   slug: "focus-demo",
   blocks,
 };

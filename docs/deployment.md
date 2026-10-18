@@ -176,6 +176,12 @@ Delivery waits up to 5 seconds for an answer. On a network error, a timeout, or 
 
 Webhook URLs must use `http` or `https` without credentials and must not point at loopback, private, link-local, or unspecified addresses (`localhost`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `0.0.0.0`, `::1`, IPv4-mapped forms of these) or at `.local` and `.internal` hostnames. The check is made on the URL as written; it does not resolve DNS.
 
+## Form closing
+
+A published form can stop accepting responses by a closing time, a response limit, or a manual switch in its settings. Respondents who open a closed form see its title and the closed message instead of the questions, and a submission to a closed form is answered with `410` and `{ "error": "This form is no longer accepting responses." }`. Unpublished forms keep answering `404`.
+
+The closing time is stored in UTC and compared against the server clock, so the server's time must be correct. The response limit is checked by counting stored responses right before the insert without a lock; two submissions arriving at the same moment can exceed the limit by one.
+
 ## Notes
 
 - The build runs translation validation before Next.js production build.

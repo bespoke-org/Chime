@@ -142,3 +142,39 @@ export function hasBuilderBlockDraftChanges(args: {
     )
   );
 }
+
+function padTwo(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+// <input type="datetime-local"> works in the creator's local time without a
+// zone, so the stored UTC instant is rendered and read back through Date.
+export function toDateTimeLocalValue(iso: string | null) {
+  if (!iso) {
+    return "";
+  }
+
+  const date = new Date(iso);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${padTwo(date.getMonth() + 1)}-${padTwo(date.getDate())}T${padTwo(date.getHours())}:${padTwo(date.getMinutes())}`;
+}
+
+export function fromDateTimeLocalValue(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+export function parseMaxResponsesDraft(value: string) {
+  const trimmed = value.trim();
+
+  return trimmed === "" ? null : Number(trimmed);
+}

@@ -17,6 +17,22 @@ export const formMetadataSchema = z
     allowBackNavigation: z.boolean().default(true),
     webhookUrl: z.string().trim().max(2048).nullable().default(null),
     webhookSecret: z.string().trim().max(200).nullable().default(null),
+    closesAt: z
+      .string()
+      .trim()
+      .nullable()
+      .default(null)
+      .transform((value) => value || null)
+      .refine(
+        (value) => value === null || !Number.isNaN(new Date(value).getTime()),
+        { message: "Use a valid closing date and time." },
+      ),
+    maxResponses: z
+      .union([z.number().int().min(1).max(1_000_000), z.literal(""), z.null()])
+      .default(null)
+      .transform((value) => (value === "" ? null : value)),
+    closedManually: z.boolean().default(false),
+    closedMessage: z.string().trim().max(1000).default(""),
     slug: z
       .string()
       .trim()
@@ -79,6 +95,7 @@ export const formMetadataSchema = z
     allowBackNavigation: value.allowBackNavigation,
     webhookUrl: value.webhookUrl || null,
     webhookSecret: value.webhookSecret || null,
+    closesAt: value.closesAt ? new Date(value.closesAt) : null,
   }));
 
 export const createBlockSchema = z.object({

@@ -9,6 +9,9 @@ type FormRecord = {
   status: "PUBLISHED";
   webhookUrl: string | null;
   webhookSecret: string | null;
+  closesAt: Date | null;
+  maxResponses: number | null;
+  closedManually: boolean;
   blocks: Array<Record<string, unknown>>;
 };
 
@@ -70,6 +73,9 @@ function resetTestState(overrides: Partial<FormRecord> = {}) {
     status: "PUBLISHED",
     webhookUrl: null,
     webhookSecret: null,
+    closesAt: null,
+    maxResponses: null,
+    closedManually: false,
     blocks: [
       block("intro", "TEXT", "Welcome", 0),
       block("q-1", "SHORT_TEXT", "Name", 1),

@@ -69,6 +69,7 @@ import {
   type TextBlockConfig,
 } from "@/lib/blocks";
 import { type BranchValidationIssue } from "@/lib/branching";
+import { getFormAvailability } from "@/lib/form-availability";
 import {
   createChoiceOptionDraft,
   serializeChoiceOptionDrafts,
@@ -77,6 +78,7 @@ import {
 } from "@/lib/form-builder-drafts";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { supportedLocales, type AppLocale } from "@/lib/i18n";
+import { formatDate } from "@/lib/utils";
 
 export type FormMetadataDraft = {
   title: string;
@@ -89,8 +91,19 @@ export type FormMetadataDraft = {
   allowBackNavigation: boolean;
   webhookUrl: string;
   webhookSecret: string;
+  closesAt: string;
+  maxResponses: string;
+  closedManually: boolean;
+  closedMessage: string;
   slug: string;
 };
+
+function useFormAvailability(form: BuilderForm) {
+  return React.useMemo(
+    () => getFormAvailability(form, form.responseCount, new Date()),
+    [form],
+  );
+}
 
 export function BuilderHeader({
   form,
@@ -120,6 +133,7 @@ export function BuilderHeader({
     React.useState(false);
   const isPublished = form.status === "PUBLISHED";
   const isPublishBusy = busy === "publish";
+  const availability = useFormAvailability(form);
 
   return (
     <section className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -128,7 +142,7 @@ export function BuilderHeader({
           <h1 className="font-display text-4xl text-[var(--ink)]">
             {form.title}
           </h1>
-          <FormStatusBadge status={form.status} />
+          <FormStatusBadge status={form.status} closed={!availability.open} />
         </div>
         <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
           {workspaceLabel}
@@ -219,7 +233,35 @@ export function BuilderHeader({
   );
 }
 
+function FormClosedStatusLine({ form }: { form: BuilderForm }) {
+  const { t, locale } = useI18n();
+  const availability = useFormAvailability(form);
+
+  if (availability.open || availability.reason === "unpublished") {
+    return null;
+  }
+
+  const message =
+    availability.reason === "deadline"
+      ? t("builder.closedStatus.deadline", {
+          closesAt: form.closesAt ? formatDate(form.closesAt, locale) : "",
+        })
+      : availability.reason === "cap"
+        ? t("builder.closedStatus.cap", { max: form.maxResponses ?? 0 })
+        : t("builder.closedStatus.manual");
+
+  return (
+    <p
+      role="status"
+      className="rounded-[12px] border border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-4 py-3 text-sm leading-6 text-[var(--ink)]"
+    >
+      {message}
+    </p>
+  );
+}
+
 export function FormSettingsPanel({
+  form,
   metadataDraft,
   setMetadataDraft,
   shareHref,
@@ -228,6 +270,7 @@ export function FormSettingsPanel({
   saveMetadata,
   busy,
 }: {
+  form: BuilderForm;
   metadataDraft: FormMetadataDraft;
   setMetadataDraft: Dispatch<SetStateAction<FormMetadataDraft>>;
   shareHref: string;
@@ -511,6 +554,103 @@ export function FormSettingsPanel({
             />
             <span className="text-xs text-[var(--muted)]">
               {t("builder.webhookSecretHelp")}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.availability")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.availabilityDescription")}
+          </p>
+        </div>
+
+        <FormClosedStatusLine form={form} />
+
+        <div className="grid gap-5">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]">
+                {t("builder.closesAt")}
+              </span>
+              <Input
+                type="datetime-local"
+                value={metadataDraft.closesAt}
+                onChange={(event) =>
+                  setMetadataDraft((current) => ({
+                    ...current,
+                    closesAt: event.target.value,
+                  }))
+                }
+              />
+              <span className="text-xs text-[var(--muted)]">
+                {t("builder.closesAtHelp")}
+              </span>
+            </label>
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]">
+                {t("builder.maxResponses")}
+              </span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={1_000_000}
+                step={1}
+                value={metadataDraft.maxResponses}
+                onChange={(event) =>
+                  setMetadataDraft((current) => ({
+                    ...current,
+                    maxResponses: event.target.value,
+                  }))
+                }
+              />
+              <span className="text-xs text-[var(--muted)]">
+                {t("builder.maxResponsesHelp")}
+              </span>
+            </label>
+          </div>
+
+          <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+            <Checkbox
+              checked={metadataDraft.closedManually}
+              onChange={(event) =>
+                setMetadataDraft((current) => ({
+                  ...current,
+                  closedManually: event.target.checked,
+                }))
+              }
+            />
+            <div className="grid gap-1">
+              <span className="font-medium text-[var(--ink)]">
+                {t("builder.closedManually")}
+              </span>
+              <span className="text-xs text-[var(--muted)]">
+                {t("builder.closedManuallyHelp")}
+              </span>
+            </div>
+          </label>
+
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.closedMessage")}
+            </span>
+            <Textarea
+              value={metadataDraft.closedMessage}
+              placeholder={t("publicRunner.defaultClosedMessage")}
+              onChange={(event) =>
+                setMetadataDraft((current) => ({
+                  ...current,
+                  closedMessage: event.target.value,
+                }))
+              }
+            />
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.closedMessageHelp")}
             </span>
           </label>
         </div>

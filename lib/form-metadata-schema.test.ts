@@ -279,3 +279,64 @@ describe("formMetadataSchema", () => {
     expect(parsed.allowBackNavigation).toBe(false);
   });
 });
+
+describe("formMetadataSchema closing", () => {
+  test("defaults to no closing rules", () => {
+    const parsed = metadata({});
+
+    expect(parsed.closesAt).toBe(null);
+    expect(parsed.maxResponses).toBe(null);
+    expect(parsed.closedManually).toBe(false);
+    expect(parsed.closedMessage).toBe("");
+  });
+
+  test("turns empty strings into null", () => {
+    const parsed = metadata({ closesAt: "  ", maxResponses: "" });
+
+    expect(parsed.closesAt).toBe(null);
+    expect(parsed.maxResponses).toBe(null);
+  });
+
+  test("parses a valid ISO closing time into a Date, past dates included", () => {
+    const future = metadata({ closesAt: "2030-01-01T10:00:00.000Z" }).closesAt;
+    const past = metadata({ closesAt: "2000-01-01T10:00:00.000Z" }).closesAt;
+
+    expect(future instanceof Date).toBe(true);
+    expect(future?.toISOString()).toBe("2030-01-01T10:00:00.000Z");
+    expect(past?.toISOString()).toBe("2000-01-01T10:00:00.000Z");
+  });
+
+  test("rejects an unparsable closing time", () => {
+    expect(throws(() => metadata({ closesAt: "tomorrow" }))).toBe(true);
+    expect(throws(() => metadata({ closesAt: "2030-13-45" }))).toBe(true);
+  });
+
+  test("accepts response caps between 1 and 1,000,000", () => {
+    expect(metadata({ maxResponses: 1 }).maxResponses).toBe(1);
+    expect(metadata({ maxResponses: 1_000_000 }).maxResponses).toBe(1_000_000);
+  });
+
+  test("rejects zero, negative, fractional, string, and oversized caps", () => {
+    for (const maxResponses of [0, -1, 1.5, "10", 1_000_001]) {
+      expect(throws(() => metadata({ maxResponses }))).toBe(true);
+    }
+  });
+
+  test("trims the closed message and caps it at 1000 characters", () => {
+    expect(metadata({ closedMessage: "  See you  " }).closedMessage).toBe(
+      "See you",
+    );
+    expect(metadata({ closedMessage: "x".repeat(1000) }).closedMessage).toBe(
+      "x".repeat(1000),
+    );
+    expect(throws(() => metadata({ closedMessage: "x".repeat(1001) }))).toBe(
+      true,
+    );
+  });
+
+  test("rejects a non-boolean closedManually value", () => {
+    expect(throws(() => metadata({ closedManually: "true" }))).toBe(true);
+    expect(throws(() => metadata({ closedManually: 1 }))).toBe(true);
+    expect(metadata({ closedManually: true }).closedManually).toBe(true);
+  });
+});

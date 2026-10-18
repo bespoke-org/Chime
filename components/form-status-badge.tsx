@@ -6,23 +6,27 @@ import { cn } from "@/lib/utils";
 
 export function FormStatusBadge({
   status,
+  closed = false,
   className,
 }: {
   status: FormStatus;
+  closed?: boolean;
   className?: string;
 }) {
   const { t } = useI18n();
+  const isClosed = status === "PUBLISHED" && closed;
 
   return (
     <Badge
       className={cn(
         "rounded-full",
         status === "PUBLISHED" &&
+          !isClosed &&
           "bg-[var(--accent-soft)] text-[var(--accent-ink)]",
         className,
       )}
     >
-      {t(`statuses.${status.toLowerCase()}`)}
+      {isClosed ? t("statuses.closed") : t(`statuses.${status.toLowerCase()}`)}
     </Badge>
   );
 }

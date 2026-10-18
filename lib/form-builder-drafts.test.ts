@@ -4,9 +4,12 @@ import {
   createBranchRuleDrafts,
   createChoiceOptionDrafts,
   createDefaultBranchRuleDraft,
+  fromDateTimeLocalValue,
   hasBuilderBlockDraftChanges,
+  parseMaxResponsesDraft,
   serializeBranchRuleDrafts,
   serializeChoiceOptionDrafts,
+  toDateTimeLocalValue,
 } from "@/lib/form-builder-drafts";
 import { getDefaultBlockConfig } from "@/lib/blocks";
 import type { BuilderBlock } from "@/lib/form-types";
@@ -148,5 +151,28 @@ describe("form builder draft helpers", () => {
         ]),
       }),
     ).toBe(true);
+  });
+});
+
+describe("closing draft helpers", () => {
+  test("round-trips a datetime-local value through ISO", () => {
+    const local = "2030-05-06T07:08";
+    const iso = fromDateTimeLocalValue(local);
+
+    expect(iso).toBe(new Date(local).toISOString());
+    expect(toDateTimeLocalValue(iso)).toBe(local);
+  });
+
+  test("maps empty and invalid values", () => {
+    expect(toDateTimeLocalValue(null)).toBe("");
+    expect(toDateTimeLocalValue("nonsense")).toBe("");
+    expect(fromDateTimeLocalValue("   ")).toBe(null);
+    expect(fromDateTimeLocalValue("nonsense")).toBe("nonsense");
+  });
+
+  test("parses the response limit draft", () => {
+    expect(parseMaxResponsesDraft("")).toBe(null);
+    expect(parseMaxResponsesDraft(" 25 ")).toBe(25);
+    expect(Number.isNaN(parseMaxResponsesDraft("abc") as number)).toBe(true);
   });
 });

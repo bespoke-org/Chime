@@ -182,7 +182,10 @@ export function DashboardFormBrowser({
                     <h2 className="font-display text-3xl text-[var(--ink)]">
                       {form.title}
                     </h2>
-                    <FormStatusBadge status={form.status} />
+                    <FormStatusBadge
+                      status={form.status}
+                      closed={form.closed}
+                    />
                   </div>
                 </div>
                 <Link href={`/forms/${form.id}/edit`}>
@@ -277,7 +280,10 @@ export function DashboardFormBrowser({
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <FormStatusBadge status={form.status} />
+                      <FormStatusBadge
+                        status={form.status}
+                        closed={form.closed}
+                      />
                     </td>
                     <td className="px-5 py-4 text-[var(--muted)]">
                       {form.responseCount}
