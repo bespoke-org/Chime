@@ -4,6 +4,11 @@ import { useState } from "react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 
 import { useI18n } from "@/components/i18n-provider";
+import {
+  signInButtonLayoutClassName,
+  signInContentClassName,
+  signInIconSlotClassName,
+} from "@/components/auth/provider-sign-in-buttons";
 import { Button } from "@/components/ui/button";
 
 export function AtprotoSignInForm() {
@@ -39,13 +44,22 @@ export function AtprotoSignInForm() {
         />
       </label>
       <input type="hidden" name="callbackUrl" value="/dashboard" />
-      <Button size="lg" type="submit" disabled={isPending} className="w-full">
-        {isPending ? (
-          <LoaderCircle className="size-4 animate-spin" />
-        ) : (
-          <ArrowRight className="size-4" />
-        )}
-        {t("auth.continueWithAtproto")}
+      <Button
+        size="lg"
+        type="submit"
+        disabled={isPending}
+        className={signInButtonLayoutClassName}
+      >
+        <span className={signInContentClassName}>
+          <span className={signInIconSlotClassName}>
+            {isPending ? (
+              <LoaderCircle className="size-5 animate-spin" />
+            ) : (
+              <ArrowRight className="size-5" />
+            )}
+          </span>
+          <span>{t("auth.continueWithAtproto")}</span>
+        </span>
       </Button>
       <p className="text-center text-xs leading-5 text-[var(--muted)] sm:text-sm">
         {t("auth.atprotoHelp")}

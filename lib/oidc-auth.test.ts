@@ -24,6 +24,7 @@ describe("getOidcConfig", () => {
         clientId: "lively-forms",
         clientSecret: "secret",
         name: "SSO",
+        iconUrl: null,
         scope: "openid profile email",
       }),
     );
@@ -203,6 +204,28 @@ describe("pickAccountColumns", () => {
           "userId",
         ].sort(),
       ),
+    );
+  });
+});
+
+describe("OIDC provider icon", () => {
+  test("passes the icon url through to the sign-in option when set", () => {
+    const [option] = getSignInProviderOptions({
+      ...oidcEnv,
+      OIDC_PROVIDER_ICON_URL: "https://example.edu/logo.svg",
+    });
+
+    expect(option?.iconUrl).toBe("https://example.edu/logo.svg");
+  });
+
+  test("omits the icon url when the variable is empty", () => {
+    const [option] = getSignInProviderOptions({
+      ...oidcEnv,
+      OIDC_PROVIDER_ICON_URL: "  ",
+    });
+
+    expect(JSON.stringify(option)).toBe(
+      JSON.stringify({ id: "oidc", label: "SSO" }),
     );
   });
 });

@@ -5,6 +5,7 @@ export type OidcConfig = {
   clientId: string;
   clientSecret: string;
   name: string;
+  iconUrl: string | null;
   scope: string;
 };
 
@@ -18,6 +19,7 @@ export type SignInProviderId = "google" | "github" | "oidc";
 export type SignInProviderOption = {
   id: SignInProviderId;
   label: string;
+  iconUrl?: string;
 };
 
 export type ExternalProfilePayload = {
@@ -50,6 +52,7 @@ export function getOidcConfig(env: Env): OidcConfig | null {
     clientId,
     clientSecret,
     name: read(env, "OIDC_PROVIDER_NAME") ?? DEFAULT_OIDC_PROVIDER_NAME,
+    iconUrl: read(env, "OIDC_PROVIDER_ICON_URL"),
     scope: read(env, "OIDC_SCOPE") ?? DEFAULT_OIDC_SCOPE,
   };
 }
@@ -87,7 +90,11 @@ export function getSignInProviderOptions(env: Env): SignInProviderOption[] {
   const oidc = getOidcConfig(env);
 
   if (oidc) {
-    options.push({ id: "oidc", label: oidc.name });
+    options.push({
+      id: "oidc",
+      label: oidc.name,
+      ...(oidc.iconUrl ? { iconUrl: oidc.iconUrl } : {}),
+    });
   }
 
   return options;

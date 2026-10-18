@@ -34,7 +34,11 @@ function getProviders(env: NodeJS.ProcessEnv): Provider[] {
   }
 
   if (github) {
-    providers.push(GitHubProvider(github));
+    // GitHub sends iss=https://github.com/login/oauth on the callback and the
+    // built-in provider does not declare an issuer, so the check would fail.
+    providers.push(
+      GitHubProvider({ ...github, issuer: "https://github.com/login/oauth" }),
+    );
   }
 
   if (oidc) {

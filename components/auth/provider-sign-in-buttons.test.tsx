@@ -90,3 +90,25 @@ describe("ProviderSignInButtons", () => {
     restoreDom();
   });
 });
+
+describe("ProviderSignInButtons icons", () => {
+  test("renders the configured icon image for a provider", () => {
+    const restoreDom = installTestDom();
+    const view = renderButtons("en", [
+      { id: "oidc", label: "SGU", iconUrl: "https://example.edu/logo.svg" },
+      { id: "github", label: "GitHub" },
+    ]);
+
+    const masked = view.container.querySelectorAll<HTMLElement>(
+      "span[aria-hidden='true'].bg-current",
+    );
+    expect(masked.length).toBe(1);
+    expect(
+      masked[0]?.style.maskImage.includes("https://example.edu/logo.svg"),
+    ).toBe(true);
+    expect(view.container.querySelectorAll("svg").length > 0).toBe(true);
+
+    cleanup();
+    restoreDom();
+  });
+});
