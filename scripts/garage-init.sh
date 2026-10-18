@@ -5,7 +5,7 @@
 # Prints the credentials to paste into .env. Safe to run again.
 set -euo pipefail
 
-CONTAINER="${GARAGE_CONTAINER:-the-forms-garage}"
+CONTAINER="${GARAGE_CONTAINER:-lively-forms-garage}"
 BUCKET="${S3_BUCKET:-lively-forms}"
 KEY_NAME="${GARAGE_KEY_NAME:-lively-forms-dev}"
 ENDPOINT="${S3_ENDPOINT:-http://127.0.0.1:3900}"

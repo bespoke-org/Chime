@@ -64,7 +64,7 @@ cd "${DEPLOY_DIR}"
 if [ ! -f .env ]; then
   AUTH_SECRET="$(openssl rand -base64 32)"
   cat > .env <<ENV
-DATABASE_URL="postgresql://the_forms:the_forms@127.0.0.1:5432/the_forms?schema=public"
+DATABASE_URL="postgresql://lively_forms:lively_forms@127.0.0.1:5432/lively_forms?schema=public"
 AUTH_SECRET="${AUTH_SECRET}"
 NEXTAUTH_URL="${PUBLIC_URL}"
 ATPROTO_PUBLIC_URL="${PUBLIC_URL}"

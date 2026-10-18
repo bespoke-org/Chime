@@ -1,25 +1,25 @@
 services:
   postgres:
     image: docker.io/library/postgres:16-alpine
-    container_name: the-forms-postgres
+    container_name: lively-forms-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: the_forms
-      POSTGRES_USER: the_forms
-      POSTGRES_PASSWORD: the_forms
+      POSTGRES_DB: lively_forms
+      POSTGRES_USER: lively_forms
+      POSTGRES_PASSWORD: lively_forms
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U the_forms -d the_forms"]
+      test: ["CMD-SHELL", "pg_isready -U lively_forms -d lively_forms"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   garage:
     image: docker.io/dxflrs/garage:v2.4.1
-    container_name: the-forms-garage
+    container_name: lively-forms-garage
     restart: unless-stopped
     ports:
       - "3900:3900"
