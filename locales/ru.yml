@@ -227,6 +227,13 @@ builder:
   ratingMinLabel: Подпись нижней границы
   ratingMaxLabel: Подпись верхней границы
   ratingHelp: Респондент выбирает одно значение на шкале. Для вопроса NPS используйте шкалу от 0 до 10.
+  fileUploadAccept: Допустимые файлы
+  fileUploadAcceptAny: Любой файл
+  fileUploadAcceptImages: Изображения
+  fileUploadAcceptDocuments: Документы
+  fileUploadMaxSize: Максимальный размер
+  fileUploadSizeMb: "{size} МБ"
+  fileUploadHelp: Респондент прикладывает один файл. Исполняемые и HTML-файлы не принимаются. Файлы хранятся в настроенном объектном хранилище, скачать их можно со страницы ответа.
   regexValidation: Проверять регулярным выражением
   regexPattern: Regex-шаблон
   regexHelp: Используйте собственный regex, чтобы ограничить формат ответа в этом текстовом вопросе.
@@ -328,6 +335,7 @@ blocks:
     AGREEMENT: Согласие
     DATE: Дата
     RATING: Оценка
+    FILE_UPLOAD: Файл
 branching:
   issueMessages:
     invalid-target: 'Правило в "{blockLabel}" ссылается на отсутствующий блок.'
@@ -357,6 +365,20 @@ publicRunner:
   numberAtLeast: "Введите число не меньше {min}."
   numberAtMost: "Введите число не больше {max}."
   ratingRequired: Выберите оценку перед продолжением.
+  fileRequired: Приложите файл перед продолжением.
+  fileInvalid: Приложенный файл не удалось проверить. Приложите его ещё раз.
+  chooseFile: Выбрать файл
+  fileHintAny: "Любой файл до {size} МБ"
+  fileHintImages: "Изображения до {size} МБ"
+  fileHintDocuments: "Документы до {size} МБ"
+  fileUploading: Загрузка…
+  fileAttached: Файл приложен
+  fileRemove: Убрать
+  fileTooLarge: "Файл больше {size} МБ."
+  fileTypeNotAllowed: Файлы этого типа здесь не принимаются.
+  fileUploadFailed: Не удалось загрузить файл. Попробуйте ещё раз.
+  fileUploadUnavailable: Загрузка файлов сейчас недоступна.
+  tooManyUploads: Слишком много загрузок из вашей сети. Попробуйте через несколько минут.
   invalidLink: Введите корректную ссылку перед продолжением.
   invalidDate: Введите корректную дату перед продолжением.
   openCalendar: Открыть календарь
@@ -400,6 +422,7 @@ responses:
   averageValue: "Среднее: {value}"
   answerList: Ответы
   open: Открыть
+  downloadFile: Скачать
 responseDetail:
   title: "Ответ №{number} · {date}"
   description: Просматривайте ответы в порядке формы.
@@ -412,6 +435,8 @@ responseDetail:
   contextTitle: Контекст
   required: Обязательно
   noAnswer: Ответ не был предоставлен.
+  downloadFile: Скачать
+  fileSize: "{size} МБ"
 responseExport:
   export: Экспорт
   exportCsv: Экспорт CSV

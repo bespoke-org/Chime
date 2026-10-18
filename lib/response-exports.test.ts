@@ -548,3 +548,40 @@ describe("rating export values", () => {
     expect(serializeExportAnswer("5", block, "ru")).toBe("5");
   });
 });
+
+describe("file upload export values", () => {
+  test("writes the download URL of the app, not the upload id", () => {
+    const form = createForm(
+      [
+        createBlock("cv", "FILE_UPLOAD", {
+          title: "CV",
+          config: { accept: "documents", maxSizeMb: 5 },
+        }),
+      ],
+      [createResponse("r1", { cv: "up1" }), createResponse("r2", {})],
+    );
+
+    const dataset = buildResponseExportDataset(
+      form,
+      "en",
+      "https://forms.example.com/",
+    );
+
+    expect(dataset.rows[0].values.cv).toBe(
+      "https://forms.example.com/api/forms/form-1/uploads/up1",
+    );
+    expect(dataset.rows[1].values.cv).toBe("");
+  });
+
+  test("serializeExportAnswer needs the form id to build the link", () => {
+    const block = serializeBlock(createBlock("cv", "FILE_UPLOAD"));
+
+    expect(
+      serializeExportAnswer("up1", block, "en", {
+        baseUrl: "https://forms.example.com",
+        formId: "form-1",
+      }),
+    ).toBe("https://forms.example.com/api/forms/form-1/uploads/up1");
+    expect(serializeExportAnswer("up1", block, "en")).toBe("up1");
+  });
+});

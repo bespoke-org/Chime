@@ -22,6 +22,12 @@ enum FormBlockType {
   AGREEMENT
   DATE
   RATING
+  FILE_UPLOAD
+}
+
+enum UploadStatus {
+  PENDING
+  ATTACHED
 }
 
 enum OrganizationMemberRole {
@@ -130,6 +136,7 @@ model Form {
   organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   blocks              FormBlock[]
   responses           Response[]
+  uploads             Upload[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -160,8 +167,28 @@ model Response {
   formSnapshotJson Json
   submittedAt      DateTime @default(now())
   form             Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  uploads          Upload[]
 
   @@index([formId, submittedAt(sort: Desc)])
+}
+
+model Upload {
+  id          String       @id @default(cuid())
+  formId      String
+  blockId     String
+  key         String       @unique
+  filename    String
+  contentType String
+  size        Int
+  status      UploadStatus @default(PENDING)
+  responseId  String?
+  form        Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
+  response    Response?    @relation(fields: [responseId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  attachedAt  DateTime?
+
+  @@index([formId, status, createdAt])
+  @@index([responseId])
 }
 
 model Organization {

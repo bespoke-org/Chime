@@ -379,7 +379,8 @@ function canUseDefaultPath(block: SerializedBlock) {
     block.type === "LONG_TEXT" ||
     isNumericAnswerBlock(block.type) ||
     block.type === "LINK" ||
-    block.type === "DATE"
+    block.type === "DATE" ||
+    block.type === "FILE_UPLOAD"
   ) {
     return !supportedRules.some((rule) => rule.operator === "is_not_empty");
   }

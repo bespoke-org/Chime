@@ -6,7 +6,7 @@ This document covers day-to-day local development for Lively Forms.
 
 - Bun
 - Podman + Podman Compose, or Docker with Compose
-- PostgreSQL container support via `compose.yaml`
+- PostgreSQL and Garage containers via `compose.yaml`
 - ATProto OAuth/client metadata for creator sign-in during local development
 
 ## Local setup
@@ -17,20 +17,25 @@ bun run hooks:install
 cp .env.example .env
 bun run db:up
 bun run prisma:migrate
+bun run storage:init
 bun run dev
 ```
 
 Open `http://127.0.0.1:3000`.
 
+`bun run storage:init` prepares the Garage container for file uploads and prints the `S3_*` lines to paste into `.env`; see [File uploads](#file-uploads).
+
 For environment variables and OAuth setup details, see [deployment.md](./deployment.md).
 
 ## Daily workflow
 
-### Start the database
+### Start the database and object storage
 
 ```bash
 bun run db:up
 ```
+
+This starts Postgres on `127.0.0.1:5432` and Garage with its S3 API on `127.0.0.1:3900`.
 
 ### Start the app
 
@@ -75,6 +80,28 @@ Open Prisma Studio:
 ```bash
 bun run prisma:studio
 ```
+
+## File uploads
+
+The `FILE_UPLOAD` block stores files in S3-compatible object storage. Locally this is [Garage](https://garagehq.deuxfleurs.fr) (`dxflrs/garage:v2.4.1` in `compose.yaml`), configured by `garage/garage.toml` as a single node with `replication_factor = 1` and a sqlite metadata store. The app only speaks the S3 API with path-style addressing, so any other S3 service works the same way.
+
+After the first `bun run db:up`:
+
+```bash
+bun run storage:init
+```
+
+The script (`scripts/garage-init.sh`) assigns the node to the layout, creates the `lively-forms` bucket and a key with read, write and owner permissions, sets a CORS rule for `http://127.0.0.1:3000` through `scripts/garage-cors.ts`, and prints the `S3_*` variables for `.env`. Running it again is harmless. Set `UPLOAD_CORS_ORIGIN` before running it if the app is served from another origin.
+
+The browser uploads straight to Garage with a presigned URL, so the origin must be allowed by the bucket's CORS rule or the PUT fails in the browser with a CORS error while `curl` succeeds.
+
+Abandoned uploads (requested but never submitted) are removed by:
+
+```bash
+bun run uploads:cleanup
+```
+
+`bun run db:reset` also wipes the Garage volumes, so `bun run storage:init` has to run again afterwards.
 
 ## Quality checks
 
@@ -124,6 +151,8 @@ Notes:
 - `lib/blocks.ts` — block types, config parsing, branch operator support
 - `lib/branching.ts` — branching resolution and validation helpers
 - `lib/forms.ts` — form loading, publish flow, submission shaping, response access
+- `lib/uploads.ts` — file upload validation, verification and cleanup rules
+- `lib/object-storage.ts` — S3 client and presigned URLs
 - `components/form-builder.tsx` — creator builder shell
 - `components/form-builder-panels.tsx` — block settings and branching controls
 - `components/public-form-runner.tsx` — public respondent flow

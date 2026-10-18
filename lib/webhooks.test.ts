@@ -344,3 +344,29 @@ describe("deliverWebhook", () => {
     expect(result.error).toBe("timeout");
   });
 });
+
+describe("buildWebhookPayload file answers", () => {
+  test("sends the download URL instead of the upload id", () => {
+    const payload = buildWebhookPayload(
+      { id: "form-1", slug: "demo", title: "Demo" },
+      {
+        id: "resp-1",
+        submittedAt: new Date("2026-10-18T10:00:00.000Z"),
+        answers: { cv: "up1" },
+      },
+      [snapshotBlock({ id: "cv", type: "FILE_UPLOAD", title: "CV" })],
+      "https://forms.example.com",
+    );
+
+    expect(JSON.stringify(payload.answers)).toBe(
+      JSON.stringify([
+        {
+          blockId: "cv",
+          type: "FILE_UPLOAD",
+          title: "CV",
+          value: "https://forms.example.com/api/forms/form-1/uploads/up1",
+        },
+      ]),
+    );
+  });
+});

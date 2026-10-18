@@ -30,6 +30,16 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # SMTP_USER="user"
 # SMTP_PASSWORD="password"
 # SMTP_SECURE=false                  # true or 1 for implicit TLS
+# Optional file uploads; without these the FILE_UPLOAD block answers 503
+# S3_ENDPOINT="http://127.0.0.1:3900"          # reached by the server
+# S3_PUBLIC_ENDPOINT="http://127.0.0.1:3900"   # reached by the browser, defaults to S3_ENDPOINT
+# S3_REGION="garage"
+# S3_BUCKET="lively-forms"
+# S3_ACCESS_KEY_ID=""
+# S3_SECRET_ACCESS_KEY=""
+# UPLOAD_MAX_SIZE_MB=25                # caps the per-block limit creators may set
+# UPLOAD_RATE_LIMIT=20                 # upload URL requests per client IP per window
+# UPLOAD_RATE_WINDOW_SECONDS=600
 ```
 
 Submission limits are counted in process memory, so they apply per app instance. The client IP is read from the first `X-Forwarded-For` entry, then `X-Real-IP`; the reverse proxy must set one of them or every respondent shares the same limit.
@@ -198,6 +208,28 @@ The response is stored and the respondent sees success regardless of the email o
 A published form can stop accepting responses by a closing time, a response limit, or a manual switch in its settings. Respondents who open a closed form see its title and the closed message instead of the questions, and a submission to a closed form is answered with `410` and `{ "error": "This form is no longer accepting responses." }`. Unpublished forms keep answering `404`.
 
 The closing time is stored in UTC and compared against the server clock, so the server's time must be correct. The response limit is checked by counting stored responses right before the insert without a lock; two submissions arriving at the same moment can exceed the limit by one.
+
+## File uploads
+
+A `FILE_UPLOAD` block lets a respondent attach one file. The browser asks the app for a presigned `PUT` URL (`POST /api/public/forms/<slug>/uploads`), sends the bytes straight to object storage, and submits the returned upload id as the answer. On submission the app checks that the id names a pending upload of that form and block, that the object exists and that its size is within the block's limit; otherwise the submission is rejected with `422`. Creators download files through `GET /api/forms/<formId>/uploads/<uploadId>`, which requires access to the form and redirects to a presigned URL valid for 5 minutes. Exports, webhooks and notification emails carry that URL in place of the answer.
+
+Storage is any S3-compatible service reached with path-style addressing. The reference setup is [Garage](https://garagehq.deuxfleurs.fr), a single binary under the AGPL; AWS S3, Ceph RGW or similar work with the same variables:
+
+- `S3_ENDPOINT` is the URL the app server uses. `S3_PUBLIC_ENDPOINT` is the URL the respondent's browser can reach and defaults to `S3_ENDPOINT`; presigned URLs are generated for it. Set both when storage is on a private network behind a reverse proxy.
+- `S3_REGION` is whatever the service expects (`garage` for Garage, `us-east-1` for AWS).
+- The key needs read and write on `S3_BUCKET`. Owner permission is only needed to set the CORS rule.
+- The bucket must have a CORS rule allowing `PUT` and `GET` from the app's origin with any request header, otherwise browsers refuse the upload. `UPLOAD_CORS_ORIGIN=https://your-domain.example bun run scripts/garage-cors.ts` sets it through the S3 API on any service.
+- `UPLOAD_MAX_SIZE_MB` (default 25) caps the per-block limit creators can choose. `UPLOAD_RATE_LIMIT` upload URL requests per client IP and `UPLOAD_RATE_WINDOW_SECONDS` work like the submission limits.
+
+Executable and HTML types (`application/x-msdownload`, `application/x-sh`, `application/x-executable`, `application/java-archive`, `application/x-msi`, `text/html`, `application/xhtml+xml`, `image/svg+xml`) are never accepted. Downloads always carry `Content-Disposition: attachment`.
+
+Uploads that were requested but never attached to a response stay `PENDING`. Remove them, with their objects, from cron:
+
+```cron
+0 * * * * cd /opt/lively-forms && set -a && . ./.env && set +a && bun run uploads:cleanup
+```
+
+The script deletes pending uploads older than 24 hours in batches of 1000. Deleting a form cascades to its upload rows but not to the objects in storage; remove those with the bucket's own tooling if needed.
 
 ## Notes
 

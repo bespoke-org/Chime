@@ -27,6 +27,7 @@ import {
   PanelRight,
   Plus,
   Radio,
+  Paperclip,
   Rows3,
   GitBranch,
   SquareCheck,
@@ -101,6 +102,7 @@ const blockIcons: Record<BlockType, typeof Type> = {
   AGREEMENT: BadgeCheck,
   DATE: CalendarDays,
   RATING: Star,
+  FILE_UPLOAD: Paperclip,
 };
 
 const blockCreationOrder: BlockType[] = [
@@ -111,6 +113,7 @@ const blockCreationOrder: BlockType[] = [
   "LINK",
   "DATE",
   "RATING",
+  "FILE_UPLOAD",
   "SINGLE_CHOICE",
   "MULTIPLE_CHOICE",
   "AGREEMENT",

@@ -57,10 +57,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   blockTypeTranslationKeys,
+  FILE_UPLOAD_ACCEPT_VALUES,
+  FILE_UPLOAD_SIZE_OPTIONS_MB,
   RATING_MAX_VALUES,
   RATING_MIN_VALUES,
   type AgreementBlockConfig,
   type BlockConfig,
+  type FileUploadBlockConfig,
   type LinkBlockConfig,
   type LongTextBlockConfig,
   type NumberBlockConfig,
@@ -775,6 +778,12 @@ function SortableChoiceOptionRow({
   );
 }
 
+const fileAcceptLabelKeys = {
+  any: "Any",
+  images: "Images",
+  documents: "Documents",
+} as const;
+
 export function BlockEditorPanel({
   allBlocks,
   blockDraft,
@@ -1182,6 +1191,68 @@ export function BlockEditorPanel({
             </div>
             <p className="text-xs text-[var(--muted)]">
               {t("builder.ratingHelp")}
+            </p>
+          </div>
+        ) : null}
+
+        {blockDraft.type === "FILE_UPLOAD" ? (
+          <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.fileUploadAccept")}
+                </span>
+                <Select
+                  value={(blockDraft.config as FileUploadBlockConfig).accept}
+                  onValueChange={(value) => updateConfig({ accept: value })}
+                >
+                  <SelectTrigger
+                    aria-label={t("builder.fileUploadAccept")}
+                    className="h-11 px-4 text-sm font-medium"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FILE_UPLOAD_ACCEPT_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {t(
+                          `builder.fileUploadAccept${fileAcceptLabelKeys[value]}`,
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.fileUploadMaxSize")}
+                </span>
+                <Select
+                  value={String(
+                    (blockDraft.config as FileUploadBlockConfig).maxSizeMb,
+                  )}
+                  onValueChange={(value) =>
+                    updateConfig({ maxSizeMb: Number(value) })
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t("builder.fileUploadMaxSize")}
+                    className="h-11 px-4 text-sm font-medium"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FILE_UPLOAD_SIZE_OPTIONS_MB.map((value) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {t("builder.fileUploadSizeMb", { size: value })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-[var(--muted)]">
+              {t("builder.fileUploadHelp")}
             </p>
           </div>
         ) : null}

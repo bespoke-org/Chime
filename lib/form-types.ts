@@ -104,6 +104,13 @@ export type ResponseDetailRouteBlock = {
   status: "visited" | "skipped";
 };
 
+export type ResponseDetailUpload = {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+};
+
 export type ResponseDetail = {
   id: string;
   submittedAt: string;
@@ -111,6 +118,7 @@ export type ResponseDetail = {
   formTitle: string;
   workspace: WorkspaceReference;
   answers: Record<string, AnswerValue>;
+  uploads: Record<string, ResponseDetailUpload>;
   blocks: SerializedBlock[];
   routeBlocks: ResponseDetailRouteBlock[];
 };

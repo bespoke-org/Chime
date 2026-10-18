@@ -13,6 +13,7 @@ import { AppError } from "@/lib/errors";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { resolveTitle, withTitle } from "@/lib/metadata";
+import { formatSizeMb } from "@/lib/uploads";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
 
 async function getResponseData(id: string, responseId: string) {
@@ -207,6 +208,30 @@ export default async function ResponseDetailPage({
                         ? t("publicRunner.agree")
                         : t("publicRunner.doNotAgree")}
                     </p>
+                  ) : block.type === "FILE_UPLOAD" ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-all text-base leading-8">
+                          {response.uploads[answer]?.filename ??
+                            t("responseDetail.noAnswer")}
+                        </p>
+                        {response.uploads[answer] ? (
+                          <p className="text-sm text-[var(--muted)]">
+                            {t("responseDetail.fileSize", {
+                              size: formatSizeMb(response.uploads[answer].size),
+                            })}
+                          </p>
+                        ) : null}
+                      </div>
+                      {response.uploads[answer] ? (
+                        <a
+                          href={`/api/forms/${id}/uploads/${answer}`}
+                          className="text-sm font-medium text-[var(--accent)] hover:underline"
+                        >
+                          {t("responseDetail.downloadFile")}
+                        </a>
+                      ) : null}
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap text-base leading-8">
                       {answer}

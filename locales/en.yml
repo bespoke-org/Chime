@@ -227,6 +227,13 @@ builder:
   ratingMinLabel: Label for the lowest value
   ratingMaxLabel: Label for the highest value
   ratingHelp: Respondents pick one value on the scale. Use 0 to 10 for an NPS question.
+  fileUploadAccept: Accepted files
+  fileUploadAcceptAny: Any file
+  fileUploadAcceptImages: Images
+  fileUploadAcceptDocuments: Documents
+  fileUploadMaxSize: Maximum size
+  fileUploadSizeMb: "{size} MB"
+  fileUploadHelp: Respondents attach one file. Executable and HTML files are never accepted. Files are stored in the configured object storage and can be downloaded from the response page.
   regexValidation: Validate with regex
   regexPattern: Regex pattern
   regexHelp: Use a custom regex to constrain accepted answers for this text question.
@@ -328,6 +335,7 @@ blocks:
     AGREEMENT: Agreement
     DATE: Date
     RATING: Rating
+    FILE_UPLOAD: File upload
 branching:
   issueMessages:
     invalid-target: 'A rule on "{blockLabel}" points to a missing block.'
@@ -357,6 +365,20 @@ publicRunner:
   numberAtLeast: "Enter a number greater than or equal to {min}."
   numberAtMost: "Enter a number less than or equal to {max}."
   ratingRequired: Choose a rating before continuing.
+  fileRequired: Attach a file before continuing.
+  fileInvalid: The attached file could not be verified. Attach it again.
+  chooseFile: Choose a file
+  fileHintAny: "Any file up to {size} MB"
+  fileHintImages: "Images up to {size} MB"
+  fileHintDocuments: "Documents up to {size} MB"
+  fileUploading: Uploading…
+  fileAttached: File attached
+  fileRemove: Remove
+  fileTooLarge: "The file is larger than {size} MB."
+  fileTypeNotAllowed: This file type is not accepted here.
+  fileUploadFailed: The file could not be uploaded. Please try again.
+  fileUploadUnavailable: File uploads are not available right now.
+  tooManyUploads: Too many uploads from your network. Please try again in a few minutes.
   invalidLink: Enter a valid link before continuing.
   invalidDate: Enter a valid date before continuing.
   openCalendar: Open calendar
@@ -400,6 +422,7 @@ responses:
   averageValue: "Average: {value}"
   answerList: Answers
   open: Open
+  downloadFile: Download
 responseDetail:
   title: "Submission #{number} · {date}"
   description: Review submitted answers in form order.
@@ -412,6 +435,8 @@ responseDetail:
   contextTitle: Context
   required: Required
   noAnswer: No answer provided.
+  downloadFile: Download
+  fileSize: "{size} MB"
 responseExport:
   export: Export
   exportCsv: Export CSV

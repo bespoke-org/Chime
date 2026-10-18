@@ -20,7 +20,8 @@ function createBlock(overrides: {
     | "NUMBER"
     | "LINK"
     | "DATE"
-    | "RATING";
+    | "RATING"
+    | "FILE_UPLOAD";
   position: number;
   title?: string;
   config?: Record<string, unknown>;
@@ -75,6 +76,14 @@ function createBlock(overrides: {
           max: 5,
           minLabel: "Poor",
           maxLabel: "Great",
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "FILE_UPLOAD":
+        return {
+          accept: "images",
+          maxSizeMb: 1,
           branchRules: [],
           defaultNextBlockId: null,
           endForm: false,
@@ -142,6 +151,15 @@ function renderRunner(form: PublicForm) {
           savedProgressDiscarded: "Saved progress discarded",
           defaultTextTitle: "Take a breath before the next step.",
           openCalendar: "Open calendar",
+          chooseFile: "Choose a file",
+          fileHintImages: "Images up to {size} MB",
+          fileTooLarge: "The file is larger than {size} MB.",
+          fileTypeNotAllowed: "This file type is not accepted here.",
+          fileAttached: "File attached",
+          fileRemove: "Remove",
+          fileUploading: "Uploading",
+          fileUploadFailed: "Upload failed",
+          fileRequired: "Attach a file before continuing.",
         },
       }}
     >
@@ -822,6 +840,188 @@ describe("PublicFormRunner", () => {
       expect(view.queryAllByRole("button", { pressed: true }).length).toBe(0);
     });
 
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("renders a file input with the accept list and rejects an oversized file without a request", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+    let fetchCalls = 0;
+    globalThis.fetch = (async () => {
+      fetchCalls += 1;
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({ id: "photo", type: "FILE_UPLOAD", position: 0 }),
+      ]),
+    );
+
+    const input = view.container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input !== null).toBe(true);
+    expect(input.getAttribute("accept")).toBe(
+      "image/jpeg,image/png,image/gif,image/webp,image/heic",
+    );
+    expect(view.getByText("Images up to 1 MB") !== null).toBe(true);
+
+    const big = new File([new Uint8Array(1024 * 1024 + 1)], "big.png", {
+      type: "image/png",
+    });
+    fireEvent.change(input, { target: { files: [big] } });
+
+    await waitFor(() => {
+      expect(view.getByText("The file is larger than 1 MB.") !== null).toBe(
+        true,
+      );
+    });
+    expect(fetchCalls).toBe(0);
+
+    const pdf = new File(["x"], "cv.pdf", { type: "application/pdf" });
+    fireEvent.change(input, { target: { files: [pdf] } });
+
+    await waitFor(() => {
+      expect(
+        view.getByText("This file type is not accepted here.") !== null,
+      ).toBe(true);
+    });
+    expect(fetchCalls).toBe(0);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("uploads the file through the presigned URL and submits the upload id", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+    const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const target = String(url);
+      calls.push({ url: target, method: init?.method, body: init?.body });
+
+      if (target.endsWith("/uploads")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            uploadId: "up-1",
+            url: "https://files.example/lively-forms/forms/f/photo/up-1/me.png?sig",
+            method: "PUT",
+            headers: { "content-type": "image/png" },
+            expiresAt: "2026-10-18T10:10:00.000Z",
+          }),
+        } as Response;
+      }
+
+      if (target.startsWith("https://files.example/")) {
+        return { ok: true, status: 200 } as Response;
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ responseId: "response-1" }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({ id: "photo", type: "FILE_UPLOAD", position: 0 }),
+      ]),
+    );
+
+    const input = view.container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const file = new File(["png-bytes"], "me.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(view.getByText("me.png") !== null).toBe(true);
+    });
+    expect(calls.length).toBe(2);
+    expect(calls[0].url).toBe("/api/public/forms/demo-form/uploads");
+    expect(JSON.stringify(JSON.parse(String(calls[0].body)))).toBe(
+      JSON.stringify({
+        blockId: "photo",
+        filename: "me.png",
+        contentType: "image/png",
+        size: 9,
+      }),
+    );
+    expect(calls[1].method).toBe("PUT");
+    expect(calls[1].body === file).toBe(true);
+    expect(view.getByRole("button", { name: "Remove" }) !== null).toBe(true);
+
+    fireEvent.click(view.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(calls.length).toBe(3);
+    });
+    const submitted = JSON.parse(String(calls[2].body)) as {
+      answers: Record<string, unknown>;
+    };
+    expect(submitted.answers.photo).toBe("up-1");
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("removing the attached file clears the answer", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const target = String(url);
+
+      if (target.endsWith("/uploads")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            uploadId: "up-1",
+            url: "https://files.example/x",
+            headers: {},
+          }),
+        } as Response;
+      }
+
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({ id: "photo", type: "FILE_UPLOAD", position: 0 }),
+      ]),
+    );
+
+    fireEvent.change(
+      view.container.querySelector('input[type="file"]') as HTMLInputElement,
+      {
+        target: {
+          files: [new File(["x"], "me.png", { type: "image/png" })],
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(view.getByText("me.png") !== null).toBe(true);
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => {
+      expect(view.queryByText("me.png")).toBe(null);
+    });
+    expect(view.getByText("Choose a file") !== null).toBe(true);
+
+    globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);
   });
 });

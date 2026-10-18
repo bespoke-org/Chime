@@ -1,3 +1,4 @@
+import { getAppBaseUrl } from "@/lib/app-url";
 import { isQuestionBlock } from "@/lib/blocks";
 import { db } from "@/lib/db";
 import type {
@@ -81,6 +82,7 @@ export function buildResponseNotificationEmail(
         input.response.answers[block.id],
         block,
         input.locale,
+        { baseUrl: input.baseUrl, formId: input.form.id },
       ),
     }));
 
@@ -129,11 +131,7 @@ export function setResponseNotificationMailer(
   activeMailer = mailer ?? defaultMailer;
 }
 
-export function getAppBaseUrl(
-  env: Record<string, string | undefined> = process.env,
-) {
-  return env.NEXTAUTH_URL?.trim() || env.ATPROTO_PUBLIC_URL?.trim() || "";
-}
+export { getAppBaseUrl };
 
 export type NotifyOwnerInput = {
   form: {

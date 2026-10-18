@@ -361,6 +361,13 @@ export default async function ResponsesPage({
                           >
                             {answer.value}
                           </Link>
+                        ) : summary.block.type === "FILE_UPLOAD" ? (
+                          <a
+                            href={`/api/forms/${form.id}/uploads/${answer.value}`}
+                            className="text-sm leading-7 text-[var(--accent)] hover:underline"
+                          >
+                            {t("responses.downloadFile")}
+                          </a>
                         ) : (
                           <p className="whitespace-pre-wrap break-words text-sm leading-7 text-[var(--ink)]">
                             {formatAnswerValue(summary, answer.value)}

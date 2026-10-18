@@ -15,6 +15,7 @@ import type {
   QuestionSummary,
   QuestionSummaryAnswer,
   ResponseDetail,
+  ResponseDetailUpload,
   ResponseListItem,
   ResponseReviewData,
   ResponseReviewFormSummary,
@@ -278,6 +279,7 @@ export function buildResponseDetailData(input: {
   answersJson: unknown;
   formSnapshotJson: unknown;
   currentBlocks: SerializedBlock[];
+  uploads?: ResponseDetailUpload[];
 }): ResponseDetail {
   const visitedBlocks = restoreVisitedBlocksFromSnapshot(
     input.formSnapshotJson,
@@ -294,6 +296,9 @@ export function buildResponseDetailData(input: {
     formTitle: input.formTitle,
     workspace: input.workspace,
     answers: parseStoredAnswers(input.answersJson),
+    uploads: Object.fromEntries(
+      (input.uploads ?? []).map((upload) => [upload.id, upload]),
+    ),
     blocks: visitedBlocks,
     routeBlocks: input.currentBlocks.map((block) => ({
       block,

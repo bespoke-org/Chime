@@ -54,6 +54,16 @@ import {
 } from "@/lib/i18n";
 import { getMessages } from "@/lib/i18n-server";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
+import { getObjectStorage } from "@/lib/object-storage";
+import {
+  buildUploadKey,
+  collectFileUploadAnswers,
+  DOWNLOAD_URL_TTL_SECONDS,
+  parseUploadRequest,
+  UPLOAD_URL_TTL_SECONDS,
+  verifyUploadForAnswer,
+  type FileUploadAnswer,
+} from "@/lib/uploads";
 import {
   buildResponseDetailData,
   buildResponseReviewData,
@@ -75,6 +85,7 @@ const FORM_BLOCK_TYPES = {
   AGREEMENT: "AGREEMENT",
   DATE: "DATE",
   RATING: "RATING",
+  FILE_UPLOAD: "FILE_UPLOAD",
 } as const satisfies Record<PrismaFormBlockType, PrismaFormBlockType>;
 
 const builderFormInclude = {
@@ -243,6 +254,7 @@ const defaultFormCopyByLocale: Record<
       AGREEMENT: "Agreement question",
       DATE: "Date question",
       RATING: "Rating question",
+      FILE_UPLOAD: "File upload question",
     },
   },
   ru: {
@@ -278,6 +290,7 @@ const defaultFormCopyByLocale: Record<
       AGREEMENT: "Вопрос с согласием",
       DATE: "Вопрос с датой",
       RATING: "Вопрос с оценкой",
+      FILE_UPLOAD: "Вопрос с файлом",
     },
   },
 };
@@ -688,13 +701,16 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     throw new AppError("This form is no longer accepting responses.", 410);
   }
 
-  const response = await db.response.create({
-    data: {
-      formId: form.id,
-      answersJson: normalizedAnswers,
-      formSnapshotJson: snapshot,
-    },
-  });
+  const fileAnswers = collectFileUploadAnswers(snapshot, normalizedAnswers);
+  const responseData = {
+    formId: form.id,
+    answersJson: normalizedAnswers,
+    formSnapshotJson: snapshot,
+  };
+
+  const response = fileAnswers.length
+    ? await createResponseWithUploads(form.id, responseData, fileAnswers)
+    : await db.response.create({ data: responseData });
 
   if (form.webhookUrl) {
     // Delivery runs in the background and never throws, so the stored
@@ -723,6 +739,164 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
   });
 
   return response;
+}
+
+// Every file answer must name a pending upload of this form and block whose
+// object exists in storage within the block's limit; otherwise the whole
+// submission is rejected. The response and the status flip to ATTACHED are
+// written in one transaction so an upload can never be attached twice.
+async function createResponseWithUploads(
+  formId: string,
+  responseData: Prisma.ResponseUncheckedCreateInput,
+  fileAnswers: FileUploadAnswer[],
+) {
+  const storage = getObjectStorage();
+
+  if (!storage) {
+    throw new AppError("File uploads are not available right now.", 503);
+  }
+
+  const uploads = await db.upload.findMany({
+    where: { id: { in: fileAnswers.map((answer) => answer.uploadId) } },
+  });
+  const uploadsById = new Map(uploads.map((upload) => [upload.id, upload]));
+
+  for (const answer of fileAnswers) {
+    const upload = uploadsById.get(answer.uploadId) ?? null;
+    const head =
+      upload && upload.formId === formId && upload.status === "PENDING"
+        ? await storage.headObject(upload.key)
+        : null;
+    const verdict = verifyUploadForAnswer({ answer, formId, upload, head });
+
+    if (!verdict.ok) {
+      throw new AppError("The uploaded file could not be verified.", 422);
+    }
+  }
+
+  return db.$transaction(async (tx) => {
+    const response = await tx.response.create({ data: responseData });
+    const attached = await tx.upload.updateMany({
+      where: {
+        id: { in: fileAnswers.map((answer) => answer.uploadId) },
+        formId,
+        status: "PENDING",
+      },
+      data: {
+        status: "ATTACHED",
+        responseId: response.id,
+        attachedAt: new Date(),
+      },
+    });
+
+    if (attached.count !== fileAnswers.length) {
+      throw new AppError("The uploaded file could not be verified.", 422);
+    }
+
+    return response;
+  });
+}
+
+// Issues a presigned PUT for one file of a published, open form. The Upload
+// row is created PENDING; the submission later attaches it.
+export async function requestAnonymousUpload(slug: string, payload: unknown) {
+  const storage = getObjectStorage();
+
+  if (!storage) {
+    throw new AppError("File uploads are not available right now.", 503);
+  }
+
+  const form = await db.form.findFirst({
+    where: {
+      slug,
+      status: FormStatus.PUBLISHED,
+    },
+    include: {
+      blocks: {
+        orderBy: {
+          position: "asc",
+        },
+      },
+    },
+  });
+
+  if (!form) {
+    throw new AppError("This form is not accepting responses right now.", 404);
+  }
+
+  const availability = await resolveFormAvailability(form);
+
+  if (!availability.open) {
+    throw new AppError("This form is no longer accepting responses.", 410);
+  }
+
+  const request = parseUploadRequest(form.blocks.map(serializeBlock), payload);
+  const uploadId = crypto.randomUUID().replaceAll("-", "");
+  const key = buildUploadKey({
+    formId: form.id,
+    blockId: request.blockId,
+    uploadId,
+    filename: request.filename,
+  });
+
+  const upload = await db.upload.create({
+    data: {
+      id: uploadId,
+      formId: form.id,
+      blockId: request.blockId,
+      key,
+      filename: request.filename,
+      contentType: request.contentType,
+      size: request.size,
+    },
+  });
+
+  const url = await storage.createUploadUrl({
+    key,
+    contentType: request.contentType,
+    contentLength: request.size,
+    expiresInSeconds: UPLOAD_URL_TTL_SECONDS,
+  });
+
+  return {
+    uploadId: upload.id,
+    url,
+    method: "PUT" as const,
+    headers: { "content-type": request.contentType },
+    expiresAt: new Date(
+      Date.now() + UPLOAD_URL_TTL_SECONDS * 1000,
+    ).toISOString(),
+  };
+}
+
+// A short-lived presigned GET for a file attached to a response of a form
+// the user can access.
+export async function getOwnedUploadDownloadUrl(
+  userId: string,
+  formId: string,
+  uploadId: string,
+) {
+  await assertAccessibleForm(userId, formId);
+
+  const upload = await db.upload.findFirst({
+    where: { id: uploadId, formId, status: "ATTACHED" },
+  });
+
+  if (!upload) {
+    throw new AppError("File not found.", 404);
+  }
+
+  const storage = getObjectStorage();
+
+  if (!storage) {
+    throw new AppError("File downloads are not available right now.", 503);
+  }
+
+  return storage.createDownloadUrl({
+    key: upload.key,
+    filename: upload.filename,
+    expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS,
+  });
 }
 
 export async function listResponsesForOwnedForm(
@@ -784,6 +958,11 @@ export async function getOwnedResponseDetail(
     throw new AppError("Response not found.", 404);
   }
 
+  const uploads = await db.upload.findMany({
+    where: { responseId: response.id, status: "ATTACHED" },
+    select: { id: true, filename: true, contentType: true, size: true },
+  });
+
   const submissionNumber = await db.response.count({
     where: {
       formId,
@@ -813,5 +992,6 @@ export async function getOwnedResponseDetail(
     answersJson: response.answersJson,
     formSnapshotJson: response.formSnapshotJson,
     currentBlocks: response.form.blocks.map(serializeBlock),
+    uploads,
   });
 }

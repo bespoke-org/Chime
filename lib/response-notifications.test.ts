@@ -270,3 +270,22 @@ describe("notifyOwnerOfResponse", () => {
     }
   });
 });
+
+describe("buildResponseNotificationEmail file answers", () => {
+  test("writes the download URL for a file answer", () => {
+    const email = buildResponseNotificationEmail({
+      form: { id: "form-1", title: "Demo" },
+      response: { id: "resp-1", answers: { cv: "up1" } },
+      blocks: [block("cv", "FILE_UPLOAD", "CV", 0)],
+      locale: "en",
+      baseUrl: "https://forms.example.com",
+    });
+
+    expect(email.text).toContain(
+      "CV\nhttps://forms.example.com/api/forms/form-1/uploads/up1",
+    );
+    expect(email.html).toContain(
+      "https://forms.example.com/api/forms/form-1/uploads/up1",
+    );
+  });
+});

@@ -68,6 +68,10 @@ function normalizeAnswer(
         throw new AppError(`Please enter a link for “${questionLabel}”.`, 422);
       }
 
+      if (block.type === "FILE_UPLOAD") {
+        throw new AppError(`Please attach a file for “${questionLabel}”.`, 422);
+      }
+
       if (block.type === "DATE") {
         throw new AppError(`Please enter a date for “${questionLabel}”.`, 422);
       }
@@ -128,6 +132,11 @@ function normalizeAnswer(
     case "invalid_agreement":
       throw new AppError(
         `Invalid agreement value submitted for “${questionLabel}”.`,
+        422,
+      );
+    case "invalid_file":
+      throw new AppError(
+        `The uploaded file could not be verified for “${questionLabel}”.`,
         422,
       );
   }

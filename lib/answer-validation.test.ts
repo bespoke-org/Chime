@@ -644,3 +644,49 @@ describe("validateAndNormalizeAnswer rating", () => {
     );
   });
 });
+
+describe("validateAndNormalizeAnswer file upload", () => {
+  const config = {
+    accept: "any",
+    maxSizeMb: 10,
+    branchRules: [],
+    defaultNextBlockId: null,
+  };
+
+  test("requires an upload id when the block is required", () => {
+    const block = createBlock({
+      id: "cv",
+      type: "FILE_UPLOAD",
+      required: true,
+      config,
+    });
+
+    expect(JSON.stringify(validateAndNormalizeAnswer(block, ""))).toBe(
+      JSON.stringify({ ok: false, error: { code: "answer_required" } }),
+    );
+    expect(JSON.stringify(validateAndNormalizeAnswer(block, undefined))).toBe(
+      JSON.stringify({ ok: false, error: { code: "answer_required" } }),
+    );
+  });
+
+  test("accepts an empty answer when optional and keeps a well-formed id", () => {
+    const block = createBlock({ id: "cv", type: "FILE_UPLOAD", config });
+
+    expect(JSON.stringify(validateAndNormalizeAnswer(block, "  "))).toBe(
+      JSON.stringify({ ok: true }),
+    );
+    expect(
+      JSON.stringify(validateAndNormalizeAnswer(block, " 7f3a9c0b1d2e ")),
+    ).toBe(JSON.stringify({ ok: true, value: "7f3a9c0b1d2e" }));
+  });
+
+  test("rejects values that are not an upload id", () => {
+    const block = createBlock({ id: "cv", type: "FILE_UPLOAD", config });
+
+    for (const value of ["../x", "a b", "x".repeat(65), ["id"]]) {
+      expect(JSON.stringify(validateAndNormalizeAnswer(block, value))).toBe(
+        JSON.stringify({ ok: false, error: { code: "invalid_file" } }),
+      );
+    }
+  });
+});

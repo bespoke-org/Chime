@@ -920,4 +920,24 @@ describe("FormBuilder", () => {
     globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);
   });
+
+  test("shows the accepted files and size selects for a file upload block", async () => {
+    const restoreDom = installTestDom();
+    const fileBlock = createBlock({
+      id: "block-1",
+      type: "FILE_UPLOAD",
+      position: 0,
+      title: "Your CV",
+    });
+
+    const view = renderBuilder(createForm([fileBlock]));
+
+    expect(view.getByLabelText("builder.fileUploadAccept") !== null).toBe(true);
+    expect(view.getByLabelText("builder.fileUploadMaxSize") !== null).toBe(
+      true,
+    );
+    expect(view.getByText("builder.fileUploadHelp") !== null).toBe(true);
+
+    await cleanupAndRestore(restoreDom);
+  });
 });

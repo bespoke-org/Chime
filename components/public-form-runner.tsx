@@ -6,7 +6,9 @@ import {
   Circle,
   CornerDownLeft,
   LoaderCircle,
+  Paperclip,
   Square,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -35,6 +37,7 @@ import {
   getRatingValues,
   type AgreementBlockConfig,
   type ChoiceBlockConfig,
+  type FileUploadBlockConfig,
   type LinkBlockConfig,
   type LongTextBlockConfig,
   type NumberBlockConfig,
@@ -45,6 +48,12 @@ import {
 import { resolveNextBlockId } from "@/lib/branching";
 import type { AnswerValue, PublicForm, PublicBlock } from "@/lib/form-types";
 import { SUBMISSION_HONEYPOT_FIELD } from "@/lib/submission-guard";
+import {
+  BYTES_PER_MB,
+  getAcceptAttribute,
+  isContentTypeAllowed,
+  normalizeContentType,
+} from "@/lib/uploads";
 import {
   isLegacyDefaultCompletionMessage,
   isLegacyDefaultCompletionTitle,
@@ -122,6 +131,67 @@ async function submitResponse(
 
   return payload.responseId;
 }
+
+class UploadRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "UploadRequestError";
+    this.status = status;
+  }
+}
+
+// Asks the app for a presigned URL, then sends the bytes straight to object
+// storage. Returns the upload id that becomes the answer.
+async function uploadFile(
+  slug: string,
+  blockId: string,
+  file: File,
+  contentType: string,
+) {
+  const response = await fetch(`/api/public/forms/${slug}/uploads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      blockId,
+      filename: file.name,
+      contentType,
+      size: file.size,
+    }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    uploadId?: string;
+    url?: string;
+    headers?: Record<string, string>;
+  };
+
+  if (!response.ok || !payload.uploadId || !payload.url) {
+    throw new UploadRequestError(
+      payload.error ?? "Could not upload file.",
+      response.status,
+    );
+  }
+
+  const put = await fetch(payload.url, {
+    method: "PUT",
+    headers: payload.headers ?? {},
+    body: file,
+  });
+
+  if (!put.ok) {
+    throw new UploadRequestError("Could not upload file.", put.status);
+  }
+
+  return payload.uploadId;
+}
+
+const fileHintKeys = {
+  any: "publicRunner.fileHintAny",
+  images: "publicRunner.fileHintImages",
+  documents: "publicRunner.fileHintDocuments",
+} as const;
 
 function getShortcutKey(index: number) {
   return CHOICE_SHORTCUT_KEYS[index] ?? null;
@@ -234,6 +304,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [isComplete, setIsComplete] = useState(false);
   const [hasResolvedDraft, setHasResolvedDraft] = useState(false);
   const [honeypotValue, setHoneypotValue] = useState("");
+  // Filenames live only in memory: a restored draft shows a generic
+  // "file attached" label for the stored upload id.
+  const [attachedFilenames, setAttachedFilenames] = useState<
+    Record<string, string>
+  >({});
+  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const startedAtRef = useRef(Date.now());
   const submitLockRef = useRef(false);
   const activeInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(
@@ -493,10 +569,15 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
             t(
               currentBlock.type === "RATING"
                 ? "publicRunner.ratingRequired"
-                : "publicRunner.answerRequired",
+                : currentBlock.type === "FILE_UPLOAD"
+                  ? "publicRunner.fileRequired"
+                  : "publicRunner.answerRequired",
             ),
             "error",
           );
+          return false;
+        case "invalid_file":
+          showToast(t("publicRunner.fileInvalid"), "error");
           return false;
         case "single_choice_required":
           showToast(t("publicRunner.singleChoiceRequired"), "error");
@@ -621,6 +702,66 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       t,
       validateStep,
     ],
+  );
+
+  const handleFileSelected = useCallback(
+    async (block: PublicBlock, file: File | null) => {
+      if (!file) {
+        return;
+      }
+
+      const config = block.config as FileUploadBlockConfig;
+
+      if (file.size > config.maxSizeMb * BYTES_PER_MB) {
+        showToast(
+          t("publicRunner.fileTooLarge", { size: config.maxSizeMb }),
+          "error",
+        );
+        return;
+      }
+
+      // Browsers leave the type empty for unknown extensions.
+      const contentType =
+        normalizeContentType(file.type) ?? "application/octet-stream";
+
+      if (!isContentTypeAllowed(contentType, config.accept)) {
+        showToast(t("publicRunner.fileTypeNotAllowed"), "error");
+        return;
+      }
+
+      setUploadingBlockId(block.id);
+
+      try {
+        const uploadId = await uploadFile(
+          form.slug,
+          block.id,
+          file,
+          contentType,
+        );
+        setAttachedFilenames((current) => ({
+          ...current,
+          [block.id]: file.name,
+        }));
+        setAnswer(block.id, uploadId);
+      } catch (caughtError) {
+        showToast(
+          caughtError instanceof UploadRequestError &&
+            caughtError.status === 503
+            ? t("publicRunner.fileUploadUnavailable")
+            : caughtError instanceof UploadRequestError &&
+                caughtError.status === 429
+              ? t("publicRunner.tooManyUploads")
+              : caughtError instanceof UploadRequestError &&
+                  caughtError.status === 422
+                ? caughtError.message
+                : t("publicRunner.fileUploadFailed"),
+          "error",
+        );
+      } finally {
+        setUploadingBlockId(null);
+      }
+    },
+    [form.slug, showToast, t],
   );
 
   const handleBack = useCallback(() => {
@@ -1212,6 +1353,90 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                   </span>
                                 </div>
                               ) : null}
+                            </div>
+                          );
+                        })()
+                      : null}
+
+                    {currentBlock.type === "FILE_UPLOAD"
+                      ? (() => {
+                          const config =
+                            currentBlock.config as FileUploadBlockConfig;
+                          const currentValue = answers[currentBlock.id];
+                          const attached =
+                            typeof currentValue === "string" && currentValue;
+                          const isUploading =
+                            uploadingBlockId === currentBlock.id;
+                          const inputId = `file-${currentBlock.id}`;
+
+                          return (
+                            <div className="grid gap-3 px-2">
+                              {attached ? (
+                                <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--ink)]">
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <Paperclip className="size-4 shrink-0 text-[var(--accent)]" />
+                                    <span className="truncate text-base">
+                                      {attachedFilenames[currentBlock.id] ??
+                                        t("publicRunner.fileAttached")}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    aria-label={t("publicRunner.fileRemove")}
+                                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+                                    onPointerDown={preventPointerFocusSteal}
+                                    onClick={() =>
+                                      setAnswer(currentBlock.id, "")
+                                    }
+                                  >
+                                    <X className="size-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <label
+                                  htmlFor={inputId}
+                                  className={cn(
+                                    "flex cursor-pointer items-center gap-3 rounded-[16px] border border-dashed border-[color:var(--line)] bg-[var(--surface-strong)] px-4 py-4 text-base text-[var(--ink)] transition hover:bg-[var(--surface)]",
+                                    isUploading &&
+                                      "pointer-events-none opacity-70",
+                                  )}
+                                >
+                                  {isUploading ? (
+                                    <LoaderCircle className="size-4 animate-spin text-[var(--accent)]" />
+                                  ) : (
+                                    <Paperclip className="size-4 text-[var(--accent)]" />
+                                  )}
+                                  <span>
+                                    {isUploading
+                                      ? t("publicRunner.fileUploading")
+                                      : t("publicRunner.chooseFile")}
+                                  </span>
+                                  <input
+                                    id={inputId}
+                                    type="file"
+                                    className="sr-only"
+                                    accept={
+                                      getAcceptAttribute(config.accept) ||
+                                      undefined
+                                    }
+                                    disabled={isUploading}
+                                    onChange={(event) => {
+                                      const file =
+                                        event.target.files?.[0] ?? null;
+                                      event.target.value = "";
+                                      void handleFileSelected(
+                                        currentBlock,
+                                        file,
+                                      );
+                                    }}
+                                  />
+                                </label>
+                              )}
+                              <p className="text-xs text-[var(--muted)]">
+                                {t(fileHintKeys[config.accept], {
+                                  size: config.maxSizeMb,
+                                })}
+                              </p>
                             </div>
                           );
                         })()

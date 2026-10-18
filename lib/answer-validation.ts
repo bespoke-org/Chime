@@ -56,6 +56,9 @@ export type AnswerValidationError =
     }
   | {
       code: "invalid_agreement";
+    }
+  | {
+      code: "invalid_file";
     };
 
 export type AnswerValidationResult =
@@ -67,6 +70,10 @@ export type AnswerValidationResult =
       ok: false;
       error: AnswerValidationError;
     };
+
+export function isUploadIdShape(value: string) {
+  return /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
 
 export function validateAndNormalizeAnswer(
   block: SerializedBlock,
@@ -254,6 +261,28 @@ export function validateAndNormalizeAnswer(
 
     if (!isValidDateAnswer(value)) {
       return { ok: false, error: { code: "invalid_date" } };
+    }
+
+    return { ok: true, value };
+  }
+
+  if (block.type === "FILE_UPLOAD") {
+    if (Array.isArray(rawValue) && rawValue.some(Boolean)) {
+      return { ok: false, error: { code: "invalid_file" } };
+    }
+
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+
+    if (!value) {
+      return block.required
+        ? { ok: false, error: { code: "answer_required" } }
+        : { ok: true, value: undefined };
+    }
+
+    // Only the shape of the upload id is checked here; whether it names a
+    // real pending upload for this block is verified on the server at submit.
+    if (!isUploadIdShape(value)) {
+      return { ok: false, error: { code: "invalid_file" } };
     }
 
     return { ok: true, value };

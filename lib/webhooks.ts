@@ -1,11 +1,13 @@
 import { createHmac } from "node:crypto";
 
+import { getAppBaseUrl } from "@/lib/app-url";
 import { isQuestionBlock } from "@/lib/blocks";
 import type {
   SubmissionAnswers,
   SubmissionSnapshotBlock,
 } from "@/lib/form-submission";
 import type { AnswerValue } from "@/lib/form-types";
+import { buildUploadDownloadUrl } from "@/lib/uploads";
 
 export const WEBHOOK_EVENT_RESPONSE_CREATED = "response.created";
 export const WEBHOOK_USER_AGENT = "lively-forms-webhook/1";
@@ -121,10 +123,12 @@ export type WebhookPayload = {
   answers: WebhookAnswer[];
 };
 
+// File answers are sent as the authenticated download URL, not the upload id.
 export function buildWebhookPayload(
   form: { id: string; slug: string; title: string },
   response: { id: string; submittedAt: Date; answers: SubmissionAnswers },
   snapshot: SubmissionSnapshotBlock[],
+  baseUrl: string = getAppBaseUrl(),
 ): WebhookPayload {
   const answers: WebhookAnswer[] = [];
 
@@ -143,7 +147,10 @@ export function buildWebhookPayload(
       blockId: block.id,
       type: block.type,
       title: block.title,
-      value,
+      value:
+        block.type === "FILE_UPLOAD" && typeof value === "string"
+          ? buildUploadDownloadUrl(baseUrl, form.id, value)
+          : value,
     });
   }
 

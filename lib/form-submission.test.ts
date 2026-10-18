@@ -486,3 +486,41 @@ describe("buildSubmission rating blocks", () => {
     );
   });
 });
+
+describe("buildSubmission file upload blocks", () => {
+  test("names the question when a required file is missing", () => {
+    const blocks = [
+      createBlock({
+        id: "cv",
+        type: "FILE_UPLOAD",
+        title: "Your CV",
+        required: true,
+        config: parseBlockConfig("FILE_UPLOAD", {}),
+      }),
+    ];
+
+    try {
+      buildSubmission(blocks, {});
+      expect(false).toBe(true);
+    } catch (error) {
+      expect(error instanceof AppError).toBe(true);
+      expect((error as Error).message).toBe(
+        "Please attach a file for “Your CV”.",
+      );
+    }
+  });
+
+  test("keeps the upload id as the answer", () => {
+    const blocks = [
+      createBlock({
+        id: "cv",
+        type: "FILE_UPLOAD",
+        config: parseBlockConfig("FILE_UPLOAD", {}),
+      }),
+    ];
+
+    expect(
+      JSON.stringify(buildSubmission(blocks, { cv: "up1" }).normalizedAnswers),
+    ).toBe(JSON.stringify({ cv: "up1" }));
+  });
+});

@@ -21,11 +21,12 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Tailwind CSS
 - Auth.js (`next-auth`) sessions with ATProto OAuth
 - Prisma + PostgreSQL
+- S3-compatible object storage for file uploads (Garage in local development)
 - nodemailer for SMTP email notifications
 - dnd-kit
 - Framer Motion
 - Bun for package management
-- Podman Compose or Docker Compose for local Postgres
+- Podman Compose or Docker Compose for local Postgres and Garage
 
 ## Quick start
 

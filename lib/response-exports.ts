@@ -6,9 +6,11 @@ import {
   serializeBlock,
   type SerializedBlock,
 } from "@/lib/blocks";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
+import { buildUploadDownloadUrl } from "@/lib/uploads";
 import { slugify } from "@/lib/utils";
 import { workspaceAccessWhere } from "@/lib/workspaces";
 
@@ -123,10 +125,18 @@ function createQuestionColumnLabel(
   return occurrence === 1 ? baseLabel : `${baseLabel} (${occurrence})`;
 }
 
+export type ExportFileLink = {
+  baseUrl: string;
+  formId: string;
+};
+
+// A file answer is stored as the upload id; outside the app it is written as
+// the authenticated download URL so a creator can open it from the sheet.
 export function serializeExportAnswer(
   value: ExportAnswerValue,
   block?: Pick<SerializedBlock, "type">,
   locale: AppLocale = DEFAULT_LOCALE,
+  fileLink?: ExportFileLink,
 ) {
   if (Array.isArray(value)) {
     return value
@@ -145,13 +155,19 @@ export function serializeExportAnswer(
       : copy.notAgreed;
   }
 
+  if (block?.type === "FILE_UPLOAD" && fileLink) {
+    return buildUploadDownloadUrl(fileLink.baseUrl, fileLink.formId, value);
+  }
+
   return value;
 }
 
 export function buildResponseExportDataset(
   form: OwnedFormExportRecord,
   locale: AppLocale = DEFAULT_LOCALE,
+  baseUrl: string = getAppBaseUrl(),
 ): ResponseExportDataset {
+  const fileLink: ExportFileLink = { baseUrl, formId: form.id };
   const questionBlocks = form.blocks
     .map(serializeBlock)
     .filter((block) => isQuestionBlock(block.type));
@@ -199,6 +215,7 @@ export function buildResponseExportDataset(
           answers[column.key],
           questionBlocksById.get(column.key),
           locale,
+          fileLink,
         );
         return accumulator;
       },

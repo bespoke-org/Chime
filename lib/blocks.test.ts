@@ -546,3 +546,14 @@ describe("rating block config", () => {
     );
   });
 });
+
+describe("file upload block operators", () => {
+  test("branches only on presence", () => {
+    expect(json(getSupportedBranchOperators("FILE_UPLOAD"))).toBe(
+      json(["is_empty", "is_not_empty"]),
+    );
+    expect(json(getVisibleBranchOperators("FILE_UPLOAD"))).toBe(
+      json(["is_empty", "is_not_empty"]),
+    );
+  });
+});

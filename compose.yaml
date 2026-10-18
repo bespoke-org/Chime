@@ -17,5 +17,19 @@ services:
       timeout: 5s
       retries: 5
 
+  garage:
+    image: docker.io/dxflrs/garage:v2.4.1
+    container_name: the-forms-garage
+    restart: unless-stopped
+    ports:
+      - "3900:3900"
+      - "3903:3903"
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+
 volumes:
   postgres-data:
+  garage-meta:
+  garage-data:

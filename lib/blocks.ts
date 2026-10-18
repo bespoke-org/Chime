@@ -17,6 +17,7 @@ const FORM_BLOCK_TYPES = {
   AGREEMENT: "AGREEMENT",
   DATE: "DATE",
   RATING: "RATING",
+  FILE_UPLOAD: "FILE_UPLOAD",
 } as const satisfies Record<PrismaFormBlockType, PrismaFormBlockType>;
 
 export const blockTypeValues = [
@@ -30,6 +31,7 @@ export const blockTypeValues = [
   FORM_BLOCK_TYPES.AGREEMENT,
   FORM_BLOCK_TYPES.DATE,
   FORM_BLOCK_TYPES.RATING,
+  FORM_BLOCK_TYPES.FILE_UPLOAD,
 ] as const;
 
 export const blockTypeSchema = z.enum(blockTypeValues);
@@ -45,6 +47,7 @@ export const blockTypeLabels: Record<PrismaFormBlockType, string> = {
   AGREEMENT: "Agreement",
   DATE: "Date",
   RATING: "Rating",
+  FILE_UPLOAD: "File upload",
 };
 
 export const blockTypeTranslationKeys: Record<PrismaFormBlockType, string> = {
@@ -58,6 +61,7 @@ export const blockTypeTranslationKeys: Record<PrismaFormBlockType, string> = {
   AGREEMENT: "blocks.types.AGREEMENT",
   DATE: "blocks.types.DATE",
   RATING: "blocks.types.RATING",
+  FILE_UPLOAD: "blocks.types.FILE_UPLOAD",
 };
 
 const defaultBlockCopyByLocale: Record<
@@ -322,6 +326,42 @@ const ratingConfigSchema = z
     message: "Maximum must be greater than minimum.",
   });
 
+export const FILE_UPLOAD_ACCEPT_VALUES = [
+  "any",
+  "images",
+  "documents",
+] as const;
+export const FILE_UPLOAD_MIN_SIZE_MB = 1;
+export const FILE_UPLOAD_MAX_SIZE_MB = 25;
+export const FILE_UPLOAD_DEFAULT_SIZE_MB = 10;
+export const FILE_UPLOAD_SIZE_OPTIONS_MB = [1, 2, 5, 10, 25] as const;
+
+// Legacy or hand-edited configs fall back to the defaults instead of failing
+// to parse: an unknown accept value or an out-of-range size is not worth
+// breaking the form over.
+const fileUploadConfigSchema = z.object({
+  accept: z.preprocess(
+    (value) =>
+      FILE_UPLOAD_ACCEPT_VALUES.includes(value as FileUploadAccept)
+        ? value
+        : undefined,
+    z.enum(FILE_UPLOAD_ACCEPT_VALUES).default("any"),
+  ),
+  maxSizeMb: z.preprocess(
+    (value) =>
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= FILE_UPLOAD_MIN_SIZE_MB &&
+      value <= FILE_UPLOAD_MAX_SIZE_MB
+        ? value
+        : undefined,
+    z.number().int().default(FILE_UPLOAD_DEFAULT_SIZE_MB),
+  ),
+  branchRules: branchRulesSchema,
+  defaultNextBlockId: defaultNextBlockIdSchema,
+  endForm: endFormSchema,
+});
+
 const optionListSchema = z.object({
   options: z
     .array(z.string().min(1).max(120))
@@ -362,6 +402,10 @@ export type DateBlockConfig = WithOptionalEndForm<
 export type RatingBlockConfig = WithOptionalEndForm<
   z.infer<typeof ratingConfigSchema>
 >;
+export type FileUploadAccept = (typeof FILE_UPLOAD_ACCEPT_VALUES)[number];
+export type FileUploadBlockConfig = WithOptionalEndForm<
+  z.infer<typeof fileUploadConfigSchema>
+>;
 export type ChoiceBlockConfig = WithOptionalEndForm<
   z.infer<typeof optionListSchema>
 >;
@@ -374,6 +418,7 @@ export type AnswerableBlockConfig =
   | AgreementBlockConfig
   | DateBlockConfig
   | RatingBlockConfig
+  | FileUploadBlockConfig
   | ChoiceBlockConfig;
 export type BlockConfig = TextBlockConfig | AnswerableBlockConfig;
 
@@ -481,6 +526,10 @@ export function getSupportedBranchOperators(
     return [];
   }
 
+  if (type === FORM_BLOCK_TYPES.FILE_UPLOAD) {
+    return ["is_empty", "is_not_empty"];
+  }
+
   const common: BranchOperator[] = [
     "equals",
     "not_equals",
@@ -547,6 +596,10 @@ export function getVisibleBranchOperators(
     return ["equals", "not_equals"];
   }
 
+  if (type === FORM_BLOCK_TYPES.FILE_UPLOAD) {
+    return ["is_empty", "is_not_empty"];
+  }
+
   return ["equals", "not_equals"];
 }
 
@@ -578,6 +631,8 @@ export function parseBlockConfig(
       return dateConfigSchema.parse(value ?? {});
     case FORM_BLOCK_TYPES.RATING:
       return ratingConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.FILE_UPLOAD:
+      return fileUploadConfigSchema.parse(value ?? {});
     default:
       return textConfigSchema.parse(value ?? {});
   }
@@ -611,6 +666,8 @@ export function getDefaultBlockConfig(
       return dateConfigSchema.parse({});
     case FORM_BLOCK_TYPES.RATING:
       return ratingConfigSchema.parse({});
+    case FORM_BLOCK_TYPES.FILE_UPLOAD:
+      return fileUploadConfigSchema.parse({});
     default:
       return textConfigSchema.parse({ body: copy.textBody });
   }
