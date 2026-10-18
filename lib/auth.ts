@@ -1,5 +1,5 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import type { Adapter } from "next-auth/adapters";
+import type { Adapter, AdapterAccount } from "next-auth/adapters";
 import {
   getServerSession,
   type NextAuthOptions,
@@ -19,6 +19,7 @@ import {
   getGoogleConfig,
   getOidcConfig,
   mapOidcProfile,
+  pickAccountColumns,
 } from "@/lib/oidc-auth";
 import { syncExternalProfileFields } from "@/lib/users";
 
@@ -59,8 +60,29 @@ function getProviders(env: NodeJS.ProcessEnv): Provider[] {
   return providers;
 }
 
+function createAdapter(): Adapter {
+  const adapter = PrismaAdapter(db) as Adapter;
+  const linkAccount = adapter.linkAccount?.bind(adapter);
+
+  if (!linkAccount) {
+    return adapter;
+  }
+
+  // next-auth and @auth/core ship two AdapterAccount types that only differ
+  // nominally, so the wrapper is cast as a whole.
+  const filteringLinkAccount = ((account: AdapterAccount) =>
+    linkAccount(
+      pickAccountColumns(account) as never,
+    )) as Adapter["linkAccount"];
+
+  return {
+    ...adapter,
+    linkAccount: filteringLinkAccount,
+  };
+}
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db) as Adapter,
+  adapter: createAdapter(),
   secret: process.env.AUTH_SECRET,
   session: {
     strategy: "database",

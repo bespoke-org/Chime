@@ -136,3 +136,31 @@ export function getExternalProfile(
       return null;
   }
 }
+
+// Columns of the Account model. Identity providers add their own token
+// fields (Keycloak sends refresh_expires_in and not-before-policy), and the
+// Prisma adapter would try to write them as columns.
+const ACCOUNT_COLUMNS = [
+  "userId",
+  "type",
+  "provider",
+  "providerAccountId",
+  "refresh_token",
+  "access_token",
+  "expires_at",
+  "token_type",
+  "scope",
+  "id_token",
+  "session_state",
+  "refresh_token_expires_in",
+] as const;
+
+export function pickAccountColumns<T extends Record<string, unknown>>(
+  account: T,
+) {
+  return Object.fromEntries(
+    Object.entries(account).filter(([key]) =>
+      (ACCOUNT_COLUMNS as readonly string[]).includes(key),
+    ),
+  ) as Pick<T, Extract<keyof T, (typeof ACCOUNT_COLUMNS)[number]>>;
+}

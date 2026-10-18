@@ -7,6 +7,7 @@ import {
   getOidcConfig,
   getSignInProviderOptions,
   mapOidcProfile,
+  pickAccountColumns,
 } from "@/lib/oidc-auth";
 
 const oidcEnv = {
@@ -165,5 +166,43 @@ describe("getExternalProfile", () => {
 
   test("returns null for an unknown provider", () => {
     expect(getExternalProfile("atproto", { name: "x" })).toBe(null);
+  });
+});
+
+describe("pickAccountColumns", () => {
+  test("drops provider-specific token fields the Account model lacks", () => {
+    const picked = pickAccountColumns({
+      userId: "user-1",
+      type: "oauth",
+      provider: "oidc",
+      providerAccountId: "sub-1",
+      access_token: "a",
+      refresh_token: "r",
+      expires_at: 1,
+      refresh_expires_in: 1800,
+      "not-before-policy": 0,
+      session_state: "s",
+      scope: "openid",
+      id_token: "i",
+      token_type: "Bearer",
+    });
+
+    expect(JSON.stringify(Object.keys(picked).sort())).toBe(
+      JSON.stringify(
+        [
+          "access_token",
+          "expires_at",
+          "id_token",
+          "provider",
+          "providerAccountId",
+          "refresh_token",
+          "scope",
+          "session_state",
+          "token_type",
+          "type",
+          "userId",
+        ].sort(),
+      ),
+    );
   });
 });
