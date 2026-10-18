@@ -213,6 +213,8 @@ builder:
   deleteForm: Удалить форму
   deleteFormTitle: Удалить форму?
   deleteFormDescription: Вместе с ней будут удалены все блоки и ответы. Это действие нельзя отменить.
+  unpublishTitle: Снять форму с публикации?
+  unpublishDescription: "У формы {count} ответов. Они сохранятся, но публичная ссылка перестанет принимать новые, пока вы не опубликуете форму снова."
   saveFormSettings: Сохранить настройки формы
   dragBlockAria: "Перетащить: {label}"
   prompt: Вопрос

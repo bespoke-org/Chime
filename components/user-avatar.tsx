@@ -34,25 +34,31 @@ export function UserAvatar({
       aria-label={displayName}
       title={displayName}
     >
+      <span
+        className={cn(
+          "text-sm font-semibold uppercase tracking-[0.08em]",
+          initialsClassName,
+        )}
+      >
+        {initials}
+      </span>
       {image && failedImage !== image ? (
+        // Initials stay underneath: a broken image renders nothing with an
+        // empty alt, and an error fired before hydration is caught by the ref.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
-          alt={displayName}
-          className="size-full object-cover"
+          alt=""
+          className="absolute inset-0 size-full object-cover"
           referrerPolicy="no-referrer"
           onError={() => setFailedImage(image)}
+          ref={(node) => {
+            if (node?.complete && node.naturalWidth === 0) {
+              setFailedImage(image);
+            }
+          }}
         />
-      ) : (
-        <span
-          className={cn(
-            "text-sm font-semibold uppercase tracking-[0.08em]",
-            initialsClassName,
-          )}
-        >
-          {initials}
-        </span>
-      )}
+      ) : null}
     </span>
   );
 }

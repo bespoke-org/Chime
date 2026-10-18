@@ -309,6 +309,7 @@ export function FormBuilder({
 
   const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
   const [isDeleteFormDialogOpen, setIsDeleteFormDialogOpen] = useState(false);
+  const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] =
     useState<PendingNavigation | null>(null);
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
@@ -723,6 +724,20 @@ export function FormBuilder({
     });
   }
 
+  function requestUnpublish() {
+    if (form.responseCount > 0) {
+      setIsUnpublishDialogOpen(true);
+      return;
+    }
+
+    void setPublished(false);
+  }
+
+  async function confirmUnpublish() {
+    setIsUnpublishDialogOpen(false);
+    await setPublished(false);
+  }
+
   async function copyShareLink() {
     const url = `${window.location.origin}/f/${form.slug}`;
     await navigator.clipboard.writeText(url);
@@ -810,6 +825,18 @@ export function FormBuilder({
         onConfirm={confirmDeleteForm}
       />
       <ConfirmDialog
+        open={isUnpublishDialogOpen}
+        onClose={() => setIsUnpublishDialogOpen(false)}
+        title={t("builder.unpublishTitle")}
+        description={t("builder.unpublishDescription", {
+          count: form.responseCount,
+        })}
+        confirmLabel={t("builder.unpublish")}
+        cancelLabel={t("ui.cancel")}
+        pending={busy === "publish"}
+        onConfirm={confirmUnpublish}
+      />
+      <ConfirmDialog
         open={pendingNavigation !== null}
         onClose={() => setPendingNavigation(null)}
         title={t("builder.unsavedBlockChangesTitle")}
@@ -876,7 +903,7 @@ export function FormBuilder({
             shareHref={shareHref}
             onOpenSettings={openSettings}
             onPublish={() => setPublished(true)}
-            onUnpublish={() => setPublished(false)}
+            onUnpublish={requestUnpublish}
             onCopyShareLink={copyShareLink}
           />
         )}
