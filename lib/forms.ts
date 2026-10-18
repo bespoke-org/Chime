@@ -5,23 +5,24 @@ import {
   type FormBlockType as PrismaFormBlockType,
   type Prisma,
 } from "@prisma/client";
-import { z } from "zod";
 
 import {
   getDefaultBlockConfig,
   isQuestionBlock,
   serializeBlock,
-  type SerializedBlock,
 } from "@/lib/blocks";
 import {
   getBranchValidationIssueI18n,
   validateBranchingGraph,
-  resolveNextBlockId,
 } from "@/lib/branching";
-import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
+import {
+  assertReorderMatchesForm,
+  buildSubmission,
+  parseSubmissionPayload,
+} from "@/lib/form-submission";
 import type {
   ActiveWorkspace,
   BuilderForm,
@@ -310,99 +311,6 @@ async function assertAccessibleForm(userId: string, formId: string) {
   return form;
 }
 
-function getQuestionLabel(block: SerializedBlock) {
-  return block.title || "this question";
-}
-
-function normalizeAnswer(
-  block: SerializedBlock,
-  rawValue: unknown,
-): string | string[] | undefined {
-  const questionLabel = getQuestionLabel(block);
-  const result = validateAndNormalizeAnswer(block, rawValue);
-
-  if (result.ok) {
-    return result.value;
-  }
-
-  switch (result.error.code) {
-    case "answer_required":
-      if (block.type === FORM_BLOCK_TYPES.NUMBER) {
-        throw new AppError(
-          `Please enter a number for “${questionLabel}”.`,
-          422,
-        );
-      }
-
-      if (block.type === FORM_BLOCK_TYPES.LINK) {
-        throw new AppError(`Please enter a link for “${questionLabel}”.`, 422);
-      }
-
-      if (block.type === FORM_BLOCK_TYPES.DATE) {
-        throw new AppError(`Please enter a date for “${questionLabel}”.`, 422);
-      }
-
-      throw new AppError(`Please answer “${questionLabel}”.`, 422);
-    case "single_choice_required":
-      throw new AppError(
-        `Please choose an option for “${questionLabel}”.`,
-        422,
-      );
-    case "multi_choice_required":
-      throw new AppError(
-        `Please choose at least one option for “${questionLabel}”.`,
-        422,
-      );
-    case "agreement_required":
-      throw new AppError(`Agreement is required for “${questionLabel}”.`, 422);
-    case "invalid_text_format":
-      throw new AppError(
-        `Please use a valid format for “${questionLabel}”.`,
-        422,
-      );
-    case "invalid_option":
-      throw new AppError(
-        `Invalid option submitted for “${questionLabel}”.`,
-        422,
-      );
-    case "invalid_number":
-      throw new AppError(
-        `Please enter a valid number for “${questionLabel}”.`,
-        422,
-      );
-    case "whole_number_required":
-      throw new AppError(
-        `Please enter a whole number for “${questionLabel}”.`,
-        422,
-      );
-    case "number_below_min":
-      throw new AppError(
-        `Please enter a number greater than or equal to ${result.error.min} for “${questionLabel}”.`,
-        422,
-      );
-    case "number_above_max":
-      throw new AppError(
-        `Please enter a number less than or equal to ${result.error.max} for “${questionLabel}”.`,
-        422,
-      );
-    case "invalid_link":
-      throw new AppError(
-        `Please enter a valid link for “${questionLabel}”.`,
-        422,
-      );
-    case "invalid_date":
-      throw new AppError(
-        `Please enter a valid date for “${questionLabel}”.`,
-        422,
-      );
-    case "invalid_agreement":
-      throw new AppError(
-        `Invalid agreement value submitted for “${questionLabel}”.`,
-        422,
-      );
-  }
-}
-
 export async function listFormsForWorkspace(
   userId: string,
   workspace: ActiveWorkspace,
@@ -662,18 +570,10 @@ export async function reorderOwnedBlocks(
   const parsed = reorderBlocksSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
 
-  const currentIds = form.blocks.map((block) => block.id).sort();
-  const nextIds = [...parsed.blockIds].sort();
-
-  if (
-    currentIds.length !== nextIds.length ||
-    currentIds.some((id, index) => id !== nextIds[index])
-  ) {
-    throw new AppError(
-      "Block reorder payload is out of sync with the current form.",
-      409,
-    );
-  }
+  assertReorderMatchesForm(
+    form.blocks.map((block) => block.id),
+    parsed.blockIds,
+  );
 
   await db.$transaction(
     parsed.blockIds.map((blockId, index) =>
@@ -710,9 +610,7 @@ export async function getPublicFormBySlug(slug: string) {
 }
 
 export async function createAnonymousResponse(slug: string, payload: unknown) {
-  const answersInput = z
-    .record(z.string(), z.union([z.string(), z.array(z.string())]))
-    .parse(payload);
+  const answersInput = parseSubmissionPayload(payload);
   const form = await db.form.findFirst({
     where: {
       slug,
@@ -731,45 +629,16 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     throw new AppError("This form is not accepting responses right now.", 404);
   }
 
-  const blocks = form.blocks.map(serializeBlock);
-  const blocksById = new Map(blocks.map((block) => [block.id, block]));
-  const normalizedAnswers: Record<string, string | string[]> = {};
-  const visitedBlocks: SerializedBlock[] = [];
-
-  let currentBlock: SerializedBlock | undefined = blocks[0];
-  let safetyCounter = 0;
-
-  while (currentBlock && safetyCounter < blocks.length) {
-    visitedBlocks.push(currentBlock);
-
-    const answer = normalizeAnswer(currentBlock, answersInput[currentBlock.id]);
-
-    if (typeof answer !== "undefined") {
-      normalizedAnswers[currentBlock.id] = answer;
-    }
-
-    const nextBlockId = resolveNextBlockId(
-      blocks,
-      currentBlock.id,
-      normalizedAnswers,
-    );
-    currentBlock = nextBlockId ? blocksById.get(nextBlockId) : undefined;
-    safetyCounter += 1;
-  }
+  const { normalizedAnswers, snapshot } = buildSubmission(
+    form.blocks.map(serializeBlock),
+    answersInput,
+  );
 
   const response = await db.response.create({
     data: {
       formId: form.id,
       answersJson: normalizedAnswers,
-      formSnapshotJson: visitedBlocks.map((block) => ({
-        id: block.id,
-        type: block.type,
-        title: block.title,
-        description: block.description,
-        required: block.required,
-        position: block.position,
-        config: block.config,
-      })),
+      formSnapshotJson: snapshot,
     },
   });
 
