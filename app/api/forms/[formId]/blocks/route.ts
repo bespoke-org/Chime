@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/api";
 import { getServerAuthSession } from "@/lib/auth";
+import { resolveLocaleForUser } from "@/lib/i18n-server";
 import { addOwnedBlock } from "@/lib/forms";
 
 export async function POST(
@@ -21,7 +22,7 @@ export async function POST(
       session.user.id,
       formId,
       payload,
-      session.user.locale,
+      await resolveLocaleForUser(session.user.locale),
     );
 
     return NextResponse.json({ block });

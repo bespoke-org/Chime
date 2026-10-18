@@ -53,6 +53,17 @@ export function resolveBrowserLocale(
   return DEFAULT_LOCALE;
 }
 
+export function resolveSessionLocale(
+  userLocale: string | null | undefined,
+  acceptLanguage: string | null | undefined,
+): AppLocale {
+  if (userLocale) {
+    return normalizeLocale(userLocale);
+  }
+
+  return resolveBrowserLocale(acceptLanguage);
+}
+
 function getValue(messages: TranslationTree, key: string): string | null {
   let current: string | TranslationTree | undefined = messages;
 

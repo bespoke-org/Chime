@@ -6,7 +6,7 @@ declare module "next-auth" {
       id: string;
       firstName: string | null;
       secondName: string | null;
-      locale: "en" | "ru";
+      locale: "en" | "ru" | null;
     };
   }
 
@@ -14,6 +14,6 @@ declare module "next-auth" {
     id: string;
     firstName: string | null;
     secondName: string | null;
-    locale: "en" | "ru";
+    locale: "en" | "ru" | null;
   }
 }

@@ -1,26 +1,29 @@
 import { db } from "@/lib/db";
-import { normalizeLocale } from "@/lib/i18n";
+import { normalizeLocale, type AppLocale } from "@/lib/i18n";
 import { AppError } from "@/lib/errors";
 import type { ProfileSettingsUserSummary } from "@/lib/form-types";
 import { getComposedName, splitNameParts } from "@/lib/user-identity";
 import { profileSettingsSchema } from "@/lib/validators";
 
-function toProfileSettingsUserSummary(user: {
-  id: string;
-  name: string | null;
-  firstName: string | null;
-  secondName: string | null;
-  locale: string | null;
-  email: string | null;
-  image: string | null;
-  notificationEmail: string | null;
-}): ProfileSettingsUserSummary {
+function toProfileSettingsUserSummary(
+  user: {
+    id: string;
+    name: string | null;
+    firstName: string | null;
+    secondName: string | null;
+    locale: string | null;
+    email: string | null;
+    image: string | null;
+    notificationEmail: string | null;
+  },
+  fallbackLocale: AppLocale,
+): ProfileSettingsUserSummary {
   return {
     id: user.id,
     name: user.name,
     firstName: user.firstName,
     secondName: user.secondName,
-    locale: normalizeLocale(user.locale),
+    locale: user.locale ? normalizeLocale(user.locale) : fallbackLocale,
     email: user.email,
     image: user.image,
     notificationEmail: user.notificationEmail,
@@ -29,6 +32,7 @@ function toProfileSettingsUserSummary(user: {
 
 export async function getProfileSettingsUser(
   userId: string,
+  fallbackLocale: AppLocale,
 ): Promise<ProfileSettingsUserSummary> {
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -48,7 +52,7 @@ export async function getProfileSettingsUser(
     throw new AppError("User not found.", 404);
   }
 
-  return toProfileSettingsUserSummary(user);
+  return toProfileSettingsUserSummary(user, fallbackLocale);
 }
 
 export async function updateProfileSettings(

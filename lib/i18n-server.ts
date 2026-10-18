@@ -8,8 +8,7 @@ import YAML from "yaml";
 
 import { getServerAuthSession } from "@/lib/auth";
 import {
-  DEFAULT_LOCALE,
-  resolveBrowserLocale,
+  resolveSessionLocale,
   translate,
   type AppLocale,
   type TranslationTree,
@@ -32,17 +31,16 @@ export const getMessages = cache(
   },
 );
 
+export async function resolveLocaleForUser(
+  userLocale: AppLocale | null | undefined,
+): Promise<AppLocale> {
+  const headerStore = await headers();
+  return resolveSessionLocale(userLocale, headerStore.get("accept-language"));
+}
+
 export async function getRequestLocale(): Promise<AppLocale> {
   const session = await getServerAuthSession();
-
-  if (session?.user?.locale) {
-    return session.user.locale;
-  }
-
-  const headerStore = await headers();
-  return resolveBrowserLocale(
-    headerStore.get("accept-language") ?? DEFAULT_LOCALE,
-  );
+  return resolveLocaleForUser(session?.user?.locale);
 }
 
 export async function getRequestI18n() {

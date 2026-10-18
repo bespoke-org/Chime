@@ -1,5 +1,6 @@
 import { handleRouteError } from "@/lib/api";
 import { getServerAuthSession } from "@/lib/auth";
+import { resolveLocaleForUser } from "@/lib/i18n-server";
 import {
   createOwnedFormResponseExport,
   parseResponseExportFormat,
@@ -24,7 +25,7 @@ export async function GET(
       session.user.id,
       formId,
       format,
-      session.user.locale,
+      await resolveLocaleForUser(session.user.locale),
     );
 
     return new Response(exportFile.body, {

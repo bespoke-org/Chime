@@ -8,6 +8,7 @@ import {
   requireServerSessionUserId,
 } from "@/lib/auth";
 import { createDraftForm } from "@/lib/forms";
+import { resolveLocaleForUser } from "@/lib/i18n-server";
 import {
   createOrganization,
   createOrganizationInviteLink,
@@ -53,7 +54,7 @@ export async function createFormAction() {
   const form = await createDraftForm(
     session.user.id,
     activeWorkspace,
-    session.user.locale,
+    await resolveLocaleForUser(session.user.locale),
   );
 
   redirect(`/forms/${form.id}/edit`);

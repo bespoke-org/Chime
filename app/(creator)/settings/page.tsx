@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { SettingsShell } from "@/components/settings-shell";
 import { requireServerSessionUser } from "@/lib/auth";
 import { listOrganizationsForUser } from "@/lib/organizations";
-import { getRequestI18n } from "@/lib/i18n-server";
+import { getRequestI18n, resolveLocaleForUser } from "@/lib/i18n-server";
 import { withTitle } from "@/lib/metadata";
 import { getProfileSettingsUser } from "@/lib/users";
 
@@ -23,7 +23,7 @@ export default async function SettingsPage({
   const user = await requireServerSessionUser();
   const [organizations, profileUser] = await Promise.all([
     listOrganizationsForUser(user.id),
-    getProfileSettingsUser(user.id),
+    getProfileSettingsUser(user.id, await resolveLocaleForUser(user.locale)),
   ]);
   const resolvedSearchParams = await searchParams;
   const initialOrganizationId = Array.isArray(resolvedSearchParams.organization)

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/api";
 import { getServerAuthSession } from "@/lib/auth";
+import { resolveLocaleForUser } from "@/lib/i18n-server";
 import { deleteOwnedForm, updateOwnedFormMetadata } from "@/lib/forms";
 
 export async function PATCH(
@@ -21,7 +22,7 @@ export async function PATCH(
       session.user.id,
       formId,
       payload,
-      session.user.locale,
+      await resolveLocaleForUser(session.user.locale),
     );
 
     return NextResponse.json({ form });
