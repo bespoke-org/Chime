@@ -21,9 +21,9 @@ meta:
   notFound: Не найдено
 auth:
   title: Войти в Живые формы
-  description: Используйте аккаунт Bluesky или другую идентичность AT Protocol.
+  description: Выберите способ входа.
   continueWithAtproto: Продолжить через ATProto
-  atprotoIdentifierLabel: Хэндл Bluesky
+  atprotoIdentifierLabel: Хэндл ATProto
   atprotoIdentifierPlaceholder: alice.bsky.social
   atprotoHelp: Пользовательские домены и DID тоже поддерживаются.
   atprotoError: Не удалось войти. Проверьте хэндл и попробуйте снова.

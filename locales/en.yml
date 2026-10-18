@@ -21,9 +21,9 @@ meta:
   notFound: Not found
 auth:
   title: Sign in to Lively Forms
-  description: Use your Bluesky account or another AT Protocol identity.
+  description: Choose how you want to sign in.
   continueWithAtproto: Continue with ATProto
-  atprotoIdentifierLabel: Bluesky handle
+  atprotoIdentifierLabel: ATProto handle
   atprotoIdentifierPlaceholder: alice.bsky.social
   atprotoHelp: Custom domains and DIDs work too.
   atprotoError: We couldn't sign you in. Check your handle and try again.
