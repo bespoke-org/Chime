@@ -129,7 +129,9 @@ export function serializeExportAnswer(
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
   if (Array.isArray(value)) {
-    return value.join(" | ");
+    return value
+      .filter((entry): entry is string => typeof entry === "string")
+      .join(" | ");
   }
 
   if (typeof value !== "string") {
@@ -212,12 +214,37 @@ export function buildResponseExportDataset(
   };
 }
 
-function escapeCsvCell(value: string) {
+const FORMULA_TRIGGER_PATTERN = /^[=+\-@\t\r]/;
+const PLAIN_NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
+const XLSX_CELL_TEXT_LIMIT = 32_767;
+
+// Spreadsheet apps evaluate CSV cells that start with a formula trigger.
+// Negative numbers share the "-" trigger but are left alone so they stay numeric.
+function neutralizeFormulaCell(value: string) {
+  if (
+    !FORMULA_TRIGGER_PATTERN.test(value) ||
+    PLAIN_NUMBER_PATTERN.test(value)
+  ) {
+    return value;
+  }
+
+  return `'${value}`;
+}
+
+function escapeCsvCell(rawValue: string) {
+  const value = neutralizeFormulaCell(rawValue);
+
   if (!/[",\n\r]/.test(value)) {
     return value;
   }
 
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+function truncateXlsxCell(value: string) {
+  return value.length > XLSX_CELL_TEXT_LIMIT
+    ? value.slice(0, XLSX_CELL_TEXT_LIMIT)
+    : value;
 }
 
 export function createCsvExportBuffer(dataset: ResponseExportDataset) {
@@ -239,9 +266,11 @@ export function createXlsxExportBuffer(
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
   const worksheet = utils.aoa_to_sheet([
-    dataset.columns.map((column) => column.label),
+    dataset.columns.map((column) => truncateXlsxCell(column.label)),
     ...dataset.rows.map((row) =>
-      dataset.columns.map((column) => row.values[column.key] ?? ""),
+      dataset.columns.map((column) =>
+        truncateXlsxCell(row.values[column.key] ?? ""),
+      ),
     ),
   ]);
   const workbook = utils.book_new();
