@@ -125,7 +125,7 @@ function createQuestionColumnLabel(
 
 export function serializeExportAnswer(
   value: ExportAnswerValue,
-  block?: SerializedBlock,
+  block?: Pick<SerializedBlock, "type">,
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
   if (Array.isArray(value)) {

@@ -71,6 +71,8 @@ settings:
     imageUrlHelp: ATProto can populate this initially from your profile avatar. You can replace it with any public image URL.
     locale: Language
     localeHelp: Choose the language used across the app for your account.
+    notificationEmail: Notification email
+    notificationEmailHelp: Used only for new-response notifications from forms where you turn them on. Leave empty to receive none.
     save: Save
     localeOptions:
       en: English
@@ -185,6 +187,12 @@ builder:
   webhookUrlHelp: A public https:// address. We POST a JSON body with the form, response id, and answers. Addresses on private networks are rejected.
   webhookSecret: Signing secret
   webhookSecretHelp: Optional. When set, each request carries an X-Lively-Forms-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
+  notifications: Notifications
+  notificationsDescription: Get an email each time a new response is stored.
+  notifyOnResponse: Email me on each new response
+  notifyOnResponseHelp: Sent to the notification email from the form owner's profile settings.
+  notifyOnResponseMissingEmail: The form owner has no notification email yet, so no emails are sent.
+  notifyOnResponseOpenSettings: Open profile settings
   availability: Availability
   availabilityDescription: Stop accepting responses at a set time, after a number of responses, or right now. Respondents then see the closed message instead of the form.
   closesAt: Close at

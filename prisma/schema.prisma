@@ -37,6 +37,7 @@ model User {
   locale                  String?
   email                   String?                @unique
   emailVerified           DateTime?
+  notificationEmail       String?
   image                   String?
   accounts                Account[]
   sessions                Session[]
@@ -122,6 +123,7 @@ model Form {
   maxResponses        Int?
   closedManually      Boolean       @default(false)
   closedMessage       String        @default("")
+  notifyOnResponse    Boolean       @default(false)
   slug                String        @unique
   status              FormStatus    @default(DRAFT)
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)

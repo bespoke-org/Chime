@@ -54,6 +54,8 @@ export type BuilderForm = {
   maxResponses: number | null;
   closedManually: boolean;
   closedMessage: string;
+  notifyOnResponse: boolean;
+  ownerHasNotificationEmail: boolean;
   slug: string;
   status: FormStatus;
   updatedAt: string;
@@ -168,6 +170,7 @@ export type ProfileSettingsUserSummary = {
   locale: "en" | "ru";
   email: string | null;
   image: string | null;
+  notificationEmail: string | null;
 };
 
 export type OrganizationMemberSummary = {

@@ -45,6 +45,7 @@ import {
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
 import { buildWebhookPayload, getWebhookDeliverer } from "@/lib/webhooks";
+import { notifyOwnerOfResponse } from "@/lib/response-notifications";
 import {
   DEFAULT_LOCALE,
   normalizeLocale,
@@ -81,6 +82,11 @@ const builderFormInclude = {
     select: {
       id: true,
       name: true,
+    },
+  },
+  user: {
+    select: {
+      notificationEmail: true,
     },
   },
   blocks: {
@@ -146,6 +152,8 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     maxResponses: form.maxResponses,
     closedManually: form.closedManually,
     closedMessage: form.closedMessage,
+    notifyOnResponse: form.notifyOnResponse,
+    ownerHasNotificationEmail: Boolean(form.user.notificationEmail),
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -705,6 +713,14 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
       ),
     });
   }
+
+  // Same rule as the webhook: the email is sent in the background and a
+  // failure there never reaches the respondent.
+  void notifyOwnerOfResponse({
+    form,
+    response: { id: response.id, answers: normalizedAnswers },
+    snapshot,
+  });
 
   return response;
 }

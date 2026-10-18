@@ -21,6 +21,7 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Tailwind CSS
 - Auth.js (`next-auth`) sessions with ATProto OAuth
 - Prisma + PostgreSQL
+- nodemailer for SMTP email notifications
 - dnd-kit
 - Framer Motion
 - Bun for package management

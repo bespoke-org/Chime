@@ -21,6 +21,15 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # SUBMISSION_GLOBAL_RATE_LIMIT=30    # submissions per client IP per window, all forms
 # SUBMISSION_RATE_WINDOW_SECONDS=600
 # SUBMISSION_MIN_FILL_SECONDS=3      # faster submissions are dropped as bots
+# Optional email notifications to form owners; without these the setting has no effect
+# MAIL_FROM="Lively Forms <forms@example.com>"
+# SMTP_URL="smtp://user:password@smtp.example.com:587"
+# Or the split form instead of SMTP_URL
+# SMTP_HOST="smtp.example.com"
+# SMTP_PORT=587                      # defaults to 465 when SMTP_SECURE is set, 587 otherwise
+# SMTP_USER="user"
+# SMTP_PASSWORD="password"
+# SMTP_SECURE=false                  # true or 1 for implicit TLS
 ```
 
 Submission limits are counted in process memory, so they apply per app instance. The client IP is read from the first `X-Forwarded-For` entry, then `X-Real-IP`; the reverse proxy must set one of them or every respondent shares the same limit.
@@ -175,6 +184,14 @@ Reject requests whose timestamp is far from the current time to limit replays.
 Delivery waits up to 5 seconds for an answer. On a network error, a timeout, or a 5xx status the request is sent once more after 2 seconds; a 4xx status is not retried. Redirects are not followed. The response is stored and the respondent sees success regardless of the webhook outcome; failures are written to the server log with the form id and status.
 
 Webhook URLs must use `http` or `https` without credentials and must not point at loopback, private, link-local, or unspecified addresses (`localhost`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `0.0.0.0`, `::1`, IPv4-mapped forms of these) or at `.local` and `.internal` hostnames. The check is made on the URL as written; it does not resolve DNS.
+
+## Email notifications
+
+A creator can enter a notification email in profile settings and turn on "Email me on each new response" in a form's settings. After a response is stored, the app sends one email to the form owner's notification email with the form title, the answers the respondent gave in form order, and a link to the response page. The subject and labels follow the owner's language setting; the link is built from `NEXTAUTH_URL`.
+
+Sending uses SMTP through nodemailer. `MAIL_FROM` is required, plus either `SMTP_URL` (for example `smtp://user:password@host:587` or `smtps://user:password@host:465`) or the split variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_SECURE`. Without `MAIL_FROM` and a host the mailer is not configured: the checkbox can still be saved but no email is sent, and the server log carries one warning the first time a send is attempted. Forms in an organization workspace notify the form owner only.
+
+The response is stored and the respondent sees success regardless of the email outcome. A failed send is logged with the form id and the recipient's domain; addresses and message content are not written to the log.
 
 ## Form closing
 

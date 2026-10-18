@@ -95,6 +95,7 @@ export type FormMetadataDraft = {
   maxResponses: string;
   closedManually: boolean;
   closedMessage: string;
+  notifyOnResponse: boolean;
   slug: string;
 };
 
@@ -557,6 +558,49 @@ export function FormSettingsPanel({
             </span>
           </label>
         </div>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.notifications")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.notificationsDescription")}
+          </p>
+        </div>
+
+        <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
+          <Checkbox
+            checked={metadataDraft.notifyOnResponse}
+            onChange={(event) =>
+              setMetadataDraft((current) => ({
+                ...current,
+                notifyOnResponse: event.target.checked,
+              }))
+            }
+          />
+          <div className="grid gap-1">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.notifyOnResponse")}
+            </span>
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.notifyOnResponseHelp")}
+            </span>
+          </div>
+        </label>
+
+        {form.ownerHasNotificationEmail ? null : (
+          <p className="text-sm leading-6 text-[var(--muted)]">
+            {t("builder.notifyOnResponseMissingEmail")}{" "}
+            <Link
+              href="/settings?section=profile"
+              className="font-medium text-[var(--ink)] underline underline-offset-4"
+            >
+              {t("builder.notifyOnResponseOpenSettings")}
+            </Link>
+          </p>
+        )}
       </div>
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">

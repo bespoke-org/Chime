@@ -13,6 +13,7 @@ function toProfileSettingsUserSummary(user: {
   locale: string | null;
   email: string | null;
   image: string | null;
+  notificationEmail: string | null;
 }): ProfileSettingsUserSummary {
   return {
     id: user.id,
@@ -22,6 +23,7 @@ function toProfileSettingsUserSummary(user: {
     locale: normalizeLocale(user.locale),
     email: user.email,
     image: user.image,
+    notificationEmail: user.notificationEmail,
   };
 }
 
@@ -38,6 +40,7 @@ export async function getProfileSettingsUser(
       locale: true,
       email: true,
       image: true,
+      notificationEmail: true,
     },
   });
 
@@ -55,6 +58,7 @@ export async function updateProfileSettings(
     secondName: unknown;
     locale: unknown;
     image: unknown;
+    notificationEmail: unknown;
   },
 ) {
   const parsed = profileSettingsSchema.parse(payload);
@@ -68,6 +72,7 @@ export async function updateProfileSettings(
       secondName: parsed.secondName,
       locale: parsed.locale,
       image: parsed.image,
+      notificationEmail: parsed.notificationEmail,
     },
     select: {
       id: true,
@@ -77,6 +82,7 @@ export async function updateProfileSettings(
       locale: true,
       email: true,
       image: true,
+      notificationEmail: true,
     },
   });
 }

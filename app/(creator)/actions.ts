@@ -163,6 +163,7 @@ export async function updateProfileAction(formData: FormData) {
     secondName: formData.get("secondName"),
     locale: formData.get("locale"),
     image: formData.get("image"),
+    notificationEmail: formData.get("notificationEmail"),
   });
   revalidatePath("/settings");
   revalidatePath("/", "layout");

@@ -33,6 +33,7 @@ export const formMetadataSchema = z
       .transform((value) => (value === "" ? null : value)),
     closedManually: z.boolean().default(false),
     closedMessage: z.string().trim().max(1000).default(""),
+    notifyOnResponse: z.boolean().default(false),
     slug: z
       .string()
       .trim()
@@ -128,8 +129,27 @@ export const profileSettingsSchema = z
     secondName: z.string().trim().max(60).default(""),
     locale: z.enum(supportedLocales).default("en"),
     image: z.string().trim().max(2048).default(""),
+    notificationEmail: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(254)
+      .nullable()
+      .default("")
+      .transform((value) => value || null),
   })
   .superRefine((value, context) => {
+    if (
+      value.notificationEmail &&
+      !z.email().safeParse(value.notificationEmail).success
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["notificationEmail"],
+        message: "Use a valid email address for notifications.",
+      });
+    }
+
     if (!value.image) {
       return;
     }
@@ -157,4 +177,5 @@ export const profileSettingsSchema = z
     secondName: value.secondName || null,
     locale: value.locale,
     image: value.image || null,
+    notificationEmail: value.notificationEmail,
   }));

@@ -62,6 +62,8 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
     maxResponses: null,
     closedManually: false,
     closedMessage: "",
+    notifyOnResponse: false,
+    ownerHasNotificationEmail: false,
     slug: "demo-form",
     status: "DRAFT",
     updatedAt: "2026-04-14T12:00:00.000Z",

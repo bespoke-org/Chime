@@ -115,6 +115,22 @@ export function ProfileSettingsPanel({
           </span>
         </label>
 
+        <label className="grid gap-2 text-sm text-[var(--muted)]">
+          <span className="font-medium text-[var(--ink)]">
+            {t("settings.profile.notificationEmail")}
+          </span>
+          <Input
+            name="notificationEmail"
+            type="email"
+            autoComplete="email"
+            defaultValue={user.notificationEmail ?? ""}
+            placeholder="you@example.com"
+          />
+          <span className="text-xs text-[var(--muted)]">
+            {t("settings.profile.notificationEmailHelp")}
+          </span>
+        </label>
+
         <div className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">
             {t("settings.profile.locale")}

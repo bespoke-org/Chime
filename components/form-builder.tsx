@@ -300,6 +300,7 @@ export function FormBuilder({
       initialForm.maxResponses === null ? "" : String(initialForm.maxResponses),
     closedManually: initialForm.closedManually,
     closedMessage: initialForm.closedMessage,
+    notifyOnResponse: initialForm.notifyOnResponse,
     slug: initialForm.slug,
   });
 
@@ -398,6 +399,7 @@ export function FormBuilder({
       maxResponses: form.maxResponses === null ? "" : String(form.maxResponses),
       closedManually: form.closedManually,
       closedMessage: form.closedMessage,
+      notifyOnResponse: form.notifyOnResponse,
       slug: form.slug,
     });
   }, [
@@ -415,6 +417,7 @@ export function FormBuilder({
     form.maxResponses,
     form.closedManually,
     form.closedMessage,
+    form.notifyOnResponse,
     form.slug,
   ]);
 

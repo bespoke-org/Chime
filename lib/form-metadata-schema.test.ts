@@ -207,6 +207,56 @@ describe("profileSettingsSchema", () => {
     );
   });
 
+  test("trims and lowercases the notification email", () => {
+    expect(
+      profileSettingsSchema.parse({ notificationEmail: "  Ada@Example.COM " })
+        .notificationEmail,
+    ).toBe("ada@example.com");
+  });
+
+  test("stores a missing or empty notification email as null", () => {
+    expect(profileSettingsSchema.parse({}).notificationEmail).toBe(null);
+    expect(
+      profileSettingsSchema.parse({ notificationEmail: "   " })
+        .notificationEmail,
+    ).toBe(null);
+    expect(
+      profileSettingsSchema.parse({ notificationEmail: null })
+        .notificationEmail,
+    ).toBe(null);
+  });
+
+  test("rejects notification emails that are malformed or too long", () => {
+    expect(
+      throws(() => profileSettingsSchema.parse({ notificationEmail: "nope" })),
+    ).toBe(true);
+    expect(
+      throws(() =>
+        profileSettingsSchema.parse({ notificationEmail: "ada@example" }),
+      ),
+    ).toBe(true);
+    expect(
+      throws(() =>
+        profileSettingsSchema.parse({
+          notificationEmail: `${"x".repeat(243)}@example.com`,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      profileSettingsSchema.parse({
+        notificationEmail: `${"x".repeat(242)}@example.com`,
+      }).notificationEmail,
+    ).toBe(`${"x".repeat(242)}@example.com`);
+  });
+
+  test("rejects a non-ASCII local part, following zod's email check", () => {
+    expect(
+      throws(() =>
+        profileSettingsSchema.parse({ notificationEmail: "ада@example.com" }),
+      ),
+    ).toBe(true);
+  });
+
   test("accepts only http and https image urls", () => {
     expect(
       profileSettingsSchema.parse({ image: " https://cdn.example/a.png " })
@@ -338,5 +388,18 @@ describe("formMetadataSchema closing", () => {
     expect(throws(() => metadata({ closedManually: "true" }))).toBe(true);
     expect(throws(() => metadata({ closedManually: 1 }))).toBe(true);
     expect(metadata({ closedManually: true }).closedManually).toBe(true);
+  });
+});
+
+describe("formMetadataSchema notifyOnResponse", () => {
+  test("defaults to off and keeps an explicit value", () => {
+    expect(metadata({}).notifyOnResponse).toBe(false);
+    expect(metadata({ notifyOnResponse: true }).notifyOnResponse).toBe(true);
+    expect(metadata({ notifyOnResponse: false }).notifyOnResponse).toBe(false);
+  });
+
+  test("rejects non-boolean values", () => {
+    expect(throws(() => metadata({ notifyOnResponse: "true" }))).toBe(true);
+    expect(throws(() => metadata({ notifyOnResponse: 1 }))).toBe(true);
   });
 });
