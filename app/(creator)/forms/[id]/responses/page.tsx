@@ -41,7 +41,7 @@ type ResponseReviewView = "submissions" | "questions";
 
 function resolveView(value: string | string[] | undefined): ResponseReviewView {
   const resolved = Array.isArray(value) ? value[0] : value;
-  return resolved === "submissions" ? "submissions" : "questions";
+  return resolved === "questions" ? "questions" : "submissions";
 }
 
 export async function generateMetadata({
@@ -77,8 +77,8 @@ export default async function ResponsesPage({
   const numberFormatter = new Intl.NumberFormat(locale, {
     maximumFractionDigits: 2,
   });
-  const questionsHref = `/forms/${form.id}/responses`;
-  const submissionsHref = `/forms/${form.id}/responses?view=submissions`;
+  const questionsHref = `/forms/${form.id}/responses?view=questions`;
+  const submissionsHref = `/forms/${form.id}/responses`;
 
   function formatAnswerValue(summary: QuestionSummary, value: string) {
     if (summary.block.type === "DATE") {
