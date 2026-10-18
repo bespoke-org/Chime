@@ -32,11 +32,13 @@ import { useLocalToasts } from "@/components/use-local-toasts";
 import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
 import {
   AGREEMENT_ANSWER_VALUES,
+  getRatingValues,
   type AgreementBlockConfig,
   type ChoiceBlockConfig,
   type LinkBlockConfig,
   type LongTextBlockConfig,
   type NumberBlockConfig,
+  type RatingBlockConfig,
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
@@ -135,6 +137,33 @@ function getShortcutIndex(key: string) {
   }
 
   return Number(key) - 1;
+}
+
+// Digit keys select the rating with that value; "0" selects 10 when the
+// scale reaches 10 (like the tenth choice option), otherwise the value 0.
+function getRatingShortcutValue(
+  shortcutIndex: number,
+  config: RatingBlockConfig,
+) {
+  const value = shortcutIndex + 1;
+
+  if (value >= config.min && value <= config.max) {
+    return value;
+  }
+
+  return value === 10 && config.min === 0 ? 0 : null;
+}
+
+function getRatingShortcutKey(value: number, config: RatingBlockConfig) {
+  if (value >= 1 && value <= 9) {
+    return String(value);
+  }
+
+  if (value === 10 || (value === 0 && config.max < 10)) {
+    return "0";
+  }
+
+  return null;
 }
 
 function isTextLikeBlock(
@@ -458,7 +487,14 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
       switch (result.error.code) {
         case "answer_required":
-          showToast(t("publicRunner.answerRequired"), "error");
+          showToast(
+            t(
+              currentBlock.type === "RATING"
+                ? "publicRunner.ratingRequired"
+                : "publicRunner.answerRequired",
+            ),
+            "error",
+          );
           return false;
         case "single_choice_required":
           showToast(t("publicRunner.singleChoiceRequired"), "error");
@@ -591,9 +627,26 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         !currentBlock ||
         (currentBlock.type !== "SINGLE_CHOICE" &&
           currentBlock.type !== "MULTIPLE_CHOICE" &&
-          currentBlock.type !== "AGREEMENT")
+          currentBlock.type !== "AGREEMENT" &&
+          currentBlock.type !== "RATING")
       ) {
         return null;
+      }
+
+      if (currentBlock.type === "RATING") {
+        const value = getRatingShortcutValue(
+          shortcutIndex,
+          currentBlock.config as RatingBlockConfig,
+        );
+
+        if (value === null) {
+          return null;
+        }
+
+        return {
+          ...answers,
+          [currentBlock.id]: String(value),
+        };
       }
 
       if (currentBlock.type === "AGREEMENT") {
@@ -1100,6 +1153,63 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                         )}
                       </div>
                     ) : null}
+
+                    {currentBlock.type === "RATING"
+                      ? (() => {
+                          const config =
+                            currentBlock.config as RatingBlockConfig;
+                          const currentValue = answers[currentBlock.id];
+
+                          return (
+                            <div className="grid gap-2 px-2">
+                              <div className="flex flex-wrap gap-2">
+                                {getRatingValues(config).map((value) => {
+                                  const selected =
+                                    currentValue === String(value);
+                                  const shortcut = getRatingShortcutKey(
+                                    value,
+                                    config,
+                                  );
+
+                                  return (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      data-runner-choice-control="true"
+                                      aria-pressed={selected}
+                                      aria-keyshortcuts={shortcut ?? undefined}
+                                      className={cn(
+                                        "flex h-12 min-w-12 items-center justify-center rounded-[14px] border px-3 text-base font-semibold transition",
+                                        selected
+                                          ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
+                                          : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
+                                      )}
+                                      onPointerDown={preventPointerFocusSteal}
+                                      onClick={() =>
+                                        setAnswer(
+                                          currentBlock.id,
+                                          selected ? "" : String(value),
+                                        )
+                                      }
+                                      onKeyDown={handleChoiceControlKeyDown}
+                                    >
+                                      {value}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {config.minLabel || config.maxLabel ? (
+                                <div className="flex justify-between gap-4 text-xs text-[var(--muted)]">
+                                  <span>{config.minLabel}</span>
+                                  <span className="text-right">
+                                    {config.maxLabel}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })()
+                      : null}
 
                     {currentBlock.type === "AGREEMENT" ? (
                       <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">

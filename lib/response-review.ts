@@ -3,8 +3,11 @@ import { z } from "zod";
 import {
   AGREEMENT_ANSWER_VALUES,
   blockTypeSchema,
+  getRatingValues,
+  isNumericAnswerBlock,
   isQuestionBlock,
   type ChoiceBlockConfig,
+  type RatingBlockConfig,
   type SerializedBlock,
 } from "@/lib/blocks";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
@@ -162,7 +165,7 @@ function aggregateQuestionSummaries(
       } satisfies QuestionSummary;
     }
 
-    if (block.type === "NUMBER") {
+    if (isNumericAnswerBlock(block.type)) {
       const numericAnswers = answeredResponses
         .map((response) => response.answers[block.id])
         .filter((answer): answer is string => typeof answer === "string")
@@ -172,6 +175,13 @@ function aggregateQuestionSummaries(
         ? numericAnswers.reduce((sum, value) => sum + value, 0) /
           numericAnswers.length
         : null;
+      const distribution =
+        block.type === "RATING"
+          ? getRatingValues(block.config as RatingBlockConfig).map((value) => ({
+              value: String(value),
+              count: numericAnswers.filter((answer) => answer === value).length,
+            }))
+          : undefined;
 
       return {
         block,
@@ -183,6 +193,7 @@ function aggregateQuestionSummaries(
         min: numericAnswers.length ? Math.min(...numericAnswers) : null,
         max: numericAnswers.length ? Math.max(...numericAnswers) : null,
         average,
+        distribution,
       } satisfies QuestionSummary;
     }
 

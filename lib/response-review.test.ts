@@ -276,3 +276,130 @@ describe("buildResponseDetailData", () => {
     ).toBe(true);
   });
 });
+
+describe("rating question summaries", () => {
+  const ratingConfig = {
+    min: 0,
+    max: 3,
+    minLabel: "Low",
+    maxLabel: "High",
+    branchRules: [],
+    defaultNextBlockId: null,
+  };
+
+  function snapshot(blockIds: string[]) {
+    return blockIds.map((id, index) => ({
+      id,
+      type: id === "score" ? "RATING" : "SHORT_TEXT",
+      title: id,
+      description: "",
+      required: false,
+      position: index,
+      config: id === "score" ? ratingConfig : {},
+    }));
+  }
+
+  function summarize(
+    responses: Array<{ id: string; answers: Record<string, unknown> }>,
+  ) {
+    return buildResponseReviewData({
+      form: {
+        id: "form-1",
+        title: "Survey",
+        workspace: { kind: "personal", label: "Personal workspace" },
+        blocks: [
+          createBlock({ id: "name", type: "SHORT_TEXT", position: 0 }),
+          createBlock({
+            id: "score",
+            type: "RATING",
+            position: 1,
+            config: ratingConfig,
+          }),
+        ],
+      },
+      responses: responses.map((response) => ({
+        id: response.id,
+        submittedAt: new Date("2026-04-14T10:00:00.000Z"),
+        answersJson: response.answers,
+        formSnapshotJson: snapshot(
+          "score" in response.answers || response.id.startsWith("reached")
+            ? ["name", "score"]
+            : ["name"],
+        ),
+      })),
+    }).questionSummaries.find((summary) => summary.block.id === "score");
+  }
+
+  test("counts every scale value, including zero and unused ones", () => {
+    const summary = summarize([
+      { id: "reached-1", answers: { score: "0" } },
+      { id: "reached-2", answers: { score: "3" } },
+      { id: "reached-3", answers: { score: "3" } },
+      { id: "reached-4", answers: { score: "1" } },
+    ]);
+
+    expect(summary?.kind).toBe("number");
+    expect(summary?.kind === "number" ? summary.average : null).toBe(1.75);
+    expect(summary?.kind === "number" ? summary.min : null).toBe(0);
+    expect(summary?.kind === "number" ? summary.max : null).toBe(3);
+    expect(
+      summary?.kind === "number" ? JSON.stringify(summary.distribution) : "",
+    ).toBe(
+      JSON.stringify([
+        { value: "0", count: 1 },
+        { value: "1", count: 1 },
+        { value: "2", count: 0 },
+        { value: "3", count: 2 },
+      ]),
+    );
+  });
+
+  test("ignores missing, blank and malformed answers in the aggregates", () => {
+    const summary = summarize([
+      { id: "reached-1", answers: { score: "2" } },
+      { id: "reached-2", answers: {} },
+      { id: "reached-3", answers: { score: "  " } },
+      { id: "reached-4", answers: { score: "high" } },
+      { id: "skipped-1", answers: { name: "Ada" } },
+    ]);
+
+    expect(summary?.reachedCount).toBe(4);
+    expect(summary?.answeredCount).toBe(2);
+    expect(summary?.emptyCount).toBe(2);
+    expect(summary?.skippedCount).toBe(1);
+    expect(summary?.kind === "number" ? summary.average : null).toBe(2);
+    expect(
+      summary?.kind === "number"
+        ? JSON.stringify(summary.distribution?.map((entry) => entry.count))
+        : "",
+    ).toBe(JSON.stringify([0, 0, 1, 0]));
+  });
+
+  test("reports an empty summary when nobody rated", () => {
+    const summary = summarize([{ id: "skipped-1", answers: { name: "Ada" } }]);
+
+    expect(summary?.kind === "number" ? summary.average : undefined).toBe(null);
+    expect(summary?.kind === "number" ? summary.min : undefined).toBe(null);
+    expect(
+      summary?.kind === "number"
+        ? JSON.stringify(summary.distribution?.map((entry) => entry.count))
+        : "",
+    ).toBe(JSON.stringify([0, 0, 0, 0]));
+  });
+
+  test("leaves number blocks without a distribution", () => {
+    const summary = buildResponseReviewData({
+      form: {
+        id: "form-1",
+        title: "Survey",
+        workspace: { kind: "personal", label: "Personal workspace" },
+        blocks: [createBlock({ id: "age", type: "NUMBER", position: 0 })],
+      },
+      responses: [],
+    }).questionSummaries[0];
+
+    expect(summary?.kind === "number" ? typeof summary.distribution : "").toBe(
+      "undefined",
+    );
+  });
+});

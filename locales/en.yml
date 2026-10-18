@@ -192,6 +192,11 @@ builder:
   allowFloats: Allow decimal values
   minimumValue: Minimum value
   maximumValue: Maximum value
+  ratingMin: Lowest value
+  ratingMax: Highest value
+  ratingMinLabel: Label for the lowest value
+  ratingMaxLabel: Label for the highest value
+  ratingHelp: Respondents pick one value on the scale. Use 0 to 10 for an NPS question.
   regexValidation: Validate with regex
   regexPattern: Regex pattern
   regexHelp: Use a custom regex to constrain accepted answers for this text question.
@@ -292,6 +297,7 @@ blocks:
     LINK: Link
     AGREEMENT: Agreement
     DATE: Date
+    RATING: Rating
 branching:
   issueMessages:
     invalid-target: 'A rule on "{blockLabel}" points to a missing block.'
@@ -320,6 +326,7 @@ publicRunner:
   wholeNumberRequired: Enter a whole number before continuing.
   numberAtLeast: "Enter a number greater than or equal to {min}."
   numberAtMost: "Enter a number less than or equal to {max}."
+  ratingRequired: Choose a rating before continuing.
   invalidLink: Enter a valid link before continuing.
   invalidDate: Enter a valid date before continuing.
   openCalendar: Open calendar

@@ -30,6 +30,7 @@ import {
   Rows3,
   GitBranch,
   SquareCheck,
+  Star,
   TextCursorInput,
   Type,
 } from "lucide-react";
@@ -96,6 +97,7 @@ const blockIcons: Record<BlockType, typeof Type> = {
   LINK: Link2,
   AGREEMENT: BadgeCheck,
   DATE: CalendarDays,
+  RATING: Star,
 };
 
 const blockCreationOrder: BlockType[] = [
@@ -105,6 +107,7 @@ const blockCreationOrder: BlockType[] = [
   "NUMBER",
   "LINK",
   "DATE",
+  "RATING",
   "SINGLE_CHOICE",
   "MULTIPLE_CHOICE",
   "AGREEMENT",

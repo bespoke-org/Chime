@@ -19,7 +19,8 @@ function createBlock(overrides: {
     | "AGREEMENT"
     | "NUMBER"
     | "LINK"
-    | "DATE";
+    | "DATE"
+    | "RATING";
   position: number;
   title?: string;
   config?: Record<string, unknown>;
@@ -64,6 +65,16 @@ function createBlock(overrides: {
         };
       case "DATE":
         return {
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: false,
+        };
+      case "RATING":
+        return {
+          min: 1,
+          max: 5,
+          minLabel: "Poor",
+          maxLabel: "Great",
           branchRules: [],
           defaultNextBlockId: null,
           endForm: false,
@@ -590,6 +601,154 @@ describe("PublicFormRunner", () => {
       view.getByRole("button", { name: /yes 1/i }).getAttribute("aria-pressed"),
     ).toBe("true");
     expect(noButton.getAttribute("aria-pressed")).toBe("false");
+
+    await cleanupAndRestore(restoreDom);
+  });
+  test("renders rating buttons for the whole scale with the end labels", async () => {
+    const restoreDom = installTestDom();
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "score",
+          type: "RATING",
+          position: 0,
+          title: "How was it?",
+        }),
+      ]),
+    );
+
+    const pressed = view
+      .getAllByRole("button", { pressed: false })
+      .filter((button) => button.dataset.runnerChoiceControl === "true");
+
+    expect(JSON.stringify(pressed.map((button) => button.textContent))).toBe(
+      JSON.stringify(["1", "2", "3", "4", "5"]),
+    );
+    expect(view.getByText("Poor") !== null).toBe(true);
+    expect(view.getByText("Great") !== null).toBe(true);
+    expect(view.queryByRole("button", { name: "0" })).toBe(null);
+    expect(view.queryByRole("button", { name: "6" })).toBe(null);
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("selects a rating by click or digit key and submits the value", async () => {
+    const restoreDom = installTestDom();
+    const requests: Array<Record<string, unknown>> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      _url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      requests.push(JSON.parse(String(init?.body)));
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ responseId: "response-1" }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "score",
+          type: "RATING",
+          position: 0,
+          title: "How was it?",
+          config: {
+            min: 0,
+            max: 10,
+            minLabel: "",
+            maxLabel: "",
+            branchRules: [],
+            defaultNextBlockId: null,
+            endForm: false,
+          },
+        }),
+      ]),
+    );
+
+    fireEvent.click(view.getByRole("button", { name: "3" }));
+    expect(
+      view.getByRole("button", { name: "3" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    fireEvent.keyDown(window, { key: "7" });
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "7" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+    expect(
+      view.getByRole("button", { name: "3" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+
+    fireEvent.keyDown(window, { key: "0" });
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "10" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+    expect(
+      view.getByRole("button", { name: "0" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(requests.length).toBe(1);
+    });
+    expect(
+      JSON.stringify((requests[0]?.answers as Record<string, unknown>).score),
+    ).toBe(JSON.stringify("10"));
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("the zero key selects 0 when the scale stops before 10 and clicking again clears the rating", async () => {
+    const restoreDom = installTestDom();
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "score",
+          type: "RATING",
+          position: 0,
+          config: {
+            min: 0,
+            max: 4,
+            minLabel: "",
+            maxLabel: "",
+            branchRules: [],
+            defaultNextBlockId: null,
+            endForm: false,
+          },
+        }),
+      ]),
+    );
+
+    fireEvent.keyDown(window, { key: "0" });
+    await waitFor(() => {
+      expect(
+        view.getByRole("button", { name: "0" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    fireEvent.keyDown(window, { key: "5" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      view
+        .getAllByRole("button", { pressed: true })
+        .map((button) => button.textContent)
+        .join(","),
+    ).toBe("0");
+
+    fireEvent.click(view.getByRole("button", { name: "0" }));
+    await waitFor(() => {
+      expect(view.queryAllByRole("button", { pressed: true }).length).toBe(0);
+    });
 
     await cleanupAndRestore(restoreDom);
   });

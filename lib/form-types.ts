@@ -138,6 +138,7 @@ export type QuestionSummary = {
       min: number | null;
       max: number | null;
       average: number | null;
+      distribution?: QuestionSummaryOptionCount[];
     }
   | {
       kind: "freeform";

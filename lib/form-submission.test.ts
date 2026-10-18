@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { SerializedBlock } from "@/lib/blocks";
+import { parseBlockConfig, type SerializedBlock } from "@/lib/blocks";
 import { AppError } from "@/lib/errors";
 import {
   assertReorderMatchesForm,
@@ -438,5 +438,51 @@ describe("assertReorderMatchesForm", () => {
 
     expect(json(current)).toBe(json(["a", "b", "c"]));
     expect(json(next)).toBe(json(["c", "a", "b"]));
+  });
+});
+
+describe("buildSubmission rating blocks", () => {
+  const ratingConfig = parseBlockConfig("RATING", {
+    branchRules: [{ operator: "gte", value: "4", targetBlockId: "praise" }],
+  });
+
+  test("asks for a rating when a required rating is missing", () => {
+    const blocks = positioned([
+      createBlock({
+        id: "score",
+        type: "RATING",
+        required: true,
+        title: "How was it?",
+        config: ratingConfig,
+      }),
+    ]);
+
+    const error = captureError(() => buildSubmission(blocks, {}));
+
+    expect(appErrorStatus(error)).toBe(422);
+    expect(appErrorMessage(error)).toBe(
+      "Please choose a rating for “How was it?”.",
+    );
+  });
+
+  test("rejects a rating outside the scale and stores the normalized one", () => {
+    const blocks = positioned([
+      createBlock({ id: "score", type: "RATING", config: ratingConfig }),
+      createBlock({ id: "complaint", type: "SHORT_TEXT" }),
+      createBlock({ id: "praise", type: "SHORT_TEXT" }),
+    ]);
+
+    expect(
+      appErrorStatus(
+        captureError(() => buildSubmission(blocks, { score: "6" })),
+      ),
+    ).toBe(422);
+
+    const result = buildSubmission(blocks, { score: " 4,0 " });
+
+    expect(result.normalizedAnswers.score).toBe("4");
+    expect(json(result.snapshot.map((block) => block.id))).toBe(
+      json(["score", "praise"]),
+    );
   });
 });

@@ -57,6 +57,13 @@ function normalizeAnswer(
         );
       }
 
+      if (block.type === "RATING") {
+        throw new AppError(
+          `Please choose a rating for “${questionLabel}”.`,
+          422,
+        );
+      }
+
       if (block.type === "LINK") {
         throw new AppError(`Please enter a link for “${questionLabel}”.`, 422);
       }

@@ -6,6 +6,7 @@ import {
   getEndForm,
   getSupportedBranchOperators,
   isAgreementAnswerValue,
+  isNumericAnswerBlock,
   isQuestionBlock,
   isValidDateAnswer,
   isValidLinkAnswer,
@@ -14,6 +15,7 @@ import {
   type BranchOperator,
   type BranchRule,
   type ChoiceBlockConfig,
+  type RatingBlockConfig,
   type SerializedBlock,
 } from "@/lib/blocks";
 
@@ -112,7 +114,7 @@ export function normalizeBranchRuleOperand(
     return options.includes(trimmed) ? trimmed : null;
   }
 
-  if (block.type === "NUMBER") {
+  if (isNumericAnswerBlock(block.type)) {
     const parsed = parseNumericAnswer(trimmed);
     return parsed === null ? null : String(parsed);
   }
@@ -174,7 +176,7 @@ function normalizeComparableAnswer(
     return trimmed;
   }
 
-  if (block.type === "NUMBER") {
+  if (isNumericAnswerBlock(block.type)) {
     const parsed = parseNumericAnswer(trimmed);
     return parsed === null ? undefined : String(parsed);
   }
@@ -258,7 +260,7 @@ function compareRuleAgainstAnswer(
         return false;
       }
 
-      if (block.type === "NUMBER") {
+      if (isNumericAnswerBlock(block.type)) {
         const answerNumber = Number(normalizedAnswer);
         const operandNumber = Number(operand);
 
@@ -375,7 +377,7 @@ function canUseDefaultPath(block: SerializedBlock) {
   if (
     block.type === "SHORT_TEXT" ||
     block.type === "LONG_TEXT" ||
-    block.type === "NUMBER" ||
+    isNumericAnswerBlock(block.type) ||
     block.type === "LINK" ||
     block.type === "DATE"
   ) {
@@ -502,7 +504,7 @@ function isRuleConditionValid(block: SerializedBlock, rule: BranchRule) {
       rule.operator === "gte" ||
       rule.operator === "lt" ||
       rule.operator === "lte") &&
-    (block.type === "NUMBER" || block.type === "DATE")
+    (isNumericAnswerBlock(block.type) || block.type === "DATE")
   ) {
     return true;
   }
@@ -850,6 +852,10 @@ export function getBranchRuleValueHint(block: SerializedBlock) {
 
   if (block.type === "NUMBER") {
     return "42";
+  }
+
+  if (block.type === "RATING") {
+    return String((block.config as RatingBlockConfig).max);
   }
 
   if (block.type === "LINK") {

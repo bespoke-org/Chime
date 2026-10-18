@@ -1237,3 +1237,109 @@ describe("branch validation edge cases", () => {
     expect(getIssueCodes(blocks).blockers).toContain("invalid-condition");
   });
 });
+
+function ratingBlock(
+  id: string,
+  position: number,
+  rules: ReturnType<typeof rule>[] = [],
+  scale: { min: 0 | 1; max: number } = { min: 1, max: 5 },
+) {
+  return createBlock({
+    id,
+    type: "RATING",
+    position,
+    config: {
+      ...scale,
+      minLabel: "",
+      maxLabel: "",
+      branchRules: rules,
+      defaultNextBlockId: null,
+    },
+  });
+}
+
+describe("rating branch rules", () => {
+  test("compares ratings numerically at the scale boundaries", () => {
+    const block = ratingBlock("score", 0);
+
+    expect(branchRuleMatches(block, "5", rule("gte", "5", "t"))).toBe(true);
+    expect(branchRuleMatches(block, "4", rule("gte", "5", "t"))).toBe(false);
+    expect(branchRuleMatches(block, "1", rule("lte", "1", "t"))).toBe(true);
+    expect(branchRuleMatches(block, "1", rule("lt", "1", "t"))).toBe(false);
+    expect(branchRuleMatches(block, "10", rule("gt", "9", "t"))).toBe(true);
+    expect(branchRuleMatches(block, "10", rule("gt", "9.5", "t"))).toBe(true);
+  });
+
+  test("matches equals on the normalized value", () => {
+    const block = ratingBlock("score", 0);
+
+    expect(branchRuleMatches(block, "3", rule("equals", "3", "t"))).toBe(true);
+    expect(branchRuleMatches(block, "3", rule("equals", "03", "t"))).toBe(true);
+    expect(branchRuleMatches(block, "3", rule("equals", "3,0", "t"))).toBe(
+      true,
+    );
+    expect(branchRuleMatches(block, "3", rule("not_equals", "3", "t"))).toBe(
+      false,
+    );
+  });
+
+  test("treats a missing or blank rating as empty", () => {
+    const block = ratingBlock("score", 0);
+
+    expect(
+      branchRuleMatches(block, undefined, rule("is_empty", null, "t")),
+    ).toBe(true);
+    expect(branchRuleMatches(block, "   ", rule("is_empty", null, "t"))).toBe(
+      true,
+    );
+    expect(branchRuleMatches(block, "0", rule("is_empty", null, "t"))).toBe(
+      false,
+    );
+    expect(branchRuleMatches(block, "0", rule("is_not_empty", null, "t"))).toBe(
+      true,
+    );
+    expect(branchRuleMatches(block, undefined, rule("gte", "1", "t"))).toBe(
+      false,
+    );
+  });
+
+  test("routes an NPS answer to the matching follow-up", () => {
+    const blocks = [
+      ratingBlock(
+        "nps",
+        0,
+        [
+          rule("lte", "6", "detractor"),
+          rule("lte", "8", "passive"),
+          rule("gte", "9", "promoter"),
+        ],
+        { min: 0, max: 10 },
+      ),
+      createBlock({ id: "detractor", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "passive", type: "SHORT_TEXT", position: 2 }),
+      createBlock({ id: "promoter", type: "SHORT_TEXT", position: 3 }),
+    ];
+
+    expect(resolveNextBlockId(blocks, "nps", { nps: "0" })).toBe("detractor");
+    expect(resolveNextBlockId(blocks, "nps", { nps: "6" })).toBe("detractor");
+    expect(resolveNextBlockId(blocks, "nps", { nps: "7" })).toBe("passive");
+    expect(resolveNextBlockId(blocks, "nps", { nps: "9" })).toBe("promoter");
+    expect(resolveNextBlockId(blocks, "nps", { nps: "10" })).toBe("promoter");
+    expect(resolveNextBlockId(blocks, "nps", {})).toBe("detractor");
+  });
+
+  test("flags a non-numeric rating operand and a text operator", () => {
+    expect(
+      getIssueCodes([
+        ratingBlock("score", 0, [rule("gte", "high", "finish")]),
+        createBlock({ id: "finish", type: "SHORT_TEXT", position: 1 }),
+      ]).blockers,
+    ).toContain("invalid-condition");
+    expect(
+      getIssueCodes([
+        ratingBlock("score", 0, [rule("contains", "4", "finish")]),
+        createBlock({ id: "finish", type: "SHORT_TEXT", position: 1 }),
+      ]).blockers,
+    ).toContain("unsupported-operator");
+  });
+});

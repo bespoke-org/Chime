@@ -520,3 +520,127 @@ describe("validateAndNormalizeAnswer text and agreement edge cases", () => {
     expectValue(validateAndNormalizeAnswer(block, "anything"), undefined);
   });
 });
+
+function ratingBlock(overrides: {
+  min?: 0 | 1;
+  max?: number;
+  required?: boolean;
+}) {
+  return createBlock({
+    id: "score",
+    type: "RATING",
+    required: overrides.required ?? true,
+    config: {
+      min: overrides.min ?? 1,
+      max: overrides.max ?? 5,
+      minLabel: "",
+      maxLabel: "",
+      branchRules: [],
+      defaultNextBlockId: null,
+    },
+  });
+}
+
+describe("validateAndNormalizeAnswer rating", () => {
+  test("accepts both ends of the scale", () => {
+    expectValue(validateAndNormalizeAnswer(ratingBlock({}), "1"), "1");
+    expectValue(validateAndNormalizeAnswer(ratingBlock({}), "5"), "5");
+    expectValue(
+      validateAndNormalizeAnswer(ratingBlock({ min: 0, max: 10 }), "0"),
+      "0",
+    );
+    expectValue(
+      validateAndNormalizeAnswer(ratingBlock({ min: 0, max: 10 }), "10"),
+      "10",
+    );
+  });
+
+  test("rejects values just outside the scale", () => {
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "0"),
+      "number_below_min",
+    );
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "6"),
+      "number_above_max",
+    );
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({ min: 0, max: 10 }), "-1"),
+      "number_below_min",
+    );
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({ min: 0, max: 10 }), "11"),
+      "number_above_max",
+    );
+  });
+
+  test("reports the configured bounds in range errors", () => {
+    const below = validateAndNormalizeAnswer(ratingBlock({ min: 0 }), "-3");
+    const above = validateAndNormalizeAnswer(ratingBlock({ max: 7 }), "8");
+
+    expect(
+      !below.ok && below.error.code === "number_below_min"
+        ? below.error.min
+        : null,
+    ).toBe(0);
+    expect(
+      !above.ok && above.error.code === "number_above_max"
+        ? above.error.max
+        : null,
+    ).toBe(7);
+  });
+
+  test("rejects fractional ratings", () => {
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "3.5"),
+      "whole_number_required",
+    );
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "3,5"),
+      "whole_number_required",
+    );
+  });
+
+  test("normalizes decimal separators, zero fractions and whitespace", () => {
+    expectValue(validateAndNormalizeAnswer(ratingBlock({}), "3,0"), "3");
+    expectValue(validateAndNormalizeAnswer(ratingBlock({}), " 4 "), "4");
+    expectValue(validateAndNormalizeAnswer(ratingBlock({}), "04"), "4");
+  });
+
+  test("rejects values that are not plain numbers", () => {
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "five"),
+      "invalid_number",
+    );
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "1e0"),
+      "invalid_number",
+    );
+  });
+
+  test("treats non-string input as an empty answer", () => {
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), 4),
+      "answer_required",
+    );
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), ["4"]),
+      "answer_required",
+    );
+    expectValue(
+      validateAndNormalizeAnswer(ratingBlock({ required: false }), 4),
+      undefined,
+    );
+  });
+
+  test("requires an answer only when the block is required", () => {
+    expectError(
+      validateAndNormalizeAnswer(ratingBlock({}), "   "),
+      "answer_required",
+    );
+    expectValue(
+      validateAndNormalizeAnswer(ratingBlock({ required: false }), ""),
+      undefined,
+    );
+  });
+});

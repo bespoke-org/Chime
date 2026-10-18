@@ -68,6 +68,7 @@ const FORM_BLOCK_TYPES = {
   LINK: "LINK",
   AGREEMENT: "AGREEMENT",
   DATE: "DATE",
+  RATING: "RATING",
 } as const satisfies Record<PrismaFormBlockType, PrismaFormBlockType>;
 
 const builderFormInclude = {
@@ -204,6 +205,7 @@ const defaultFormCopyByLocale: Record<
       LINK: "Link question",
       AGREEMENT: "Agreement question",
       DATE: "Date question",
+      RATING: "Rating question",
     },
   },
   ru: {
@@ -238,6 +240,7 @@ const defaultFormCopyByLocale: Record<
       LINK: "Вопрос со ссылкой",
       AGREEMENT: "Вопрос с согласием",
       DATE: "Вопрос с датой",
+      RATING: "Вопрос с оценкой",
     },
   },
 };

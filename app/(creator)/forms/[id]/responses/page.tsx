@@ -314,6 +314,27 @@ export default async function ResponsesPage({
                 </div>
               ) : null}
 
+              {summary.kind === "number" && summary.distribution ? (
+                <div className="mt-3 overflow-hidden rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)]">
+                  {summary.distribution.map((entry, index) => (
+                    <div
+                      key={entry.value}
+                      className={cn(
+                        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm",
+                        index % 2 === 0
+                          ? "bg-transparent"
+                          : "bg-[var(--bg-end)]",
+                      )}
+                    >
+                      <span className="font-medium text-[var(--ink)]">
+                        {entry.value}
+                      </span>
+                      <span className="text-[var(--muted)]">{entry.count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               {summary.kind === "freeform" ? (
                 summary.answers.length === 0 ? (
                   <p className="mt-6 text-sm text-[var(--muted)]">

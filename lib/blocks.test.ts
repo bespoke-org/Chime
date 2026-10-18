@@ -4,7 +4,9 @@ import {
   branchOperatorValues,
   branchRuleSchema,
   getDefaultBlockConfig,
+  getRatingValues,
   getSupportedBranchOperators,
+  getVisibleBranchOperators,
   parseBlockConfig,
   type BlockConfig,
 } from "@/lib/blocks";
@@ -410,6 +412,137 @@ describe("localized block defaults", () => {
   test("date defaults carry no copy", () => {
     expect(json(getDefaultBlockConfig("DATE", "ru"))).toBe(
       json({ branchRules: [], defaultNextBlockId: null, endForm: false }),
+    );
+  });
+});
+
+describe("rating block config", () => {
+  function rating(config: BlockConfig) {
+    return "minLabel" in config
+      ? json({
+          min: config.min,
+          max: config.max,
+          minLabel: config.minLabel,
+          maxLabel: config.maxLabel,
+        })
+      : "";
+  }
+
+  test("defaults to a 1 to 5 scale without labels", () => {
+    expect(json(parseBlockConfig("RATING", {}))).toBe(
+      json({
+        min: 1,
+        max: 5,
+        minLabel: "",
+        maxLabel: "",
+        branchRules: [],
+        defaultNextBlockId: null,
+        endForm: false,
+      }),
+    );
+  });
+
+  test("accepts the NPS scale from 0 to 10", () => {
+    expect(rating(parseBlockConfig("RATING", { min: 0, max: 10 }))).toBe(
+      json({ min: 0, max: 10, minLabel: "", maxLabel: "" }),
+    );
+  });
+
+  test("rejects a maximum that is not above the minimum", () => {
+    expect(throws(() => parseBlockConfig("RATING", { min: 1, max: 1 }))).toBe(
+      true,
+    );
+    expect(throws(() => parseBlockConfig("RATING", { min: 1, max: 0 }))).toBe(
+      true,
+    );
+  });
+
+  test("rejects values outside the supported scale", () => {
+    expect(throws(() => parseBlockConfig("RATING", { max: 11 }))).toBe(true);
+    expect(throws(() => parseBlockConfig("RATING", { max: 1 }))).toBe(true);
+    expect(throws(() => parseBlockConfig("RATING", { min: 2 }))).toBe(true);
+    expect(throws(() => parseBlockConfig("RATING", { min: -1 }))).toBe(true);
+    expect(throws(() => parseBlockConfig("RATING", { max: 4.5 }))).toBe(true);
+    expect(throws(() => parseBlockConfig("RATING", { max: "5" }))).toBe(true);
+  });
+
+  test("trims labels and caps them at 40 characters", () => {
+    expect(
+      rating(
+        parseBlockConfig("RATING", {
+          minLabel: "  Not likely  ",
+          maxLabel: " Very likely ",
+        }),
+      ),
+    ).toBe(
+      json({ min: 1, max: 5, minLabel: "Not likely", maxLabel: "Very likely" }),
+    );
+    expect(
+      rating(parseBlockConfig("RATING", { minLabel: ` ${"x".repeat(40)} ` })),
+    ).toBe(json({ min: 1, max: 5, minLabel: "x".repeat(40), maxLabel: "" }));
+    expect(
+      throws(() => parseBlockConfig("RATING", { maxLabel: "x".repeat(41) })),
+    ).toBe(true);
+    expect(throws(() => parseBlockConfig("RATING", { minLabel: 3 }))).toBe(
+      true,
+    );
+  });
+
+  test("fills defaults for a stored config without labels", () => {
+    expect(rating(parseBlockConfig("RATING", { min: 0, max: 7 }))).toBe(
+      json({ min: 0, max: 7, minLabel: "", maxLabel: "" }),
+    );
+    expect(rating(parseBlockConfig("RATING", { min: null, max: null }))).toBe(
+      json({ min: 1, max: 5, minLabel: "", maxLabel: "" }),
+    );
+  });
+
+  test("ignores fields that belong to another block type", () => {
+    expect(
+      rating(
+        parseBlockConfig("RATING", {
+          options: ["a", "b"],
+          placeholder: "42",
+          allowFloat: true,
+          label: "I agree",
+        }),
+      ),
+    ).toBe(json({ min: 1, max: 5, minLabel: "", maxLabel: "" }));
+  });
+
+  test("keeps branch settings like other question blocks", () => {
+    const config = parseBlockConfig("RATING", {
+      branchRules: [{ operator: "gte", value: "4", targetBlockId: "happy" }],
+      defaultNextBlockId: "neutral",
+      endForm: true,
+    });
+
+    expect("branchRules" in config && config.branchRules.length).toBe(1);
+    expect(
+      "defaultNextBlockId" in config ? config.defaultNextBlockId : undefined,
+    ).toBe("neutral");
+    expect("endForm" in config && config.endForm).toBe(true);
+  });
+
+  test("supports the same branch operators as number blocks", () => {
+    expect(json(getSupportedBranchOperators("RATING"))).toBe(
+      json(getSupportedBranchOperators("NUMBER")),
+    );
+    expect(json(getVisibleBranchOperators("RATING"))).toBe(
+      json(getVisibleBranchOperators("NUMBER")),
+    );
+  });
+
+  test("lists every value on the scale", () => {
+    const config = parseBlockConfig("RATING", { min: 0, max: 3 });
+    expect("minLabel" in config ? json(getRatingValues(config)) : "").toBe(
+      json([0, 1, 2, 3]),
+    );
+  });
+
+  test("has the same defaults in every locale", () => {
+    expect(json(getDefaultBlockConfig("RATING", "ru"))).toBe(
+      json(getDefaultBlockConfig("RATING", "en")),
     );
   });
 });

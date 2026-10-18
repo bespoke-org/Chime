@@ -85,11 +85,15 @@ function SortableBranchRuleRow({
   const showValueInput =
     branchOperatorNeedsValue(rule.operator) && block.type !== "AGREEMENT";
   const valueInputType =
-    block.type === "NUMBER"
+    block.type === "NUMBER" || block.type === "RATING"
       ? "number"
       : block.type === "DATE"
         ? "date"
         : "text";
+  const ratingRange =
+    block.type === "RATING"
+      ? (block.config as { min: number; max: number })
+      : null;
   const discreteOptions =
     block.type === "SINGLE_CHOICE" || block.type === "MULTIPLE_CHOICE"
       ? (block.config as { options: string[] }).options
@@ -199,6 +203,9 @@ function SortableBranchRuleRow({
               ) : (
                 <Input
                   type={valueInputType}
+                  min={ratingRange?.min}
+                  max={ratingRange?.max}
+                  step={ratingRange ? 1 : undefined}
                   value={rule.value ?? ""}
                   placeholder={placeholder}
                   onChange={(event) =>

@@ -9,6 +9,7 @@ import {
   parseNumericAnswer,
   type ChoiceBlockConfig,
   type NumberBlockConfig,
+  type RatingBlockConfig,
   type SerializedBlock,
   type TextAnswerBlockConfig,
 } from "@/lib/blocks";
@@ -177,6 +178,46 @@ export function validateAndNormalizeAnswer(
           code: "number_above_max",
           max: config.max,
         },
+      };
+    }
+
+    return {
+      ok: true,
+      value: normalizeNumericAnswer(value) ?? String(numericValue),
+    };
+  }
+
+  if (block.type === "RATING") {
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+    const config = block.config as RatingBlockConfig;
+
+    if (!value) {
+      return block.required
+        ? { ok: false, error: { code: "answer_required" } }
+        : { ok: true, value: undefined };
+    }
+
+    const numericValue = parseNumericAnswer(value);
+
+    if (numericValue === null) {
+      return { ok: false, error: { code: "invalid_number" } };
+    }
+
+    if (!Number.isInteger(numericValue)) {
+      return { ok: false, error: { code: "whole_number_required" } };
+    }
+
+    if (numericValue < config.min) {
+      return {
+        ok: false,
+        error: { code: "number_below_min", min: config.min },
+      };
+    }
+
+    if (numericValue > config.max) {
+      return {
+        ok: false,
+        error: { code: "number_above_max", max: config.max },
       };
     }
 

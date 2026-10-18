@@ -513,3 +513,38 @@ describe("export format helpers", () => {
     );
   });
 });
+
+describe("rating export values", () => {
+  test("exports the stored rating as a plain number string", () => {
+    const form = createForm(
+      [
+        createBlock("score", "RATING", {
+          title: "Score",
+          config: { min: 0, max: 10, minLabel: "Low", maxLabel: "High" },
+        }),
+      ],
+      [
+        createResponse("r1", { score: "10" }),
+        createResponse("r2", { score: "0" }),
+        createResponse("r3", {}),
+        createResponse("r4", { score: 7 }),
+      ],
+    );
+
+    expect(JSON.stringify(questionValues(form, "ru"))).toBe(
+      JSON.stringify([["10"], ["0"], [""], [""]]),
+    );
+
+    const lines = csvLines(
+      createCsvExportBuffer(buildResponseExportDataset(form)),
+    );
+    expect(lines[1]?.endsWith(",10")).toBe(true);
+    expect(lines[2]?.endsWith(",0")).toBe(true);
+  });
+
+  test("does not localize rating values like agreement answers", () => {
+    const block = serializeBlock(createBlock("score", "RATING"));
+
+    expect(serializeExportAnswer("5", block, "ru")).toBe("5");
+  });
+});

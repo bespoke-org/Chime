@@ -57,11 +57,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   blockTypeTranslationKeys,
+  RATING_MAX_VALUES,
+  RATING_MIN_VALUES,
   type AgreementBlockConfig,
   type BlockConfig,
   type LinkBlockConfig,
   type LongTextBlockConfig,
   type NumberBlockConfig,
+  type RatingBlockConfig,
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
@@ -857,6 +860,93 @@ export function BlockEditorPanel({
                 />
               </label>
             </div>
+          </div>
+        ) : null}
+
+        {blockDraft.type === "RATING" ? (
+          <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.ratingMin")}
+                </span>
+                <Select
+                  value={String((blockDraft.config as RatingBlockConfig).min)}
+                  onValueChange={(value) =>
+                    updateConfig({ min: Number(value) })
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t("builder.ratingMin")}
+                    className="h-11 px-4 text-sm font-medium"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RATING_MIN_VALUES.map((value) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.ratingMax")}
+                </span>
+                <Select
+                  value={String((blockDraft.config as RatingBlockConfig).max)}
+                  onValueChange={(value) =>
+                    updateConfig({ max: Number(value) })
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={t("builder.ratingMax")}
+                    className="h-11 px-4 text-sm font-medium"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RATING_MAX_VALUES.map((value) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.ratingMinLabel")}
+                </span>
+                <Input
+                  maxLength={40}
+                  value={(blockDraft.config as RatingBlockConfig).minLabel}
+                  onChange={(event) =>
+                    updateConfig({ minLabel: event.target.value })
+                  }
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.ratingMaxLabel")}
+                </span>
+                <Input
+                  maxLength={40}
+                  value={(blockDraft.config as RatingBlockConfig).maxLabel}
+                  onChange={(event) =>
+                    updateConfig({ maxLabel: event.target.value })
+                  }
+                />
+              </label>
+            </div>
+            <p className="text-xs text-[var(--muted)]">
+              {t("builder.ratingHelp")}
+            </p>
           </div>
         ) : null}
 

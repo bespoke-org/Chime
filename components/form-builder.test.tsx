@@ -80,6 +80,15 @@ function renderBuilder(
   );
 }
 
+// react-dom is loaded before the test DOM exists, so it falls back to its
+// legacy change-tracking path: it watches the focused text input and re-reads
+// its value on key events instead of listening to input events.
+function typeIntoInput(input: HTMLElement, value: string) {
+  fireEvent.focusIn(input);
+  fireEvent.change(input, { target: { value } });
+  fireEvent.keyUp(input, { key: value.slice(-1) });
+}
+
 async function cleanupAndRestore(restoreDom: () => void) {
   cleanup();
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -845,6 +854,60 @@ describe("FormBuilder", () => {
     expect(fetchCalls[0]?.init?.method).toBe("PATCH");
     expect(fetchCalls[0]?.init?.body).toContain('"targetBlockId":"block-2"');
     expect(fetchCalls[0]?.init?.body).toContain('"operator":"equals"');
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+  test("edits rating labels in the block panel and saves them with the scale", async () => {
+    const restoreDom = installTestDom();
+    const ratingBlock = createBlock({
+      id: "block-1",
+      type: "RATING",
+      position: 0,
+      title: "How was it?",
+    });
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({ block: ratingBlock }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([ratingBlock]));
+
+    const minLabelInput = view.getByLabelText(
+      "builder.ratingMinLabel",
+    ) as HTMLInputElement;
+    const maxLabelInput = view.getByLabelText(
+      "builder.ratingMaxLabel",
+    ) as HTMLInputElement;
+    expect(minLabelInput.value).toBe("");
+    expect(maxLabelInput.maxLength).toBe(40);
+    expect(view.getByLabelText("builder.ratingMin") !== null).toBe(true);
+    expect(view.getByLabelText("builder.ratingMax") !== null).toBe(true);
+
+    typeIntoInput(minLabelInput, "Poor");
+    typeIntoInput(maxLabelInput, "Great");
+    fireEvent.click(view.getByRole("button", { name: "builder.saveBlock" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/blocks/block-1");
+    expect(fetchCalls[0]?.init?.method).toBe("PATCH");
+    expect(fetchCalls[0]?.init?.body).toContain('"min":1');
+    expect(fetchCalls[0]?.init?.body).toContain('"max":5');
+    expect(fetchCalls[0]?.init?.body).toContain('"minLabel":"Poor"');
+    expect(fetchCalls[0]?.init?.body).toContain('"maxLabel":"Great"');
 
     globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);

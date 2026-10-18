@@ -192,6 +192,11 @@ builder:
   allowFloats: Разрешить дробные числа
   minimumValue: Минимальное значение
   maximumValue: Максимальное значение
+  ratingMin: Нижняя граница
+  ratingMax: Верхняя граница
+  ratingMinLabel: Подпись нижней границы
+  ratingMaxLabel: Подпись верхней границы
+  ratingHelp: Респондент выбирает одно значение на шкале. Для вопроса NPS используйте шкалу от 0 до 10.
   regexValidation: Проверять регулярным выражением
   regexPattern: Regex-шаблон
   regexHelp: Используйте собственный regex, чтобы ограничить формат ответа в этом текстовом вопросе.
@@ -292,6 +297,7 @@ blocks:
     LINK: Ссылка
     AGREEMENT: Согласие
     DATE: Дата
+    RATING: Оценка
 branching:
   issueMessages:
     invalid-target: 'Правило в "{blockLabel}" ссылается на отсутствующий блок.'
@@ -320,6 +326,7 @@ publicRunner:
   wholeNumberRequired: Введите целое число перед продолжением.
   numberAtLeast: "Введите число не меньше {min}."
   numberAtMost: "Введите число не больше {max}."
+  ratingRequired: Выберите оценку перед продолжением.
   invalidLink: Введите корректную ссылку перед продолжением.
   invalidDate: Введите корректную дату перед продолжением.
   openCalendar: Открыть календарь

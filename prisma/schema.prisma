@@ -21,6 +21,7 @@ enum FormBlockType {
   LINK
   AGREEMENT
   DATE
+  RATING
 }
 
 enum OrganizationMemberRole {

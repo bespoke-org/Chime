@@ -16,6 +16,7 @@ const FORM_BLOCK_TYPES = {
   LINK: "LINK",
   AGREEMENT: "AGREEMENT",
   DATE: "DATE",
+  RATING: "RATING",
 } as const satisfies Record<PrismaFormBlockType, PrismaFormBlockType>;
 
 export const blockTypeValues = [
@@ -28,6 +29,7 @@ export const blockTypeValues = [
   FORM_BLOCK_TYPES.LINK,
   FORM_BLOCK_TYPES.AGREEMENT,
   FORM_BLOCK_TYPES.DATE,
+  FORM_BLOCK_TYPES.RATING,
 ] as const;
 
 export const blockTypeSchema = z.enum(blockTypeValues);
@@ -42,6 +44,7 @@ export const blockTypeLabels: Record<PrismaFormBlockType, string> = {
   LINK: "Link",
   AGREEMENT: "Agreement",
   DATE: "Date",
+  RATING: "Rating",
 };
 
 export const blockTypeTranslationKeys: Record<PrismaFormBlockType, string> = {
@@ -54,6 +57,7 @@ export const blockTypeTranslationKeys: Record<PrismaFormBlockType, string> = {
   LINK: "blocks.types.LINK",
   AGREEMENT: "blocks.types.AGREEMENT",
   DATE: "blocks.types.DATE",
+  RATING: "blocks.types.RATING",
 };
 
 const defaultBlockCopyByLocale: Record<
@@ -292,6 +296,32 @@ const dateConfigSchema = z.object({
   endForm: endFormSchema,
 });
 
+export const RATING_MIN_VALUES = [0, 1] as const;
+export const RATING_MAX_VALUES = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+const ratingLabelSchema = z.string().trim().max(40).default("");
+
+const ratingConfigSchema = z
+  .object({
+    min: z.preprocess(
+      (value) => value ?? undefined,
+      z.union([z.literal(0), z.literal(1)]).default(1),
+    ),
+    max: z.preprocess(
+      (value) => value ?? undefined,
+      z.number().int().min(2).max(10).default(5),
+    ),
+    minLabel: ratingLabelSchema,
+    maxLabel: ratingLabelSchema,
+    branchRules: branchRulesSchema,
+    defaultNextBlockId: defaultNextBlockIdSchema,
+    endForm: endFormSchema,
+  })
+  .refine((value) => value.max > value.min, {
+    path: ["max"],
+    message: "Maximum must be greater than minimum.",
+  });
+
 const optionListSchema = z.object({
   options: z
     .array(z.string().min(1).max(120))
@@ -329,6 +359,9 @@ export type AgreementBlockConfig = WithOptionalEndForm<
 export type DateBlockConfig = WithOptionalEndForm<
   z.infer<typeof dateConfigSchema>
 >;
+export type RatingBlockConfig = WithOptionalEndForm<
+  z.infer<typeof ratingConfigSchema>
+>;
 export type ChoiceBlockConfig = WithOptionalEndForm<
   z.infer<typeof optionListSchema>
 >;
@@ -340,6 +373,7 @@ export type AnswerableBlockConfig =
   | LinkBlockConfig
   | AgreementBlockConfig
   | DateBlockConfig
+  | RatingBlockConfig
   | ChoiceBlockConfig;
 export type BlockConfig = TextBlockConfig | AnswerableBlockConfig;
 
@@ -361,6 +395,17 @@ export function isChoiceBlock(type: PrismaFormBlockType) {
   return (
     type === FORM_BLOCK_TYPES.SINGLE_CHOICE ||
     type === FORM_BLOCK_TYPES.MULTIPLE_CHOICE
+  );
+}
+
+export function isNumericAnswerBlock(type: PrismaFormBlockType) {
+  return type === FORM_BLOCK_TYPES.NUMBER || type === FORM_BLOCK_TYPES.RATING;
+}
+
+export function getRatingValues(config: RatingBlockConfig) {
+  return Array.from(
+    { length: config.max - config.min + 1 },
+    (_, index) => config.min + index,
   );
 }
 
@@ -455,7 +500,7 @@ export function getSupportedBranchOperators(
     return [...common, "contains_any"];
   }
 
-  if (type === FORM_BLOCK_TYPES.NUMBER || type === FORM_BLOCK_TYPES.DATE) {
+  if (isNumericAnswerBlock(type) || type === FORM_BLOCK_TYPES.DATE) {
     return [...common, "gt", "gte", "lt", "lte"];
   }
 
@@ -485,7 +530,7 @@ export function getVisibleBranchOperators(
     return ["contains_any", "is_empty", "is_not_empty"];
   }
 
-  if (type === FORM_BLOCK_TYPES.NUMBER || type === FORM_BLOCK_TYPES.DATE) {
+  if (isNumericAnswerBlock(type) || type === FORM_BLOCK_TYPES.DATE) {
     return [
       "equals",
       "not_equals",
@@ -531,6 +576,8 @@ export function parseBlockConfig(
       return agreementConfigSchema.parse(value ?? {});
     case FORM_BLOCK_TYPES.DATE:
       return dateConfigSchema.parse(value ?? {});
+    case FORM_BLOCK_TYPES.RATING:
+      return ratingConfigSchema.parse(value ?? {});
     default:
       return textConfigSchema.parse(value ?? {});
   }
@@ -562,6 +609,8 @@ export function getDefaultBlockConfig(
       return agreementConfigSchema.parse({ label: copy.agreementLabel });
     case FORM_BLOCK_TYPES.DATE:
       return dateConfigSchema.parse({});
+    case FORM_BLOCK_TYPES.RATING:
+      return ratingConfigSchema.parse({});
     default:
       return textConfigSchema.parse({ body: copy.textBody });
   }
