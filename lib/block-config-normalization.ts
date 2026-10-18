@@ -7,10 +7,9 @@ import {
 } from "@/lib/blocks";
 
 function sanitizeOptions(options: string[]) {
-  return options
-    .map((option) => option.trim())
-    .filter(Boolean)
-    .slice(0, 10);
+  return [
+    ...new Set(options.map((option) => option.trim()).filter(Boolean)),
+  ].slice(0, 10);
 }
 
 export function normalizeBlockConfig(

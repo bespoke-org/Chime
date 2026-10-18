@@ -79,7 +79,12 @@ export const blockUpdateSchema = z.object({
 });
 
 export const reorderBlocksSchema = z.object({
-  blockIds: z.array(z.string()).min(1),
+  blockIds: z
+    .array(z.string())
+    .min(1)
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "Block ids must be unique.",
+    }),
 });
 
 export const publishFormSchema = z.object({

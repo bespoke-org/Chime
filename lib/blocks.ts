@@ -133,14 +133,12 @@ const numericLimitSchema = z
     }
 
     if (typeof value === "string") {
-      const trimmed = value.trim();
-
-      if (!trimmed) {
+      if (!value.trim()) {
         return null;
       }
 
-      const nextValue = Number(trimmed);
-      return Number.isFinite(nextValue) ? nextValue : Number.NaN;
+      const normalized = normalizeNumericAnswer(value);
+      return normalized === null ? Number.NaN : Number(normalized);
     }
 
     return Number.NaN;
@@ -193,12 +191,10 @@ const rawBranchRuleSchema = z
 export const branchRuleSchema = rawBranchRuleSchema;
 
 const branchRulesSchema = z.array(branchRuleSchema).max(50).default([]);
-const defaultNextBlockIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .nullable()
-  .default(null);
+const defaultNextBlockIdSchema = z.preprocess(
+  (value) => (typeof value === "string" && !value.trim() ? null : value),
+  z.string().trim().min(1).nullable().default(null),
+);
 const endFormSchema = z.boolean().default(false);
 
 const textConfigSchema = z.object({
