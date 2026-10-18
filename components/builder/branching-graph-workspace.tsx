@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanelLeftClose } from "lucide-react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { PanelLeftClose, Plus } from "lucide-react";
 import type {
   Dispatch,
   PointerEvent as ReactPointerEvent,
@@ -9,6 +16,15 @@ import type {
   SetStateAction,
 } from "react";
 
+import {
+  blockCreationOrder,
+  blockIcons,
+  type BlockType,
+} from "@/components/builder/block-creation";
+import {
+  getInsertedNodePosition,
+  shouldShowMinimap,
+} from "@/components/builder/graph-layout";
 import { BlockEditorPanel } from "@/components/form-builder-panels";
 import { useI18n } from "@/components/i18n-provider";
 import { Badge } from "@/components/ui/badge";
@@ -148,6 +164,9 @@ type GraphViewport = {
   top: number;
   width: number;
   height: number;
+  zoom: number;
+  canvasWidth: number;
+  canvasHeight: number;
 };
 
 const MIN_GRAPH_ZOOM = 0.5;
@@ -332,6 +351,7 @@ export function BranchingGraphWorkspace({
   saveBlock,
   busy,
   onSelectBlock,
+  onAddBlockAfter,
   immersive = false,
   hideInspector = false,
   immersiveInspectorOpen = false,
@@ -355,6 +375,7 @@ export function BranchingGraphWorkspace({
   saveBlock: () => Promise<boolean>;
   busy: string | null;
   onSelectBlock: (blockId: string) => void;
+  onAddBlockAfter?: (blockId: string, blockType: BlockType) => void;
   immersive?: boolean;
   hideInspector?: boolean;
   immersiveInspectorOpen?: boolean;
@@ -370,6 +391,9 @@ export function BranchingGraphWorkspace({
   const immersiveInspectorResizeStateRef =
     useRef<ImmersiveInspectorResizeState | null>(null);
   const suppressNodeClickRef = useRef<string | null>(null);
+  const insertAfterBlockIdRef = useRef<string | null>(null);
+  const knownBlockIdsRef = useRef<Set<string> | null>(null);
+  const addMenuRef = useRef<HTMLDivElement | null>(null);
   const hasInitializedGraphCameraRef = useRef(false);
   const hasLoadedPersistedGraphLayoutRef = useRef(false);
   const graphCameraRef = useRef<GraphCamera>({
@@ -395,11 +419,16 @@ export function BranchingGraphWorkspace({
   const [selectionRect, setSelectionRect] = useState<GraphSelectionRect | null>(
     null,
   );
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [addMenuNodeId, setAddMenuNodeId] = useState<string | null>(null);
   const [graphViewport, setGraphViewport] = useState<GraphViewport>({
     left: 0,
     top: 0,
     width: 0,
     height: 0,
+    zoom: DEFAULT_GRAPH_ZOOM,
+    canvasWidth: 0,
+    canvasHeight: 0,
   });
   const graph = useMemo(() => buildBranchingGraph(allBlocks), [allBlocks]);
   const viewportPadding = immersive ? GRAPH_CANVAS_PADDING : 0;
@@ -567,6 +596,54 @@ export function BranchingGraphWorkspace({
     () => new Map(positionedNodes.map((node) => [node.blockId, node])),
     [positionedNodes],
   );
+  useEffect(() => {
+    const knownBlockIds = knownBlockIdsRef.current;
+    const afterBlockId = insertAfterBlockIdRef.current;
+    knownBlockIdsRef.current = new Set(allBlocks.map((block) => block.id));
+    insertAfterBlockIdRef.current = null;
+
+    if (!knownBlockIds || !afterBlockId) {
+      return;
+    }
+
+    const newBlockId = allBlocks.find(
+      (block) => !knownBlockIds.has(block.id),
+    )?.id;
+    const predecessor = nodesById.get(afterBlockId);
+
+    if (!newBlockId || !predecessor) {
+      return;
+    }
+
+    const position = getInsertedNodePosition(
+      predecessor,
+      positionedNodes.filter(
+        (node) => node.blockId !== newBlockId && node.blockId !== afterBlockId,
+      ),
+    );
+
+    setGraphNodePositionOverrides((current) => {
+      const nextOverrides = { ...current, [newBlockId]: position };
+      persistGraphLayout(formId, nextOverrides);
+      return nextOverrides;
+    });
+  }, [allBlocks, formId, nodesById, positionedNodes]);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!addMenuRef.current?.contains(event.target as Node)) {
+        setAddMenuNodeId(null);
+      }
+    }
+
+    if (!addMenuNodeId) {
+      return;
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [addMenuNodeId]);
+
   const renderedGraphWidth = positionedNodes.length
     ? Math.max(...positionedNodes.map((node) => node.x + node.width))
     : graph.width;
@@ -642,6 +719,9 @@ export function BranchingGraphWorkspace({
         top: -camera.y / camera.zoom,
         width: container.clientWidth / camera.zoom,
         height: container.clientHeight / camera.zoom,
+        zoom: camera.zoom,
+        canvasWidth: container.clientWidth,
+        canvasHeight: container.clientHeight,
       });
     },
     [],
@@ -888,7 +968,9 @@ export function BranchingGraphWorkspace({
       return;
     }
 
-    if ((event.target as HTMLElement).closest("button")) {
+    if (
+      (event.target as HTMLElement).closest("button, [data-graph-add-menu]")
+    ) {
       return;
     }
 
@@ -1152,6 +1234,27 @@ export function BranchingGraphWorkspace({
     onSelectBlock(blockId);
   }
 
+  function handleGraphNodePointerLeave(
+    event: ReactPointerEvent<HTMLElement>,
+    blockId: string,
+  ) {
+    const relatedNodeId = (
+      event.relatedTarget as HTMLElement | null
+    )?.closest?.<HTMLElement>("[data-graph-node-id]")?.dataset.graphNodeId;
+
+    if (relatedNodeId === blockId) {
+      return;
+    }
+
+    setHoveredNodeId((current) => (current === blockId ? null : current));
+  }
+
+  function chooseBlockTypeAfter(blockId: string, blockType: BlockType) {
+    insertAfterBlockIdRef.current = blockId;
+    setAddMenuNodeId(null);
+    onAddBlockAfter?.(blockId, blockType);
+  }
+
   function handleImmersiveInspectorResizeStart(
     event: ReactPointerEvent<HTMLDivElement>,
   ) {
@@ -1365,48 +1468,117 @@ export function BranchingGraphWorkspace({
 
               {positionedNodes.map((node) => {
                 const isSelected = selectedNodeIdSet.has(node.blockId);
+                const isAddMenuOpen = addMenuNodeId === node.blockId;
+                const showAddButton =
+                  Boolean(onAddBlockAfter) &&
+                  (isSelected ||
+                    isAddMenuOpen ||
+                    hoveredNodeId === node.blockId);
 
                 return (
-                  <button
-                    key={node.blockId}
-                    type="button"
-                    className={cn(
-                      "absolute flex items-start justify-start rounded-[24px] border p-4 text-left transition",
-                      isSelected
-                        ? immersive
-                          ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] ring-1 ring-[color:color-mix(in_srgb,var(--accent)_28%,transparent)]"
-                          : "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-elevated)]"
-                        : immersive
-                          ? "border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-surface)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
-                          : "border-[color:var(--line)] bg-[var(--bg-start)] hover:border-[var(--line-strong)] hover:bg-[var(--bg)]",
-                    )}
-                    style={{
-                      left: `${node.x}px`,
-                      top: `${node.y}px`,
-                      width: `${node.width}px`,
-                      height: `${node.height}px`,
-                    }}
-                    onPointerDown={(event) =>
-                      handleGraphNodePointerDown(event, node)
-                    }
-                    onPointerMove={handleGraphNodePointerMove}
-                    onPointerUp={(event) =>
-                      handleGraphNodePointerUp(event, node)
-                    }
-                    onPointerCancel={(event) =>
-                      handleGraphNodePointerUp(event, node)
-                    }
-                    onClick={() => handleGraphNodeClick(node.blockId)}
-                  >
-                    <div className="w-full self-start">
-                      <Badge>
-                        {t(blockTypeTranslationKeys[node.block.type])}
-                      </Badge>
-                      <h3 className="mt-4 line-clamp-2 text-base font-semibold text-[var(--ink)]">
-                        {node.label}
-                      </h3>
-                    </div>
-                  </button>
+                  <Fragment key={node.blockId}>
+                    <button
+                      type="button"
+                      data-graph-node-id={node.blockId}
+                      className={cn(
+                        "absolute flex items-start justify-start rounded-[24px] border p-4 text-left transition",
+                        isSelected
+                          ? immersive
+                            ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] ring-1 ring-[color:color-mix(in_srgb,var(--accent)_28%,transparent)]"
+                            : "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-elevated)]"
+                          : immersive
+                            ? "border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-surface)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
+                            : "border-[color:var(--line)] bg-[var(--bg-start)] hover:border-[var(--line-strong)] hover:bg-[var(--bg)]",
+                      )}
+                      style={{
+                        left: `${node.x}px`,
+                        top: `${node.y}px`,
+                        width: `${node.width}px`,
+                        height: `${node.height}px`,
+                      }}
+                      onPointerDown={(event) =>
+                        handleGraphNodePointerDown(event, node)
+                      }
+                      onPointerMove={handleGraphNodePointerMove}
+                      onPointerUp={(event) =>
+                        handleGraphNodePointerUp(event, node)
+                      }
+                      onPointerCancel={(event) =>
+                        handleGraphNodePointerUp(event, node)
+                      }
+                      onPointerEnter={() => setHoveredNodeId(node.blockId)}
+                      onPointerLeave={(event) =>
+                        handleGraphNodePointerLeave(event, node.blockId)
+                      }
+                      onClick={() => handleGraphNodeClick(node.blockId)}
+                    >
+                      <div className="w-full self-start">
+                        <Badge>
+                          {t(blockTypeTranslationKeys[node.block.type])}
+                        </Badge>
+                        <h3 className="mt-4 line-clamp-2 text-base font-semibold text-[var(--ink)]">
+                          {node.label}
+                        </h3>
+                      </div>
+                    </button>
+                    {showAddButton ? (
+                      <button
+                        type="button"
+                        data-graph-node-id={node.blockId}
+                        className="absolute z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-card)] transition hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+                        style={{
+                          left: `${node.x + node.width + 6}px`,
+                          top: `${node.y + node.height / 2}px`,
+                        }}
+                        aria-label={t("builder.addBlockAfter")}
+                        title={t("builder.addBlockAfter")}
+                        aria-expanded={isAddMenuOpen}
+                        aria-haspopup="menu"
+                        onPointerEnter={() => setHoveredNodeId(node.blockId)}
+                        onPointerLeave={(event) =>
+                          handleGraphNodePointerLeave(event, node.blockId)
+                        }
+                        onClick={() =>
+                          setAddMenuNodeId((current) =>
+                            current === node.blockId ? null : node.blockId,
+                          )
+                        }
+                      >
+                        <Plus size={16} strokeWidth={2.5} />
+                      </button>
+                    ) : null}
+                    {isAddMenuOpen ? (
+                      <div
+                        ref={addMenuRef}
+                        data-graph-add-menu
+                        className="absolute z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]"
+                        style={{
+                          left: `${node.x + node.width + 44}px`,
+                          top: `${node.y}px`,
+                        }}
+                      >
+                        <div className="grid gap-1">
+                          {blockCreationOrder.map((type) => {
+                            const Icon = blockIcons[type];
+
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+                                onClick={() =>
+                                  chooseBlockTypeAfter(node.blockId, type)
+                                }
+                              >
+                                <Icon className="size-4" />
+                                {t(blockTypeTranslationKeys[type])}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </div>
@@ -1433,7 +1605,15 @@ export function BranchingGraphWorkspace({
           </div>
         ) : null}
 
-        {graph.nodes.length ? (
+        {graph.nodes.length &&
+        shouldShowMinimap(
+          { width: renderedGraphWidth, height: renderedGraphHeight },
+          {
+            width: graphViewport.canvasWidth,
+            height: graphViewport.canvasHeight,
+          },
+          graphViewport.zoom,
+        ) ? (
           <div
             className={cn(
               "pointer-events-none absolute right-4 z-10",

@@ -138,6 +138,7 @@ builder:
   unpublish: Снять с публикации
   blocks: Блоки
   newBlock: Новый блок
+  addBlockAfter: Добавить блок после этого
   openGraphMode: Открыть граф ветвления
   graphModeEyebrow: Ветвление
   graphModeTitle: Граф ветвления

@@ -1002,4 +1002,84 @@ describe("FormBuilder", () => {
 
     await cleanupAndRestore(restoreDom);
   });
+
+  test("inserts a block right after the chosen graph node", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const secondBlock = createBlock({
+      id: "block-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+    });
+    const newBlock = createBlock({
+      id: "block-3",
+      type: "NUMBER",
+      position: 2,
+      title: "",
+    });
+    const previousFetch = globalThis.fetch;
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      if (String(url).endsWith("/blocks")) {
+        return {
+          ok: true,
+          json: async () => ({ block: newBlock }),
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          form: createForm([
+            { ...firstBlock, position: 0 },
+            { ...newBlock, position: 1 },
+            { ...secondBlock, position: 2 },
+          ]),
+        }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock, secondBlock]), "graph");
+
+    fireEvent.click(
+      await view.findByRole("button", {
+        name: "blocks.types.SHORT_TEXT First question",
+      }),
+    );
+    fireEvent.click(
+      await view.findByRole("button", { name: "builder.addBlockAfter" }),
+    );
+    fireEvent.click(view.getByText("blocks.types.NUMBER"));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(2);
+    });
+
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/blocks");
+    expect(fetchCalls[0]?.init?.method).toBe("POST");
+    expect(String(fetchCalls[0]?.init?.body)).toContain('"type":"NUMBER"');
+    expect(fetchCalls[1]?.url).toBe("/api/forms/form-1/blocks/reorder");
+    expect(String(fetchCalls[1]?.init?.body)).toBe(
+      '{"blockIds":["block-1","block-3","block-2"]}',
+    );
+
+    await waitFor(() => {
+      expect(view.getByText("builder.toasts.addedBlock") !== null).toBe(true);
+    });
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
 });

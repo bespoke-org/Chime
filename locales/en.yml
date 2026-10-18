@@ -138,6 +138,7 @@ builder:
   unpublish: Unpublish
   blocks: Blocks
   newBlock: New block
+  addBlockAfter: Add block after this one
   openGraphMode: Open branching graph
   graphModeEyebrow: Branching view
   graphModeTitle: Branching graph

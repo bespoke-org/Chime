@@ -18,25 +18,19 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft,
-  BadgeCheck,
-  CalendarDays,
   GripVertical,
-  Hash,
-  Link2,
   LoaderCircle,
   PanelRight,
   Plus,
-  Radio,
-  Paperclip,
-  Rows3,
   GitBranch,
-  SquareCheck,
-  Star,
-  TextCursorInput,
-  Type,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import {
+  blockCreationOrder,
+  blockIcons,
+  type BlockType,
+} from "@/components/builder/block-creation";
 import { BranchingGraphWorkspace } from "@/components/builder/branching-graph-workspace";
 import {
   BlockEditorPanel,
@@ -76,7 +70,6 @@ import {
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
-type BlockType = BuilderBlock["type"];
 type BuilderMode = "standard" | "graph";
 
 type Selection = { kind: "form" } | { kind: "block"; blockId: string };
@@ -89,35 +82,13 @@ type PendingNavigation =
       nextBuilderMode?: BuilderMode;
       activateGraphSelection?: boolean;
     }
-  | { kind: "add-block"; blockType: BlockType; nextBuilderMode?: BuilderMode };
-
-const blockIcons: Record<BlockType, typeof Type> = {
-  TEXT: Type,
-  SHORT_TEXT: TextCursorInput,
-  LONG_TEXT: Rows3,
-  SINGLE_CHOICE: Radio,
-  MULTIPLE_CHOICE: SquareCheck,
-  NUMBER: Hash,
-  LINK: Link2,
-  AGREEMENT: BadgeCheck,
-  DATE: CalendarDays,
-  RATING: Star,
-  FILE_UPLOAD: Paperclip,
-};
-
-const blockCreationOrder: BlockType[] = [
-  "TEXT",
-  "SHORT_TEXT",
-  "LONG_TEXT",
-  "NUMBER",
-  "LINK",
-  "DATE",
-  "RATING",
-  "FILE_UPLOAD",
-  "SINGLE_CHOICE",
-  "MULTIPLE_CHOICE",
-  "AGREEMENT",
-];
+  | { kind: "add-block"; blockType: BlockType; nextBuilderMode?: BuilderMode }
+  | {
+      kind: "add-block-after";
+      blockId: string;
+      blockType: BlockType;
+      nextBuilderMode?: BuilderMode;
+    };
 
 async function fetchJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
@@ -529,6 +500,56 @@ export function FormBuilder({
     });
   }
 
+  async function addBlockAfter(afterBlockId: string, type: BlockType) {
+    return withTask(`add-${type}`, async () => {
+      const previous = form.blocks;
+      const payload = await fetchJson<{ block: BuilderBlock }>(
+        `/api/forms/${form.id}/blocks`,
+        {
+          method: "POST",
+          body: JSON.stringify({ type }),
+        },
+      );
+      const appended = [...previous, payload.block];
+      const afterIndex = previous.findIndex(
+        (block) => block.id === afterBlockId,
+      );
+      const reordered = arrayMove(
+        appended,
+        appended.length - 1,
+        afterIndex < 0 ? appended.length - 1 : afterIndex + 1,
+      ).map((block, index) => ({ ...block, position: index }));
+
+      setForm((current) => ({ ...current, blocks: reordered }));
+      setSelection({ kind: "block", blockId: payload.block.id });
+      setHasExplicitGraphSelection(true);
+      setSelectedGraphEdgeId(null);
+      showToast(
+        t("builder.toasts.addedBlock", {
+          type: t(blockTypeTranslationKeys[type]),
+        }),
+      );
+
+      try {
+        const reorderPayload = await fetchJson<{ form: BuilderForm }>(
+          `/api/forms/${form.id}/blocks/reorder`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              blockIds: reordered.map((block) => block.id),
+            }),
+          },
+        );
+
+        setForm(reorderPayload.form);
+      } catch (caughtError) {
+        // The block exists on the server at the end of the form; show it there.
+        setForm((current) => ({ ...current, blocks: appended }));
+        throw caughtError;
+      }
+    });
+  }
+
   async function saveBlock() {
     if (!blockDraft) {
       return false;
@@ -595,6 +616,10 @@ export function FormBuilder({
       case "add-block": {
         setSelectedGraphEdgeId(null);
         await addBlockNow(navigation.blockType);
+        break;
+      }
+      case "add-block-after": {
+        await addBlockAfter(navigation.blockId, navigation.blockType);
         break;
       }
     }
@@ -985,6 +1010,13 @@ export function FormBuilder({
             saveBlock={saveBlock}
             busy={busy}
             onSelectBlock={selectGraphBlock}
+            onAddBlockAfter={(blockId, blockType) =>
+              requestPendingNavigation({
+                kind: "add-block-after",
+                blockId,
+                blockType,
+              })
+            }
             immersive={isImmersiveGraphPage}
             hideInspector={false}
             immersiveInspectorOpen={
