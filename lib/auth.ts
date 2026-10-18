@@ -5,11 +5,59 @@ import {
   type NextAuthOptions,
   type Session,
 } from "next-auth";
+import type { Provider } from "next-auth/providers/index";
+import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
 
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { normalizeLocale } from "@/lib/i18n";
+import {
+  getExternalProfile,
+  getGithubConfig,
+  getGoogleConfig,
+  getOidcConfig,
+  mapOidcProfile,
+} from "@/lib/oidc-auth";
+import { syncExternalProfileFields } from "@/lib/users";
+
+function getProviders(env: NodeJS.ProcessEnv): Provider[] {
+  const providers: Provider[] = [];
+  const google = getGoogleConfig(env);
+  const github = getGithubConfig(env);
+  const oidc = getOidcConfig(env);
+
+  if (google) {
+    providers.push(GoogleProvider(google));
+  }
+
+  if (github) {
+    providers.push(GitHubProvider(github));
+  }
+
+  if (oidc) {
+    providers.push({
+      id: "oidc",
+      name: oidc.name,
+      type: "oauth",
+      wellKnown: `${oidc.issuer}/.well-known/openid-configuration`,
+      clientId: oidc.clientId,
+      clientSecret: oidc.clientSecret,
+      idToken: true,
+      checks: ["pkce", "state"],
+      authorization: { params: { scope: oidc.scope } },
+      profile: (profile) => ({
+        ...mapOidcProfile(profile),
+        firstName: null,
+        secondName: null,
+        locale: null,
+      }),
+    });
+  }
+
+  return providers;
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db) as Adapter,
@@ -20,7 +68,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/",
   },
-  providers: [],
+  providers: getProviders(process.env),
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
@@ -34,6 +82,18 @@ export const authOptions: NextAuthOptions = {
       }
 
       return session;
+    },
+  },
+  events: {
+    async signIn({ user, account, profile }) {
+      if (!account || !user.id) {
+        return;
+      }
+
+      await syncExternalProfileFields(
+        user.id,
+        getExternalProfile(account.provider, profile),
+      );
     },
   },
 };

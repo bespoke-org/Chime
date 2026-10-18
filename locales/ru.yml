@@ -27,6 +27,10 @@ auth:
   atprotoIdentifierPlaceholder: alice.bsky.social
   atprotoHelp: Пользовательские домены и DID тоже поддерживаются.
   atprotoError: Не удалось войти. Проверьте хэндл и попробуйте снова.
+  continueWith: "Войти через {name}"
+  oauthError: Вход не завершился. Попробуйте снова или используйте другой способ.
+  oauthAccountNotLinked: Этот email уже используется другим способом входа.
+  providerDivider: или
 workspace:
   selectAria: Выбрать рабочее пространство
   personal: Личное пространство

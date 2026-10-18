@@ -27,6 +27,10 @@ auth:
   atprotoIdentifierPlaceholder: alice.bsky.social
   atprotoHelp: Custom domains and DIDs work too.
   atprotoError: We couldn't sign you in. Check your handle and try again.
+  continueWith: "Continue with {name}"
+  oauthError: Sign-in did not complete. Try again or use another method.
+  oauthAccountNotLinked: This email is already used by another sign-in method.
+  providerDivider: or
 workspace:
   selectAria: Select workspace
   personal: Personal workspace

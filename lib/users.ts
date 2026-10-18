@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { normalizeLocale, type AppLocale } from "@/lib/i18n";
 import { AppError } from "@/lib/errors";
 import type { ProfileSettingsUserSummary } from "@/lib/form-types";
+import type { ExternalProfilePayload } from "@/lib/oidc-auth";
 import { getComposedName, splitNameParts } from "@/lib/user-identity";
 import { profileSettingsSchema } from "@/lib/validators";
 
@@ -122,14 +123,22 @@ function normalizeImageUrl(value: string | null | undefined) {
   return null;
 }
 
-export async function syncAtprotoProfileFields(
-  userId: string,
-  profile: AtprotoProfilePayload | null | undefined,
-) {
-  if (!profile) {
-    return;
-  }
+type ProfileDefaults = {
+  firstName: string | null;
+  secondName: string | null;
+  name: string | null;
+  image: string | null | undefined;
+  notificationEmail?: string | null;
+};
 
+function normalizeEmail(value: string | null | undefined) {
+  const nextValue = clean(value, 254)?.toLowerCase() ?? null;
+  return nextValue && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextValue)
+    ? nextValue
+    : null;
+}
+
+async function applyProfileDefaults(userId: string, defaults: ProfileDefaults) {
   const currentUser = await db.user.findUnique({
     where: { id: userId },
     select: {
@@ -140,6 +149,7 @@ export async function syncAtprotoProfileFields(
       locale: true,
       email: true,
       image: true,
+      notificationEmail: true,
     },
   });
 
@@ -147,20 +157,19 @@ export async function syncAtprotoProfileFields(
     return;
   }
 
-  const displayName =
-    clean(profile.displayName) ?? clean(profile.handle) ?? clean(profile.did);
-  const parsedName = splitNameParts(displayName);
-  const nextFirstName = parsedName.firstName;
-  const nextSecondName = parsedName.secondName;
+  const nextFirstName = defaults.firstName;
+  const nextSecondName = defaults.secondName;
   const nextName =
-    displayName ?? getComposedName(nextFirstName, nextSecondName);
-  const nextImage = normalizeImageUrl(profile.avatar);
+    defaults.name ?? getComposedName(nextFirstName, nextSecondName);
+  const nextImage = normalizeImageUrl(defaults.image);
+  const nextNotificationEmail = normalizeEmail(defaults.notificationEmail);
 
   const data: {
     firstName?: string;
     secondName?: string;
     name?: string;
     image?: string;
+    notificationEmail?: string;
   } = {};
 
   if (!currentUser.firstName?.trim() && nextFirstName) {
@@ -179,6 +188,10 @@ export async function syncAtprotoProfileFields(
     data.image = nextImage;
   }
 
+  if (!currentUser.notificationEmail?.trim() && nextNotificationEmail) {
+    data.notificationEmail = nextNotificationEmail;
+  }
+
   if (Object.keys(data).length === 0) {
     return;
   }
@@ -186,5 +199,45 @@ export async function syncAtprotoProfileFields(
   await db.user.update({
     where: { id: userId },
     data,
+  });
+}
+
+export async function syncAtprotoProfileFields(
+  userId: string,
+  profile: AtprotoProfilePayload | null | undefined,
+) {
+  if (!profile) {
+    return;
+  }
+
+  const displayName =
+    clean(profile.displayName) ?? clean(profile.handle) ?? clean(profile.did);
+  const parsedName = splitNameParts(displayName);
+
+  await applyProfileDefaults(userId, {
+    firstName: parsedName.firstName,
+    secondName: parsedName.secondName,
+    name: displayName,
+    image: profile.avatar,
+  });
+}
+
+export async function syncExternalProfileFields(
+  userId: string,
+  profile: ExternalProfilePayload | null | undefined,
+) {
+  if (!profile) {
+    return;
+  }
+
+  const name = clean(profile.name);
+  const parsedName = splitNameParts(name);
+
+  await applyProfileDefaults(userId, {
+    firstName: clean(profile.firstName, 60) ?? parsedName.firstName,
+    secondName: clean(profile.secondName, 60) ?? parsedName.secondName,
+    name,
+    image: profile.image,
+    notificationEmail: profile.email,
   });
 }

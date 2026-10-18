@@ -1,0 +1,169 @@
+import { describe, expect, test } from "bun:test";
+
+import {
+  getExternalProfile,
+  getGithubConfig,
+  getGoogleConfig,
+  getOidcConfig,
+  getSignInProviderOptions,
+  mapOidcProfile,
+} from "@/lib/oidc-auth";
+
+const oidcEnv = {
+  OIDC_ISSUER: "https://auth.example.com/realms/master/",
+  OIDC_CLIENT_ID: "lively-forms",
+  OIDC_CLIENT_SECRET: "secret",
+};
+
+describe("getOidcConfig", () => {
+  test("returns the config with defaults and a trimmed issuer", () => {
+    expect(JSON.stringify(getOidcConfig(oidcEnv))).toBe(
+      JSON.stringify({
+        issuer: "https://auth.example.com/realms/master",
+        clientId: "lively-forms",
+        clientSecret: "secret",
+        name: "SSO",
+        scope: "openid profile email",
+      }),
+    );
+  });
+
+  test("uses the configured name and scope", () => {
+    const config = getOidcConfig({
+      ...oidcEnv,
+      OIDC_PROVIDER_NAME: "СГУ",
+      OIDC_SCOPE: "openid email",
+    });
+
+    expect(config?.name).toBe("СГУ");
+    expect(config?.scope).toBe("openid email");
+  });
+
+  test("returns null when any required variable is missing or blank", () => {
+    expect(getOidcConfig({ ...oidcEnv, OIDC_ISSUER: undefined })).toBe(null);
+    expect(getOidcConfig({ ...oidcEnv, OIDC_CLIENT_ID: " " })).toBe(null);
+    expect(getOidcConfig({ ...oidcEnv, OIDC_CLIENT_SECRET: "" })).toBe(null);
+  });
+});
+
+describe("getGoogleConfig and getGithubConfig", () => {
+  test("return the client pair only when both variables are set", () => {
+    expect(
+      JSON.stringify(
+        getGoogleConfig({ GOOGLE_CLIENT_ID: "g", GOOGLE_CLIENT_SECRET: "s" }),
+      ),
+    ).toBe(JSON.stringify({ clientId: "g", clientSecret: "s" }));
+    expect(getGoogleConfig({ GOOGLE_CLIENT_ID: "g" })).toBe(null);
+    expect(
+      JSON.stringify(
+        getGithubConfig({ GITHUB_CLIENT_ID: "h", GITHUB_CLIENT_SECRET: "s" }),
+      ),
+    ).toBe(JSON.stringify({ clientId: "h", clientSecret: "s" }));
+    expect(getGithubConfig({ GITHUB_CLIENT_SECRET: "s" })).toBe(null);
+  });
+});
+
+describe("getSignInProviderOptions", () => {
+  test("lists enabled providers in a fixed order with their labels", () => {
+    const options = getSignInProviderOptions({
+      ...oidcEnv,
+      OIDC_PROVIDER_NAME: "СГУ",
+      GITHUB_CLIENT_ID: "h",
+      GITHUB_CLIENT_SECRET: "s",
+      GOOGLE_CLIENT_ID: "g",
+      GOOGLE_CLIENT_SECRET: "s",
+    });
+
+    expect(JSON.stringify(options)).toBe(
+      JSON.stringify([
+        { id: "google", label: "Google" },
+        { id: "github", label: "GitHub" },
+        { id: "oidc", label: "СГУ" },
+      ]),
+    );
+  });
+
+  test("is empty when nothing is configured", () => {
+    expect(getSignInProviderOptions({}).length).toBe(0);
+  });
+});
+
+describe("mapOidcProfile", () => {
+  test("maps the standard claims", () => {
+    expect(
+      JSON.stringify(
+        mapOidcProfile({
+          sub: "abc",
+          name: "Mona Lisa",
+          preferred_username: "mona",
+          email: "mona@example.com",
+          picture: "https://example.com/mona.png",
+        }),
+      ),
+    ).toBe(
+      JSON.stringify({
+        id: "abc",
+        name: "Mona Lisa",
+        email: "mona@example.com",
+        image: "https://example.com/mona.png",
+      }),
+    );
+  });
+
+  test("falls back to preferred_username and null picture", () => {
+    expect(
+      JSON.stringify(
+        mapOidcProfile({ sub: "abc", preferred_username: "mona" }),
+      ),
+    ).toBe(
+      JSON.stringify({ id: "abc", name: "mona", email: null, image: null }),
+    );
+  });
+});
+
+describe("getExternalProfile", () => {
+  test("maps Google name parts, picture, and email", () => {
+    expect(
+      JSON.stringify(
+        getExternalProfile("google", {
+          name: "Mona Lisa",
+          given_name: "Mona",
+          family_name: "Lisa",
+          picture: "https://example.com/mona.png",
+          email: "mona@example.com",
+        }),
+      ),
+    ).toBe(
+      JSON.stringify({
+        name: "Mona Lisa",
+        firstName: "Mona",
+        secondName: "Lisa",
+        image: "https://example.com/mona.png",
+        email: "mona@example.com",
+      }),
+    );
+  });
+
+  test("maps GitHub login and avatar, keeping a hidden email null", () => {
+    expect(
+      JSON.stringify(
+        getExternalProfile("github", {
+          login: "octocat",
+          name: null,
+          avatar_url: "https://avatars.example.com/octocat",
+          email: null,
+        }),
+      ),
+    ).toBe(
+      JSON.stringify({
+        name: "octocat",
+        image: "https://avatars.example.com/octocat",
+        email: null,
+      }),
+    );
+  });
+
+  test("returns null for an unknown provider", () => {
+    expect(getExternalProfile("atproto", { name: "x" })).toBe(null);
+  });
+});

@@ -7,11 +7,12 @@ export function AuthErrorAlert({ message }: { message: string }) {
   useEffect(() => {
     const url = new URL(window.location.href);
 
-    if (!url.searchParams.has("authError")) {
+    if (!url.searchParams.has("authError") && !url.searchParams.has("error")) {
       return;
     }
 
     url.searchParams.delete("authError");
+    url.searchParams.delete("error");
     window.history.replaceState(
       window.history.state,
       "",

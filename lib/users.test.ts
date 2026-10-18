@@ -10,6 +10,7 @@ type UserRecord = {
   locale: AppLocale | null;
   email: string | null;
   image: string | null;
+  notificationEmail: string | null;
 };
 
 type UserUpdateArgs = {
@@ -38,7 +39,8 @@ mock.module("@/lib/db", () => ({
   },
 }));
 
-const { syncAtprotoProfileFields } = await import("@/lib/users");
+const { syncAtprotoProfileFields, syncExternalProfileFields } =
+  await import("@/lib/users");
 
 function user(overrides: Partial<UserRecord> = {}): UserRecord {
   return {
@@ -49,6 +51,7 @@ function user(overrides: Partial<UserRecord> = {}): UserRecord {
     locale: null,
     email: null,
     image: null,
+    notificationEmail: null,
     ...overrides,
   };
 }
@@ -142,6 +145,75 @@ describe("syncAtprotoProfileFields", () => {
       handle: "mona.example.com",
       displayName: "Mona Lisa",
       avatar: "https://cdn.bsky.app/img/avatar/plain/did:plc:123/avatar@jpeg",
+    });
+
+    expect(JSON.stringify(updateCalls)).toBe(JSON.stringify([]));
+  });
+});
+
+describe("syncExternalProfileFields", () => {
+  test("initializes name parts, avatar, and notification email on first sign-in", async () => {
+    resetTestState();
+
+    await syncExternalProfileFields("user-1", {
+      name: "Mona Lisa",
+      image: "https://example.com/mona.png",
+      email: "Mona@Example.com",
+    });
+
+    expect(JSON.stringify(updateCalls)).toBe(
+      JSON.stringify([
+        {
+          where: { id: "user-1" },
+          data: {
+            firstName: "Mona",
+            secondName: "Lisa",
+            name: "Mona Lisa",
+            image: "https://example.com/mona.png",
+            notificationEmail: "mona@example.com",
+          },
+        },
+      ]),
+    );
+  });
+
+  test("prefers provided name parts and skips a missing email", async () => {
+    resetTestState();
+
+    await syncExternalProfileFields("user-1", {
+      name: "Mona Lisa Smith",
+      firstName: "Mona",
+      secondName: "Lisa Smith",
+      email: null,
+    });
+
+    expect(JSON.stringify(updateCalls)).toBe(
+      JSON.stringify([
+        {
+          where: { id: "user-1" },
+          data: {
+            firstName: "Mona",
+            secondName: "Lisa Smith",
+            name: "Mona Lisa Smith",
+          },
+        },
+      ]),
+    );
+  });
+
+  test("keeps the edited name and notification email on a later sign-in", async () => {
+    resetTestState({
+      name: "Custom Name",
+      firstName: "Custom",
+      secondName: "Name",
+      image: "https://example.com/custom.png",
+      notificationEmail: "custom@example.com",
+    });
+
+    await syncExternalProfileFields("user-1", {
+      name: "Mona Lisa",
+      image: "https://example.com/mona.png",
+      email: "mona@example.com",
     });
 
     expect(JSON.stringify(updateCalls)).toBe(JSON.stringify([]));

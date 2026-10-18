@@ -22,4 +22,21 @@ describe("AuthErrorAlert", () => {
       restoreDom();
     }
   });
+
+  test("removes the next-auth error parameter as well", async () => {
+    const restoreDom = installTestDom();
+
+    try {
+      window.history.replaceState(null, "", "/?error=OAuthCallback");
+
+      render(<AuthErrorAlert message="Sign-in failed" />);
+
+      await waitFor(() => {
+        expect(window.location.href).toBe("http://localhost/");
+      });
+    } finally {
+      cleanup();
+      restoreDom();
+    }
+  });
 });

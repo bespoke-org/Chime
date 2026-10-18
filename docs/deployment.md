@@ -1,6 +1,6 @@
 # Deployment and environment setup
 
-This project is a Next.js app backed by PostgreSQL and Auth.js sessions with ATProto OAuth for creator sign-in.
+This project is a Next.js app backed by PostgreSQL and Auth.js sessions. Creators sign in with ATProto OAuth, and optionally with Google, GitHub, or any OpenID Connect provider.
 
 ## Required environment variables
 
@@ -16,6 +16,16 @@ ATPROTO_REDIRECT_URI="http://127.0.0.1:3000/api/auth/atproto/callback"
 ATPROTO_CLIENT_NAME="Lively Forms"
 # Optional, defaults to "atproto transition:generic"
 # ATPROTO_SCOPE="atproto transition:generic"
+# Optional OAuth sign-in providers; each is shown only when its variables are set
+# GOOGLE_CLIENT_ID=""
+# GOOGLE_CLIENT_SECRET=""
+# GITHUB_CLIENT_ID=""
+# GITHUB_CLIENT_SECRET=""
+# OIDC_ISSUER="https://auth.example.com/realms/master"
+# OIDC_CLIENT_ID=""
+# OIDC_CLIENT_SECRET=""
+# OIDC_PROVIDER_NAME="SSO"               # sign-in button label
+# OIDC_SCOPE="openid profile email"
 # Optional public submission limits, defaults shown
 # SUBMISSION_RATE_LIMIT=5            # submissions per form per client IP per window
 # SUBMISSION_GLOBAL_RATE_LIMIT=30    # submissions per client IP per window, all forms
@@ -79,6 +89,40 @@ bun run prisma:migrate
 ```bash
 bun run dev
 ```
+
+## OAuth and OpenID Connect sign-in
+
+Google, GitHub, and a generic OpenID Connect provider are registered in Auth.js only when their variables are set, so a deployment can run with ATProto alone. Each enabled provider adds a button above the ATProto form on the sign-in page. Accounts are linked by provider and provider account id, not by email: a person who signed in with Google and later tries GitHub with the same email gets "This email is already used by another sign-in method" instead of a merged account. On the first sign-in the app fills the empty profile fields (name parts, avatar, notification email) from the provider profile and never overwrites values the creator has edited.
+
+### Google
+
+Create an OAuth client in Google Cloud Console (APIs & Services > Credentials > OAuth client ID, type Web application) and set:
+
+- Authorized redirect URI: `<public url>/api/auth/callback/google`
+
+Put the client id and secret into `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+### GitHub
+
+Create an OAuth App in GitHub (Settings > Developer settings > OAuth Apps) and set:
+
+- Authorization callback URL: `<public url>/api/auth/callback/github`
+
+Put the client id and secret into `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. When the user hides their email on GitHub the app requests the primary address through the GitHub API; if none is returned the notification email stays empty.
+
+### OpenID Connect (Keycloak)
+
+`OIDC_ISSUER` is the issuer URL, for example `https://auth.example.com/realms/master`; the app reads `<issuer>/.well-known/openid-configuration` at the first sign-in, so the issuer must be reachable from the server. The provider must support the authorization code flow with PKCE (S256) and the scopes in `OIDC_SCOPE` (default `openid profile email`). `OIDC_PROVIDER_NAME` is the label on the sign-in button ("Continue with SSO" by default). The callback path is `/api/auth/callback/oidc`.
+
+In Keycloak create a client in the realm:
+
+- Client type: OpenID Connect
+- Client authentication: on
+- Authentication flow: Standard flow
+- Valid redirect URIs: `<public url>/api/auth/callback/oidc`
+- Web origins: `<public url>`
+
+Copy the client id and the secret from the Credentials tab into `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`.
 
 ## ATProto OAuth setup
 

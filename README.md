@@ -9,14 +9,14 @@ Lively Forms is a conversational form builder inspired by Typeform. It lets crea
 - Conditional branching with builder-side validation and branch-aware submissions
 - Anonymous response collection with detailed review and CSV/XLSX export
 - Personal and organization workspaces with shared form management
-- Creator-focused experience with ATProto/PDS sign-in, localization, and theme settings
+- Creator-focused experience with ATProto/PDS, Google, GitHub, or OpenID Connect sign-in, localization, and theme settings
 
 ## Stack
 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- Auth.js (`next-auth`) sessions with ATProto OAuth
+- Auth.js (`next-auth`) sessions with ATProto OAuth and optional Google, GitHub, and OpenID Connect sign-in
 - Prisma + PostgreSQL
 - S3-compatible object storage for file uploads (Garage in local development)
 - nodemailer for SMTP email notifications

@@ -3,20 +3,35 @@ import { ArrowRight, Sprout } from "lucide-react";
 
 import { AuthErrorAlert } from "@/components/auth/auth-error-alert";
 import { AtprotoSignInForm } from "@/components/auth/atproto-sign-in-form";
+import { ProviderSignInButtons } from "@/components/auth/provider-sign-in-buttons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { getSignInProviderOptions } from "@/lib/oidc-auth";
+
+function getAuthErrorKey(authError?: string, oauthError?: string) {
+  if (authError) {
+    return "auth.atprotoError";
+  }
+
+  if (oauthError === "OAuthAccountNotLinked") {
+    return "auth.oauthAccountNotLinked";
+  }
+
+  return oauthError ? "auth.oauthError" : null;
+}
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ authError?: string }>;
+  searchParams?: Promise<{ authError?: string; error?: string }>;
 }) {
   const session = await getServerAuthSession();
   const { t } = await getRequestI18n();
   const params = await searchParams;
-  const authError = params?.authError;
+  const authErrorKey = getAuthErrorKey(params?.authError, params?.error);
+  const providers = getSignInProviderOptions(process.env);
   const appName = t("app.name");
 
   return (
@@ -52,9 +67,10 @@ export default async function HomePage({
                 </Link>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {authError ? (
-                    <AuthErrorAlert message={t("auth.atprotoError")} />
+                  {authErrorKey ? (
+                    <AuthErrorAlert message={t(authErrorKey)} />
                   ) : null}
+                  <ProviderSignInButtons providers={providers} />
                   <AtprotoSignInForm />
                 </div>
               )}
