@@ -1522,30 +1522,37 @@ export function BranchingGraphWorkspace({
                       </div>
                     </button>
                     {showAddButton ? (
-                      <button
-                        type="button"
+                      // The wrapper starts at the card edge so the pointer never
+                      // crosses a gap that would clear the hover state.
+                      <div
                         data-graph-node-id={node.blockId}
-                        className="absolute z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-card)] transition hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+                        className="absolute z-10 -translate-y-1/2 py-2 pl-1.5 pr-2"
                         style={{
-                          left: `${node.x + node.width + 6}px`,
+                          left: `${node.x + node.width}px`,
                           top: `${node.y + node.height / 2}px`,
                         }}
-                        aria-label={t("builder.addBlockAfter")}
-                        title={t("builder.addBlockAfter")}
-                        aria-expanded={isAddMenuOpen}
-                        aria-haspopup="menu"
+                        onPointerDown={(event) => event.stopPropagation()}
                         onPointerEnter={() => setHoveredNodeId(node.blockId)}
                         onPointerLeave={(event) =>
                           handleGraphNodePointerLeave(event, node.blockId)
                         }
-                        onClick={() =>
-                          setAddMenuNodeId((current) =>
-                            current === node.blockId ? null : node.blockId,
-                          )
-                        }
                       >
-                        <Plus size={16} strokeWidth={2.5} />
-                      </button>
+                        <button
+                          type="button"
+                          className="flex size-7 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-card)] transition hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+                          aria-label={t("builder.addBlockAfter")}
+                          title={t("builder.addBlockAfter")}
+                          aria-expanded={isAddMenuOpen}
+                          aria-haspopup="menu"
+                          onClick={() =>
+                            setAddMenuNodeId((current) =>
+                              current === node.blockId ? null : node.blockId,
+                            )
+                          }
+                        >
+                          <Plus size={16} strokeWidth={2.5} />
+                        </button>
+                      </div>
                     ) : null}
                     {isAddMenuOpen ? (
                       <div
