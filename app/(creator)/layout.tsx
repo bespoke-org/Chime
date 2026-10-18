@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { AccountMenu } from "@/components/account-menu";
+import { BrandMark } from "@/components/brand-mark";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { requireServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
@@ -30,14 +30,7 @@ export default async function CreatorLayout({
             aria-label={t("app.goToDashboardAria")}
             className="shrink-0 transition-transform hover:scale-[1.02]"
           >
-            <Image
-              src="/sproute.png"
-              alt={appName}
-              width={48}
-              height={48}
-              priority
-              className="size-12"
-            />
+            <BrandMark className="size-6 text-[var(--accent)]" />
           </Link>
           <Link
             href="/dashboard"

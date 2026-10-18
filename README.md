@@ -1,7 +1,4 @@
-<h1 align="center">
-  <img src="public/sproute.png" alt="Lively Forms icon" width="64" height="64" align="center">
-  Lively Forms
-</h1>
+<h1 align="center">Lively Forms</h1>
 
 Lively Forms is a conversational form builder inspired by Typeform. It lets creators build multi-step forms, publish them publicly, collect anonymous responses, and review/export submissions across personal or shared organization workspaces.
 
