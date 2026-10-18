@@ -51,24 +51,34 @@ export function InlineTitleEditor({
   return (
     <h1 className="flex min-w-0 items-center gap-2 font-display text-4xl leading-tight text-[var(--ink)]">
       {isEditing ? (
-        <input
-          ref={inputRef}
-          autoFocus
-          aria-label={t("builder.editTitle")}
-          className="w-full min-w-0 border-b border-[color:var(--line-strong)] bg-transparent font-display text-4xl leading-tight text-[var(--ink)] outline-none"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={commit}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              commit();
-            } else if (event.key === "Escape") {
-              event.preventDefault();
-              cancel();
-            }
-          }}
-        />
+        // The hidden span sizes the grid cell to the text, so the input is as
+        // wide as the title and the badge next to it does not move.
+        <span className="inline-grid min-w-0 max-w-full border-b border-[color:var(--line-strong)]">
+          <span
+            aria-hidden
+            className="invisible col-start-1 row-start-1 whitespace-pre pr-2"
+          >
+            {draft || " "}
+          </span>
+          <input
+            ref={inputRef}
+            autoFocus
+            aria-label={t("builder.editTitle")}
+            className="col-start-1 row-start-1 w-full min-w-0 bg-transparent font-display text-4xl leading-tight text-[var(--ink)] outline-none"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                cancel();
+              }
+            }}
+          />
+        </span>
       ) : (
         <button
           type="button"
