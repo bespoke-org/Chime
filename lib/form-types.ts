@@ -126,6 +126,8 @@ export type ResponseDetail = {
 export type ResponseReviewFormSummary = {
   id: string;
   title: string;
+  slug: string;
+  status: FormStatus;
   workspace: WorkspaceReference;
 };
 

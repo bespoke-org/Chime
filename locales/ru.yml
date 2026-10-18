@@ -408,6 +408,9 @@ responses:
   noSubmissionsEyebrow: Пока нет ответов
   noSubmissionsTitle: Опубликуйте форму, чтобы начать собирать ответы.
   noSubmissionsDescription: Только опубликованные формы доступны по публичному URL, и каждый респондент остаётся анонимным при ответе.
+  waitingForSubmissionsTitle: Поделитесь ссылкой, чтобы начать собирать ответы.
+  waitingForSubmissionsDescription: "Форма доступна по адресу {path}. Ответы появятся здесь сразу после отправки."
+  openPublicForm: Открыть публичную форму
   noQuestionBlocksEyebrow: Нет вопросов для сводки
   noQuestionBlocksTitle: В этой форме пока нет вопросов, которые можно суммировать.
   noQuestionBlocksDescription: Добавьте хотя бы один блок с ответом, чтобы просматривать ответы по вопросам.

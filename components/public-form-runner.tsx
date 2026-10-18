@@ -956,7 +956,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                 rel="noreferrer"
                 className={buttonVariants({
                   variant: "default",
-                  className: "w-fit !bg-[var(--ink)] !text-[var(--bg)]",
+                  className: "w-fit",
                 })}
               >
                 {completionLinkLabel}

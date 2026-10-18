@@ -82,6 +82,8 @@ describe("buildResponseReviewData", () => {
       form: {
         id: "form-1",
         title: "Survey",
+        slug: "survey",
+        status: "PUBLISHED",
         workspace: { kind: "personal", label: "Personal workspace" },
         blocks,
       },
@@ -306,6 +308,8 @@ describe("rating question summaries", () => {
       form: {
         id: "form-1",
         title: "Survey",
+        slug: "survey",
+        status: "PUBLISHED",
         workspace: { kind: "personal", label: "Personal workspace" },
         blocks: [
           createBlock({ id: "name", type: "SHORT_TEXT", position: 0 }),
@@ -392,6 +396,8 @@ describe("rating question summaries", () => {
       form: {
         id: "form-1",
         title: "Survey",
+        slug: "survey",
+        status: "PUBLISHED",
         workspace: { kind: "personal", label: "Personal workspace" },
         blocks: [createBlock({ id: "age", type: "NUMBER", position: 0 })],
       },

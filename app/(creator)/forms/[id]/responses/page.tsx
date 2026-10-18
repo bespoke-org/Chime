@@ -122,7 +122,7 @@ export default async function ResponsesPage({
             className={cn(
               "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
               currentView === "questions"
-                ? "!bg-[var(--ink)] !text-[var(--bg)]"
+                ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
                 : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
             )}
             aria-current={currentView === "questions" ? "page" : undefined}
@@ -134,7 +134,7 @@ export default async function ResponsesPage({
             className={cn(
               "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
               currentView === "submissions"
-                ? "!bg-[var(--ink)] !text-[var(--bg)]"
+                ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
                 : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
             )}
             aria-current={currentView === "submissions" ? "page" : undefined}
@@ -151,16 +151,33 @@ export default async function ResponsesPage({
 
       {currentView === "submissions" ? (
         responses.length === 0 ? (
-          <EmptyState
-            eyebrow={t("responses.noSubmissionsEyebrow")}
-            title={t("responses.noSubmissionsTitle")}
-            description={t("responses.noSubmissionsDescription")}
-            action={
-              <Link href={`/forms/${form.id}/edit`}>
-                <Button>{t("responses.openBuilder")}</Button>
-              </Link>
-            }
-          />
+          form.status === "PUBLISHED" ? (
+            <EmptyState
+              eyebrow={t("responses.noSubmissionsEyebrow")}
+              title={t("responses.waitingForSubmissionsTitle")}
+              description={t("responses.waitingForSubmissionsDescription", {
+                path: `/f/${form.slug}`,
+              })}
+              action={
+                <Link href={`/f/${form.slug}`} target="_blank">
+                  <Button variant="secondary">
+                    {t("responses.openPublicForm")}
+                  </Button>
+                </Link>
+              }
+            />
+          ) : (
+            <EmptyState
+              eyebrow={t("responses.noSubmissionsEyebrow")}
+              title={t("responses.noSubmissionsTitle")}
+              description={t("responses.noSubmissionsDescription")}
+              action={
+                <Link href={`/forms/${form.id}/edit`}>
+                  <Button>{t("responses.openBuilder")}</Button>
+                </Link>
+              }
+            />
+          )
         ) : (
           <Card className="overflow-hidden p-0">
             <div className="divide-y divide-[color:var(--line)]">

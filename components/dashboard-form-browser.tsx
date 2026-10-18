@@ -139,7 +139,7 @@ export function DashboardFormBrowser({
                 className={cn(
                   "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
                   view === "grid"
-                    ? "bg-[var(--ink)] text-[var(--bg)]"
+                    ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
                     : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
                 )}
                 aria-pressed={view === "grid"}
@@ -153,7 +153,7 @@ export function DashboardFormBrowser({
                 className={cn(
                   "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
                   view === "table"
-                    ? "bg-[var(--ink)] text-[var(--bg)]"
+                    ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
                     : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
                 )}
                 aria-pressed={view === "table"}

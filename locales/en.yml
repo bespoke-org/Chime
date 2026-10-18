@@ -408,6 +408,9 @@ responses:
   noSubmissionsEyebrow: No submissions yet
   noSubmissionsTitle: Publish the form to start collecting responses.
   noSubmissionsDescription: Only published forms are available on the public route, and every respondent stays anonymous on submission.
+  waitingForSubmissionsTitle: Share the link to start collecting responses.
+  waitingForSubmissionsDescription: "The form is live at {path}. Responses show up here as soon as they arrive."
+  openPublicForm: Open public form
   noQuestionBlocksEyebrow: No answerable questions
   noQuestionBlocksTitle: This form has no questions to summarize yet.
   noQuestionBlocksDescription: Add at least one answerable block to review responses by question.

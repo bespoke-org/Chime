@@ -262,6 +262,8 @@ export function buildResponseReviewData(input: {
     form: {
       id: form.id,
       title: form.title,
+      slug: form.slug,
+      status: form.status,
       workspace: form.workspace,
     },
     responses: buildResponseListItems(responses),

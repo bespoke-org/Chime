@@ -947,6 +947,8 @@ export async function listResponsesForOwnedForm(
     form: {
       id: form.id,
       title: form.title,
+      slug: form.slug,
+      status: form.status,
       workspace: toWorkspaceReference(form),
       blocks: form.blocks.map(serializeBlock),
     },
