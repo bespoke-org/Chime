@@ -42,6 +42,7 @@ import {
 } from "@/lib/blocks";
 import { resolveNextBlockId } from "@/lib/branching";
 import type { AnswerValue, PublicForm, PublicBlock } from "@/lib/form-types";
+import { SUBMISSION_HONEYPOT_FIELD } from "@/lib/submission-guard";
 import {
   isLegacyDefaultCompletionMessage,
   isLegacyDefaultCompletionTitle,
@@ -78,16 +79,31 @@ const CHOICE_SHORTCUT_KEYS = [
   "0",
 ] as const;
 
+class SubmitResponseError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "SubmitResponseError";
+    this.status = status;
+  }
+}
+
 async function submitResponse(
   slug: string,
   answers: Record<string, AnswerValue>,
+  guard: { honeypot: string; startedAt: number },
 ) {
   const response = await fetch(`/api/public/forms/${slug}/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({
+      answers,
+      [SUBMISSION_HONEYPOT_FIELD]: guard.honeypot,
+      startedAt: guard.startedAt,
+    }),
   });
 
   const payload = (await response.json().catch(() => ({}))) as {
@@ -96,7 +112,10 @@ async function submitResponse(
   };
 
   if (!response.ok) {
-    throw new Error(payload.error ?? "Could not submit response.");
+    throw new SubmitResponseError(
+      payload.error ?? "Could not submit response.",
+      response.status,
+    );
   }
 
   return payload.responseId;
@@ -185,6 +204,8 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [hasResolvedDraft, setHasResolvedDraft] = useState(false);
+  const [honeypotValue, setHoneypotValue] = useState("");
+  const startedAtRef = useRef(Date.now());
   const submitLockRef = useRef(false);
   const activeInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(
     null,
@@ -333,6 +354,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     const validatedDraft = validatePublicFormDraft(form, storedDraft.draft);
 
     if (validatedDraft.status === "restored") {
+      // The session began before this mount; otherwise a restored respondent
+      // who finishes quickly looks like a bot to the minimum fill-time check.
+      startedAtRef.current = Math.min(
+        startedAtRef.current,
+        validatedDraft.draft.savedAt,
+      );
       setAnswers(validatedDraft.draft.answers);
       setRoute({
         history: validatedDraft.draft.history,
@@ -507,14 +534,20 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
         try {
           setIsSubmitting(true);
-          await submitResponse(form.slug, answerSet);
+          await submitResponse(form.slug, answerSet, {
+            honeypot: honeypotValue,
+            startedAt: startedAtRef.current,
+          });
           removeStoredPublicFormDraft(storageKey);
           setIsComplete(true);
         } catch (caughtError) {
           showToast(
-            caughtError instanceof Error
-              ? caughtError.message
-              : t("publicRunner.submitError"),
+            caughtError instanceof SubmitResponseError &&
+              caughtError.status === 429
+              ? t("publicRunner.tooManySubmissions")
+              : caughtError instanceof Error
+                ? caughtError.message
+                : t("publicRunner.submitError"),
             "error",
           );
         } finally {
@@ -540,6 +573,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       currentBlock,
       form.blocks,
       form.slug,
+      honeypotValue,
       showToast,
       storageKey,
       t,
@@ -742,6 +776,21 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     <>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <Card className="w-full max-w-5xl overflow-hidden">
+        {/* Bots fill every field; people never see this one. */}
+        <div
+          aria-hidden="true"
+          className="absolute -left-[9999px] top-0 h-px w-px overflow-hidden"
+        >
+          <input
+            type="text"
+            name={SUBMISSION_HONEYPOT_FIELD}
+            data-testid="runner-honeypot"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypotValue}
+            onChange={(event) => setHoneypotValue(event.target.value)}
+          />
+        </div>
         <div className="border-b border-[color:var(--line)] px-5 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">

@@ -330,6 +330,7 @@ publicRunner:
   progressRestored: Saved progress restored.
   savedProgressDiscarded: Saved progress could not be restored.
   submitError: Could not submit response.
+  tooManySubmissions: Too many submissions from your network. Please try again in a few minutes.
   back: Back
   continue: Continue
   submit: Submit

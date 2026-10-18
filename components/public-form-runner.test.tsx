@@ -124,6 +124,7 @@ function renderRunner(form: PublicForm) {
           back: "Back",
           continue: "Continue",
           submit: "Submit",
+          tooManySubmissions: "Slow down",
           progressRestored: "Progress restored",
           savedProgressDiscarded: "Saved progress discarded",
           defaultTextTitle: "Take a breath before the next step.",
@@ -134,6 +135,15 @@ function renderRunner(form: PublicForm) {
       <PublicFormRunner form={form} />
     </I18nProvider>,
   );
+}
+
+// react-dom is loaded before the test DOM exists, so it falls back to its
+// legacy change-tracking path: it watches the focused text input and re-reads
+// its value on key events instead of listening to input events.
+function typeIntoInput(input: HTMLElement, value: string) {
+  fireEvent.focusIn(input);
+  fireEvent.change(input, { target: { value } });
+  fireEvent.keyUp(input, { key: value.slice(-1) });
 }
 
 async function cleanupAndRestore(restoreDom: () => void) {
@@ -247,6 +257,160 @@ describe("PublicFormRunner", () => {
     });
     expect(view.getByRole("button", { name: /Back/i }) !== null).toBe(true);
 
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("submits a hidden empty honeypot and the start time alongside the answers", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+    const fetchCalls: { url: string; init?: RequestInit }[] = [];
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ responseId: "r1" }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "name",
+          type: "SHORT_TEXT",
+          position: 0,
+          title: "Name",
+        }),
+      ]),
+    );
+
+    const honeypot = view.getByTestId("runner-honeypot") as HTMLInputElement;
+    expect(honeypot.tabIndex).toBe(-1);
+    expect(honeypot.getAttribute("autocomplete")).toBe("off");
+    expect(honeypot.value).toBe("");
+    expect(honeypot.parentElement?.getAttribute("aria-hidden")).toBe("true");
+    expect(view.getAllByRole("textbox").length).toBe(1);
+
+    typeIntoInput(view.getByRole("textbox"), "Ada");
+    fireEvent.click(view.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    const body = JSON.parse(String(fetchCalls[0]?.init?.body)) as {
+      answers: Record<string, unknown>;
+      website: unknown;
+      startedAt: unknown;
+    };
+
+    expect(fetchCalls[0]?.url).toBe("/api/public/forms/demo-form/responses");
+    expect(body.answers.name).toBe("Ada");
+    expect(body.website).toBe("");
+    expect(typeof body.startedAt).toBe("number");
+    expect((body.startedAt as number) <= Date.now()).toBe(true);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("uses the saved draft time as the start time after restoring progress", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+    const fetchCalls: { url: string; init?: RequestInit }[] = [];
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ responseId: "r1" }),
+      } as Response;
+    }) as typeof fetch;
+
+    const form = createForm([
+      createBlock({
+        id: "name",
+        type: "SHORT_TEXT",
+        position: 0,
+        title: "Name",
+      }),
+    ]);
+    const savedAt = Date.now() - 5 * 60 * 1000;
+
+    window.localStorage.setItem(
+      `lively-forms-public-runner-draft:${form.id}`,
+      JSON.stringify({
+        ...createPublicFormDraft(form, {
+          answers: { name: "Ada" },
+          history: ["name"],
+          cursor: 0,
+        }),
+        savedAt,
+      }),
+    );
+
+    const view = renderRunner(form);
+
+    await waitFor(() => {
+      expect((view.getByRole("textbox") as HTMLInputElement).value).toBe("Ada");
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    const body = JSON.parse(String(fetchCalls[0]?.init?.body)) as {
+      startedAt: unknown;
+    };
+
+    expect(body.startedAt).toBe(savedAt);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("shows the localized rate-limit message on a 429 response", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async () =>
+      ({
+        ok: false,
+        status: 429,
+        json: async () => ({ error: "Too many submissions." }),
+      }) as Response) as typeof fetch;
+
+    const view = renderRunner(
+      createForm([
+        createBlock({
+          id: "name",
+          type: "SHORT_TEXT",
+          position: 0,
+          title: "Name",
+        }),
+      ]),
+    );
+
+    typeIntoInput(view.getByRole("textbox"), "Ada");
+    fireEvent.click(view.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(view.queryByText("Slow down") !== null).toBe(true);
+    });
+
+    globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);
   });
 

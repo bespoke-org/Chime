@@ -16,7 +16,14 @@ ATPROTO_REDIRECT_URI="http://127.0.0.1:3000/api/auth/atproto/callback"
 ATPROTO_CLIENT_NAME="Lively Forms"
 # Optional, defaults to "atproto transition:generic"
 # ATPROTO_SCOPE="atproto transition:generic"
+# Optional public submission limits, defaults shown
+# SUBMISSION_RATE_LIMIT=5            # submissions per form per client IP per window
+# SUBMISSION_GLOBAL_RATE_LIMIT=30    # submissions per client IP per window, all forms
+# SUBMISSION_RATE_WINDOW_SECONDS=600
+# SUBMISSION_MIN_FILL_SECONDS=3      # faster submissions are dropped as bots
 ```
+
+Submission limits are counted in process memory, so they apply per app instance. The client IP is read from the first `X-Forwarded-For` entry, then `X-Real-IP`; the reverse proxy must set one of them or every respondent shares the same limit.
 
 Generate a strong auth secret, for example:
 
