@@ -40,6 +40,7 @@ import {
   reorderBlocksSchema,
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
+import { buildWebhookPayload, getWebhookDeliverer } from "@/lib/webhooks";
 import {
   DEFAULT_LOCALE,
   normalizeLocale,
@@ -135,6 +136,8 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
       : null,
     showProgress: form.showProgress,
     allowBackNavigation: form.allowBackNavigation,
+    webhookUrl: form.webhookUrl,
+    webhookSecret: form.webhookSecret,
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -644,6 +647,24 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
       formSnapshotJson: snapshot,
     },
   });
+
+  if (form.webhookUrl) {
+    // Delivery runs in the background and never throws, so the stored
+    // response and the HTTP answer do not depend on the webhook endpoint.
+    void getWebhookDeliverer()({
+      url: form.webhookUrl,
+      secret: form.webhookSecret,
+      payload: buildWebhookPayload(
+        form,
+        {
+          id: response.id,
+          submittedAt: response.submittedAt,
+          answers: normalizedAnswers,
+        },
+        snapshot,
+      ),
+    });
+  }
 
   return response;
 }

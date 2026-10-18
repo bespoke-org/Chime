@@ -48,6 +48,8 @@ export type BuilderForm = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
+  webhookUrl: string | null;
+  webhookSecret: string | null;
   slug: string;
   status: FormStatus;
   updatedAt: string;

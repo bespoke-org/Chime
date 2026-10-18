@@ -112,6 +112,52 @@ describe("formMetadataSchema fields", () => {
   });
 });
 
+describe("formMetadataSchema webhook", () => {
+  test("stores empty or missing webhook fields as null", () => {
+    expect(metadata({}).webhookUrl).toBe(null);
+    expect(metadata({}).webhookSecret).toBe(null);
+    expect(metadata({ webhookUrl: "  ", webhookSecret: "" }).webhookUrl).toBe(
+      null,
+    );
+    expect(
+      metadata({ webhookUrl: "  ", webhookSecret: "" }).webhookSecret,
+    ).toBe(null);
+  });
+
+  test("trims and keeps a public webhook URL and secret", () => {
+    const parsed = metadata({
+      webhookUrl: " https://hooks.example.com/lively ",
+      webhookSecret: " s3cret ",
+    });
+
+    expect(parsed.webhookUrl).toBe("https://hooks.example.com/lively");
+    expect(parsed.webhookSecret).toBe("s3cret");
+  });
+
+  test("rejects invalid, private, and too long webhook URLs", () => {
+    for (const webhookUrl of [
+      "ftp://example.com/hook",
+      "example.com/hook",
+      "http://localhost:3000/hook",
+      "http://127.0.0.1/hook",
+      "http://192.168.0.10/hook",
+      "https://service.internal/hook",
+      `https://example.com/${"x".repeat(2048)}`,
+    ]) {
+      expect(throws(() => metadata({ webhookUrl }))).toBe(true);
+    }
+  });
+
+  test("rejects a secret over two hundred characters", () => {
+    expect(throws(() => metadata({ webhookSecret: "x".repeat(201) }))).toBe(
+      true,
+    );
+    expect(metadata({ webhookSecret: "x".repeat(200) }).webhookSecret).toBe(
+      "x".repeat(200),
+    );
+  });
+});
+
 describe("reorderBlocksSchema", () => {
   test("rejects an empty list", () => {
     expect(throws(() => reorderBlocksSchema.parse({ blockIds: [] }))).toBe(

@@ -116,6 +116,8 @@ model Form {
   respondentLocale    String?
   showProgress        Boolean       @default(true)
   allowBackNavigation Boolean       @default(true)
+  webhookUrl          String?
+  webhookSecret       String?
   slug                String        @unique
   status              FormStatus    @default(DRAFT)
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -177,6 +177,13 @@ builder:
   showProgressHelp: Show respondents where they are in the form.
   allowBackNavigation: Allow going back to previous steps
   allowBackNavigationHelp: Let respondents return to earlier visited steps in the public form runner.
+  webhook: Webhook
+  webhookDescription: Send every new response to your own endpoint as soon as it is stored.
+  webhookUrl: Webhook URL
+  webhookUrlPlaceholder: https://example.com/hooks/lively-forms
+  webhookUrlHelp: A public https:// address. We POST a JSON body with the form, response id, and answers. Addresses on private networks are rejected.
+  webhookSecret: Signing secret
+  webhookSecretHelp: Optional. When set, each request carries an X-Lively-Forms-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
   copyLink: Copy link
   openRunner: Open runner
   deleteForm: Delete form

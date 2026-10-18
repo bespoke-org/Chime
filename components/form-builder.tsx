@@ -290,6 +290,8 @@ export function FormBuilder({
     respondentLocale: initialForm.respondentLocale,
     showProgress: initialForm.showProgress,
     allowBackNavigation: initialForm.allowBackNavigation,
+    webhookUrl: initialForm.webhookUrl ?? "",
+    webhookSecret: initialForm.webhookSecret ?? "",
     slug: initialForm.slug,
   });
 
@@ -382,6 +384,8 @@ export function FormBuilder({
       respondentLocale: form.respondentLocale,
       showProgress: form.showProgress,
       allowBackNavigation: form.allowBackNavigation,
+      webhookUrl: form.webhookUrl ?? "",
+      webhookSecret: form.webhookSecret ?? "",
       slug: form.slug,
     });
   }, [
@@ -393,6 +397,8 @@ export function FormBuilder({
     form.respondentLocale,
     form.showProgress,
     form.allowBackNavigation,
+    form.webhookUrl,
+    form.webhookSecret,
     form.slug,
   ]);
 

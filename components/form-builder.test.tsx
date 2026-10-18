@@ -56,6 +56,8 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
     respondentLocale: null,
     showProgress: true,
     allowBackNavigation: true,
+    webhookUrl: null,
+    webhookSecret: null,
     slug: "demo-form",
     status: "DRAFT",
     updatedAt: "2026-04-14T12:00:00.000Z",

@@ -87,6 +87,8 @@ export type FormMetadataDraft = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
+  webhookUrl: string;
+  webhookSecret: string;
   slug: string;
 };
 
@@ -461,6 +463,56 @@ export function FormSettingsPanel({
               />
             </label>
           </div>
+        </div>
+      </div>
+
+      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            {t("builder.webhook")}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            {t("builder.webhookDescription")}
+          </p>
+        </div>
+
+        <div className="grid gap-5">
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.webhookUrl")}
+            </span>
+            <Input
+              value={metadataDraft.webhookUrl}
+              placeholder={t("builder.webhookUrlPlaceholder")}
+              onChange={(event) =>
+                setMetadataDraft((current) => ({
+                  ...current,
+                  webhookUrl: event.target.value,
+                }))
+              }
+            />
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.webhookUrlHelp")}
+            </span>
+          </label>
+          <label className="grid gap-2 text-sm text-[var(--muted)]">
+            <span className="font-medium text-[var(--ink)]">
+              {t("builder.webhookSecret")}
+            </span>
+            <Input
+              value={metadataDraft.webhookSecret}
+              autoComplete="off"
+              onChange={(event) =>
+                setMetadataDraft((current) => ({
+                  ...current,
+                  webhookSecret: event.target.value,
+                }))
+              }
+            />
+            <span className="text-xs text-[var(--muted)]">
+              {t("builder.webhookSecretHelp")}
+            </span>
+          </label>
         </div>
       </div>
 

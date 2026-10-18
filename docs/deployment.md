@@ -124,6 +124,58 @@ Set `NEXTAUTH_URL` and `ATPROTO_PUBLIC_URL` to the same public base URL. If the 
    bun run start
    ```
 
+## Webhooks
+
+A form can name a webhook URL and an optional signing secret in its settings. After a response is stored, the app sends one `POST` with a JSON body to that URL:
+
+```json
+{
+  "event": "response.created",
+  "formId": "cmf...",
+  "formSlug": "customer-survey",
+  "formTitle": "Customer survey",
+  "responseId": "cmr...",
+  "submittedAt": "2026-10-18T10:00:00.000Z",
+  "answers": [
+    {
+      "blockId": "cmb...",
+      "type": "SHORT_TEXT",
+      "title": "Name",
+      "value": "Ada"
+    },
+    {
+      "blockId": "cmb...",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Topics",
+      "value": ["a", "b"]
+    }
+  ]
+}
+```
+
+`answers` lists the question blocks the respondent reached, in form order; skipped branches and text blocks are left out. `value` is a string, or an array of strings for multiple choice.
+
+Request headers:
+
+- `Content-Type: application/json`
+- `User-Agent: lively-forms-webhook/1`
+- `X-Lively-Forms-Event: response.created`
+- `X-Lively-Forms-Timestamp`: Unix time in seconds when the request was signed
+- `X-Lively-Forms-Signature: sha256=<hex>`, only when a secret is set
+
+The signature is HMAC-SHA256 over `"<timestamp>.<raw body>"` with the secret as key. To verify, recompute it from the raw request body and compare with a constant-time comparison:
+
+```
+expected = hex(hmac_sha256(secret, timestamp + "." + raw_body))
+ok = constant_time_equal("sha256=" + expected, signature_header)
+```
+
+Reject requests whose timestamp is far from the current time to limit replays.
+
+Delivery waits up to 5 seconds for an answer. On a network error, a timeout, or a 5xx status the request is sent once more after 2 seconds; a 4xx status is not retried. Redirects are not followed. The response is stored and the respondent sees success regardless of the webhook outcome; failures are written to the server log with the form id and status.
+
+Webhook URLs must use `http` or `https` without credentials and must not point at loopback, private, link-local, or unspecified addresses (`localhost`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `0.0.0.0`, `::1`, IPv4-mapped forms of these) or at `.local` and `.internal` hostnames. The check is made on the URL as written; it does not resolve DNS.
+
 ## Notes
 
 - The build runs translation validation before Next.js production build.
