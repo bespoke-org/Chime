@@ -1,2 +1,0 @@
-ALTER TABLE "Form"
-ADD COLUMN "allowBackNavigation" BOOLEAN NOT NULL DEFAULT true;
