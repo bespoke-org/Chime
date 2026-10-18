@@ -5,6 +5,7 @@ import {
   isTextAnswerBlock,
   isValidDateAnswer,
   isValidLinkAnswer,
+  normalizeNumericAnswer,
   parseNumericAnswer,
   type ChoiceBlockConfig,
   type NumberBlockConfig,
@@ -93,6 +94,10 @@ export function validateAndNormalizeAnswer(
   }
 
   if (block.type === "SINGLE_CHOICE") {
+    if (Array.isArray(rawValue) && rawValue.some(Boolean)) {
+      return { ok: false, error: { code: "invalid_option" } };
+    }
+
     const value = typeof rawValue === "string" ? rawValue.trim() : "";
     const options = (block.config as ChoiceBlockConfig).options;
 
@@ -110,6 +115,10 @@ export function validateAndNormalizeAnswer(
   }
 
   if (block.type === "MULTIPLE_CHOICE") {
+    if (typeof rawValue === "string" && rawValue.trim()) {
+      return { ok: false, error: { code: "invalid_option" } };
+    }
+
     const values = Array.isArray(rawValue)
       ? rawValue.filter((value): value is string => typeof value === "string")
       : [];
@@ -171,7 +180,10 @@ export function validateAndNormalizeAnswer(
       };
     }
 
-    return { ok: true, value: String(numericValue) };
+    return {
+      ok: true,
+      value: normalizeNumericAnswer(value) ?? String(numericValue),
+    };
   }
 
   if (block.type === "LINK") {

@@ -381,21 +381,42 @@ export function isAgreementAnswerValue(
   );
 }
 
-export function parseNumericAnswer(value: string) {
-  const trimmed = value.trim();
+const plainDecimalPattern = /^(-?)(\d+)(?:[.,](\d+))?$/;
 
-  if (!trimmed) {
+export function normalizeNumericAnswer(value: string) {
+  const match = plainDecimalPattern.exec(value.trim());
+
+  if (!match) {
     return null;
   }
 
-  const parsed = Number(trimmed);
+  const [, sign, rawInteger, rawFraction = ""] = match;
+  const integer = rawInteger.replace(/^0+(?=\d)/, "");
+  const fraction = rawFraction.replace(/0+$/, "");
+  const magnitude = fraction ? `${integer}.${fraction}` : integer;
+
+  return magnitude === "0" ? magnitude : `${sign}${magnitude}`;
+}
+
+export function parseNumericAnswer(value: string) {
+  const normalized = normalizeNumericAnswer(value);
+
+  if (normalized === null) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function isValidLinkAnswer(value: string) {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      !parsed.username &&
+      !parsed.password
+    );
   } catch {
     return false;
   }
