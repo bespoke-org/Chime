@@ -147,7 +147,6 @@ function reset(upload: UploadRecord | null, headSize: number | null) {
     status: "PUBLISHED",
     webhookUrl: null,
     webhookSecret: null,
-    notifyOnResponse: false,
     closesAt: null,
     maxResponses: null,
     closedManually: false,

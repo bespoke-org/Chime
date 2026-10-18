@@ -197,11 +197,11 @@ Webhook URLs must use `http` or `https` without credentials and must not point a
 
 ## Email notifications
 
-A creator can enter a notification email in profile settings and turn on "Email me on each new response" in a form's settings. After a response is stored, the app sends one email to the form owner's notification email with the form title, the answers the respondent gave in form order, and a link to the response page. The subject and labels follow the owner's language setting; the link is built from `NEXTAUTH_URL`.
+A creator can enter a notification email in profile settings and turn on "Email me about new responses" in a form's settings. The switch is a personal subscription: each member of a workspace sets it for themselves on each form, and it is saved at once, independently of the other form settings. After a response is stored, the app sends one email to every subscribed member who has a notification email, with the form title, the answers the respondent gave in form order, and a link to the response page. The subject and labels follow each recipient's language setting; the link is built from `NEXTAUTH_URL`. Removing a member from an organization drops their subscriptions on its forms.
 
-Sending uses SMTP through nodemailer. `MAIL_FROM` is required, plus either `SMTP_URL` (for example `smtp://user:password@host:587` or `smtps://user:password@host:465`) or the split variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_SECURE`. Without `MAIL_FROM` and a host the mailer is not configured: the checkbox can still be saved but no email is sent, and the server log carries one warning the first time a send is attempted. Forms in an organization workspace notify the form owner only.
+Sending uses SMTP through nodemailer. `MAIL_FROM` is required, plus either `SMTP_URL` (for example `smtp://user:password@host:587` or `smtps://user:password@host:465`) or the split variables `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_SECURE`. Without `MAIL_FROM` and a host the mailer is not configured: the checkbox can still be saved but no email is sent, and the server log carries one warning the first time a send is attempted.
 
-The response is stored and the respondent sees success regardless of the email outcome. A failed send is logged with the form id and the recipient's domain; addresses and message content are not written to the log.
+The response is stored and the respondent sees success regardless of the email outcome. A failed send is logged with the form id and the recipient's domain, one line per recipient; addresses and message content are not written to the log.
 
 ## Form closing
 

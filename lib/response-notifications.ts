@@ -1,6 +1,5 @@
 import { getAppBaseUrl } from "@/lib/app-url";
 import { isQuestionBlock } from "@/lib/blocks";
-import { db } from "@/lib/db";
 import type {
   SubmissionAnswers,
   SubmissionSnapshotBlock,
@@ -12,6 +11,7 @@ import {
   type MailMessage,
   type MailResult,
 } from "@/lib/mailer";
+import { listNotificationRecipients } from "@/lib/notification-subscriptions";
 import { serializeExportAnswer } from "@/lib/response-exports";
 
 type NotificationCopy = {
@@ -133,62 +133,77 @@ export function setResponseNotificationMailer(
 
 export { getAppBaseUrl };
 
-export type NotifyOwnerInput = {
-  form: {
-    id: string;
-    title: string;
-    userId: string;
-    notifyOnResponse: boolean;
-  };
+export type NotifySubscribersInput = {
+  form: { id: string; title: string };
   response: { id: string; answers: SubmissionAnswers };
   snapshot: SubmissionSnapshotBlock[];
 };
 
-// Never throws. Nothing is looked up or sent unless the form asks for it and
-// the mailer is usable.
-export async function notifyOwnerOfResponse(
-  input: NotifyOwnerInput,
-): Promise<MailResult> {
-  if (!input.form.notifyOnResponse) {
-    return { ok: false, error: "disabled" };
-  }
+export type NotifySubscribersResult = {
+  recipients: number;
+  sent: number;
+};
 
+function warnFailure(formId: string, detail: string) {
+  console.warn(`Response notification failed for form ${formId}: ${detail}`);
+}
+
+// Never throws. Nothing is looked up unless the mailer is usable; each
+// subscriber gets their own email in their own language, and one failure does
+// not stop the others.
+export async function notifyResponseSubscribers(
+  input: NotifySubscribersInput,
+): Promise<NotifySubscribersResult> {
   try {
     if (!activeMailer.isConfigured()) {
-      return { ok: false, error: "not_configured" };
+      return { recipients: 0, sent: 0 };
     }
 
-    const owner = await db.user.findUnique({
-      where: { id: input.form.userId },
-      select: { notificationEmail: true, locale: true },
-    });
+    const recipients = await listNotificationRecipients(input.form.id);
+    const baseUrl = getAppBaseUrl();
 
-    if (!owner?.notificationEmail) {
-      return { ok: false, error: "no_recipient" };
-    }
+    const outcomes = await Promise.allSettled(
+      recipients.map(async (recipient) => {
+        const email = buildResponseNotificationEmail({
+          form: input.form,
+          response: input.response,
+          blocks: input.snapshot,
+          locale: normalizeLocale(recipient.locale),
+          baseUrl,
+        });
+        const result = await activeMailer.sendMail({
+          to: recipient.notificationEmail,
+          ...email,
+        });
 
-    const email = buildResponseNotificationEmail({
-      form: input.form,
-      response: input.response,
-      blocks: input.snapshot,
-      locale: normalizeLocale(owner.locale),
-      baseUrl: getAppBaseUrl(),
-    });
-
-    return await activeMailer.sendMail({
-      to: owner.notificationEmail,
-      ...email,
-    });
-  } catch (error) {
-    console.warn(
-      `Response notification failed for form ${input.form.id}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+        if (!result.ok) {
+          throw new Error(result.error ?? "send failed");
+        }
+      }),
     );
 
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    let sent = 0;
+    outcomes.forEach((outcome, index) => {
+      if (outcome.status === "fulfilled") {
+        sent += 1;
+        return;
+      }
+
+      const domain = recipients[index].notificationEmail.split("@")[1] ?? "";
+      const reason =
+        outcome.reason instanceof Error
+          ? outcome.reason.message
+          : String(outcome.reason);
+      warnFailure(input.form.id, `${domain}: ${reason}`);
+    });
+
+    return { recipients: recipients.length, sent };
+  } catch (error) {
+    warnFailure(
+      input.form.id,
+      error instanceof Error ? error.message : String(error),
+    );
+
+    return { recipients: 0, sent: 0 };
   }
 }

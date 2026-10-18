@@ -45,7 +45,7 @@ import {
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
 import { buildWebhookPayload, getWebhookDeliverer } from "@/lib/webhooks";
-import { notifyOwnerOfResponse } from "@/lib/response-notifications";
+import { notifyResponseSubscribers } from "@/lib/response-notifications";
 import {
   DEFAULT_LOCALE,
   normalizeLocale,
@@ -95,11 +95,6 @@ const builderFormInclude = {
       name: true,
     },
   },
-  user: {
-    select: {
-      notificationEmail: true,
-    },
-  },
   blocks: {
     orderBy: {
       position: "asc",
@@ -143,7 +138,38 @@ function toWorkspaceReference(form: {
   };
 }
 
-function toBuilderForm(form: BuilderFormRecord): BuilderForm {
+type ViewerNotificationState = {
+  notificationsEnabled: boolean;
+  viewerHasNotificationEmail: boolean;
+};
+
+// Notification state belongs to the viewer, not the form: whether they are
+// subscribed to this form and whether they have an address to send to.
+async function loadViewerNotificationState(
+  userId: string,
+  formId: string,
+): Promise<ViewerNotificationState> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      notificationEmail: true,
+      formSubscriptions: {
+        where: { formId },
+        select: { formId: true },
+      },
+    },
+  });
+
+  return {
+    notificationsEnabled: (user?.formSubscriptions.length ?? 0) > 0,
+    viewerHasNotificationEmail: Boolean(user?.notificationEmail),
+  };
+}
+
+function toBuilderForm(
+  form: BuilderFormRecord,
+  viewer: ViewerNotificationState,
+): BuilderForm {
   return {
     id: form.id,
     title: form.title,
@@ -163,8 +189,8 @@ function toBuilderForm(form: BuilderFormRecord): BuilderForm {
     maxResponses: form.maxResponses,
     closedManually: form.closedManually,
     closedMessage: form.closedMessage,
-    notifyOnResponse: form.notifyOnResponse,
-    ownerHasNotificationEmail: Boolean(form.user.notificationEmail),
+    notificationsEnabled: viewer.notificationsEnabled,
+    viewerHasNotificationEmail: viewer.viewerHasNotificationEmail,
     slug: form.slug,
     status: form.status,
     updatedAt: form.updatedAt.toISOString(),
@@ -441,12 +467,15 @@ export async function createDraftForm(
     include: builderFormInclude,
   });
 
-  return toBuilderForm(form);
+  return toBuilderForm(
+    form,
+    await loadViewerNotificationState(userId, form.id),
+  );
 }
 
 export async function getOwnedFormForBuilder(userId: string, formId: string) {
   const form = await assertAccessibleForm(userId, formId);
-  return toBuilderForm(form);
+  return toBuilderForm(form, await loadViewerNotificationState(userId, formId));
 }
 
 export async function updateOwnedFormMetadata(
@@ -465,7 +494,7 @@ export async function updateOwnedFormMetadata(
     include: builderFormInclude,
   });
 
-  return toBuilderForm(form);
+  return toBuilderForm(form, await loadViewerNotificationState(userId, formId));
 }
 
 export async function deleteOwnedForm(userId: string, formId: string) {
@@ -515,7 +544,10 @@ export async function setOwnedFormPublished(
     include: builderFormInclude,
   });
 
-  return toBuilderForm(updated);
+  return toBuilderForm(
+    updated,
+    await loadViewerNotificationState(userId, formId),
+  );
 }
 
 export async function addOwnedBlock(
@@ -732,8 +764,8 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
 
   // Same rule as the webhook: the email is sent in the background and a
   // failure there never reaches the respondent.
-  void notifyOwnerOfResponse({
-    form,
+  void notifyResponseSubscribers({
+    form: { id: form.id, title: form.title },
     response: { id: response.id, answers: normalizedAnswers },
     snapshot,
   });

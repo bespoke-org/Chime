@@ -3,13 +3,14 @@ import { describe, expect, test } from "bun:test";
 import type { SubmissionSnapshotBlock } from "@/lib/form-submission";
 import type { MailMessage } from "@/lib/mailer";
 
-type OwnerRecord = {
+type SubscriberRecord = {
+  id: string;
   notificationEmail: string | null;
   locale: string | null;
 };
 
-let currentOwner: OwnerRecord | null = null;
-let ownerLookups = 0;
+let subscribers: SubscriberRecord[] = [];
+let subscriptionLookups = 0;
 
 const { mock } = (await import("bun:test")) as unknown as {
   mock: {
@@ -19,10 +20,10 @@ const { mock } = (await import("bun:test")) as unknown as {
 
 mock.module("@/lib/db", () => ({
   db: {
-    user: {
-      findUnique: async () => {
-        ownerLookups += 1;
-        return currentOwner;
+    formNotificationSubscription: {
+      findMany: async () => {
+        subscriptionLookups += 1;
+        return subscribers.map((user) => ({ user }));
       },
     },
   },
@@ -30,7 +31,7 @@ mock.module("@/lib/db", () => ({
 
 const {
   buildResponseNotificationEmail,
-  notifyOwnerOfResponse,
+  notifyResponseSubscribers,
   setResponseNotificationMailer,
 } = await import("@/lib/response-notifications");
 
@@ -154,14 +155,15 @@ describe("buildResponseNotificationEmail", () => {
   });
 });
 
-function fakeMailer(configured: boolean, behavior?: () => never) {
+function fakeMailer(
+  configured: boolean,
+  behavior?: (message: MailMessage) => void,
+) {
   const sent: MailMessage[] = [];
   setResponseNotificationMailer({
     isConfigured: () => configured,
     sendMail: async (message) => {
-      if (behavior) {
-        behavior();
-      }
+      behavior?.(message);
       sent.push(message);
       return { ok: true };
     },
@@ -169,102 +171,135 @@ function fakeMailer(configured: boolean, behavior?: () => never) {
   return sent;
 }
 
-function resetOwner(owner: OwnerRecord | null) {
-  currentOwner = owner;
-  ownerLookups = 0;
+function resetSubscribers(records: SubscriberRecord[]) {
+  subscribers = records;
+  subscriptionLookups = 0;
 }
 
-const notifyInput = (notifyOnResponse: boolean) => ({
-  form: { id: "form-1", title: "Demo", userId: "user-1", notifyOnResponse },
+const notifyInput = {
+  form: { id: "form-1", title: "Demo" },
   response: { id: "resp-1", answers: { "q-name": "Ada" } },
   snapshot: [blocks[0], blocks[1]],
-});
+};
 
-describe("notifyOwnerOfResponse", () => {
-  test("does nothing when the form has notifications off", async () => {
-    resetOwner({ notificationEmail: "owner@example.com", locale: "en" });
-    const sent = fakeMailer(true);
+const ada = {
+  id: "user-1",
+  notificationEmail: "ada@example.com",
+  locale: "en",
+};
+const boris = {
+  id: "user-2",
+  notificationEmail: "boris@example.ru",
+  locale: "ru-RU",
+};
 
-    try {
-      const result = await notifyOwnerOfResponse(notifyInput(false));
-
-      expect(result.ok).toBe(false);
-      expect(result.error).toBe("disabled");
-      expect(ownerLookups).toBe(0);
-      expect(sent.length).toBe(0);
-    } finally {
-      setResponseNotificationMailer(null);
-    }
-  });
-
-  test("does not look up the owner when the mailer is not configured", async () => {
-    resetOwner({ notificationEmail: "owner@example.com", locale: "en" });
+describe("notifyResponseSubscribers", () => {
+  test("does not read subscriptions when the mailer is not configured", async () => {
+    resetSubscribers([ada]);
     const sent = fakeMailer(false);
 
     try {
-      const result = await notifyOwnerOfResponse(notifyInput(true));
+      const result = await notifyResponseSubscribers(notifyInput);
 
-      expect(result.error).toBe("not_configured");
-      expect(ownerLookups).toBe(0);
+      expect(result.sent).toBe(0);
+      expect(subscriptionLookups).toBe(0);
       expect(sent.length).toBe(0);
     } finally {
       setResponseNotificationMailer(null);
     }
   });
 
-  test("does not send when the owner has no notification email", async () => {
-    resetOwner({ notificationEmail: null, locale: "en" });
+  test("sends nothing when nobody is subscribed", async () => {
+    resetSubscribers([]);
     const sent = fakeMailer(true);
 
     try {
-      const result = await notifyOwnerOfResponse(notifyInput(true));
+      const result = await notifyResponseSubscribers(notifyInput);
 
-      expect(result.error).toBe("no_recipient");
-      expect(ownerLookups).toBe(1);
+      expect(result.recipients).toBe(0);
+      expect(subscriptionLookups).toBe(1);
       expect(sent.length).toBe(0);
     } finally {
       setResponseNotificationMailer(null);
     }
   });
 
-  test("sends to the owner in the owner's language", async () => {
-    resetOwner({ notificationEmail: "owner@example.com", locale: "ru-RU" });
+  test("sends one email per subscriber in that subscriber's language", async () => {
+    resetSubscribers([ada, boris]);
     const sent = fakeMailer(true);
 
     try {
-      const result = await notifyOwnerOfResponse(notifyInput(true));
+      const result = await notifyResponseSubscribers(notifyInput);
 
-      expect(result.ok).toBe(true);
-      expect(sent.length).toBe(1);
-      expect(sent[0].to).toBe("owner@example.com");
-      expect(sent[0].subject).toBe("Новый ответ: Demo");
-      expect(sent[0].text).toContain("Name\nAda");
-      expect(sent[0].text).toContain("/forms/form-1/responses/resp-1");
+      expect(result.recipients).toBe(2);
+      expect(result.sent).toBe(2);
+      expect(sent.length).toBe(2);
+      expect(sent[0].to).toBe("ada@example.com");
+      expect(sent[0].subject).toBe("New response: Demo");
+      expect(sent[1].to).toBe("boris@example.ru");
+      expect(sent[1].subject).toBe("Новый ответ: Demo");
+      expect(sent[1].text).toContain("Name\nAda");
+      expect(sent[1].text).toContain("/forms/form-1/responses/resp-1");
     } finally {
       setResponseNotificationMailer(null);
     }
   });
 
-  test("swallows a sender that throws", async () => {
-    resetOwner({ notificationEmail: "owner@example.com", locale: null });
+  test("keeps sending to the others when one send throws", async () => {
+    resetSubscribers([ada, boris]);
     const originalWarn = console.warn;
     const warnings: string[] = [];
     console.warn = (message: unknown) => {
       warnings.push(String(message));
     };
-    fakeMailer(true, () => {
-      throw new Error("smtp down");
+    const sent = fakeMailer(true, (message) => {
+      if (message.to === "ada@example.com") {
+        throw new Error("smtp down");
+      }
     });
 
     try {
-      const result = await notifyOwnerOfResponse(notifyInput(true));
+      const result = await notifyResponseSubscribers(notifyInput);
 
-      expect(result.ok).toBe(false);
-      expect(result.error).toBe("smtp down");
+      expect(result.recipients).toBe(2);
+      expect(result.sent).toBe(1);
+      expect(sent.length).toBe(1);
+      expect(sent[0].to).toBe("boris@example.ru");
       expect(warnings.length).toBe(1);
       expect(warnings[0]).toContain("form-1");
-      expect(warnings[0]).not.toContain("owner@example.com");
+      expect(warnings[0]).toContain("example.com");
+      expect(warnings[0]).toContain("smtp down");
+      expect(warnings[0]).not.toContain("ada@example.com");
     } finally {
+      console.warn = originalWarn;
+      setResponseNotificationMailer(null);
+    }
+  });
+
+  test("swallows a failing subscription lookup", async () => {
+    resetSubscribers([ada]);
+    subscriptionLookups = 0;
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (message: unknown) => {
+      warnings.push(String(message));
+    };
+    const sent = fakeMailer(true);
+    const brokenSubscribers = subscribers;
+    subscribers = {
+      get map() {
+        throw new Error("db down");
+      },
+    } as unknown as SubscriberRecord[];
+
+    try {
+      const result = await notifyResponseSubscribers(notifyInput);
+
+      expect(result.sent).toBe(0);
+      expect(sent.length).toBe(0);
+      expect(warnings[0]).toContain("db down");
+    } finally {
+      subscribers = brokenSubscribers;
       console.warn = originalWarn;
       setResponseNotificationMailer(null);
     }

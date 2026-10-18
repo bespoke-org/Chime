@@ -190,9 +190,9 @@ builder:
   webhookSecretHelp: Optional. When set, each request carries an X-Lively-Forms-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
   notifications: Notifications
   notificationsDescription: Get an email each time a new response is stored.
-  notifyOnResponse: Email me on each new response
-  notifyOnResponseHelp: Sent to the notification email from the form owner's profile settings.
-  notifyOnResponseMissingEmail: The form owner has no notification email yet, so no emails are sent.
+  notifyOnResponse: Email me about new responses
+  notifyOnResponseHelp: Each workspace member chooses this for themselves.
+  notifyOnResponseMissingEmail: You have no notification email yet, so no emails are sent to you.
   notifyOnResponseOpenSettings: Open profile settings
   availability: Availability
   availabilityDescription: Stop accepting responses at a set time, after a number of responses, or right now. Respondents then see the closed message instead of the form.

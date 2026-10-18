@@ -33,7 +33,6 @@ export const formMetadataSchema = z
       .transform((value) => (value === "" ? null : value)),
     closedManually: z.boolean().default(false),
     closedMessage: z.string().trim().max(1000).default(""),
-    notifyOnResponse: z.boolean().default(false),
     slug: z
       .string()
       .trim()

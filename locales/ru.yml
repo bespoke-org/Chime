@@ -190,9 +190,9 @@ builder:
   webhookSecretHelp: Необязательно. Если задан, каждый запрос содержит заголовок X-Lively-Forms-Signature с HMAC-SHA256 от метки времени и тела, чтобы ваш сервер мог проверить отправителя.
   notifications: Уведомления
   notificationsDescription: Получайте письмо при каждом новом сохранённом ответе.
-  notifyOnResponse: Отправлять мне письмо о каждом новом ответе
-  notifyOnResponseHelp: Письмо уходит на email для уведомлений из настроек профиля владельца формы.
-  notifyOnResponseMissingEmail: У владельца формы ещё не указан email для уведомлений, поэтому письма не отправляются.
+  notifyOnResponse: Присылать мне письма о новых ответах
+  notifyOnResponseHelp: Каждый участник пространства включает это для себя.
+  notifyOnResponseMissingEmail: У вас ещё не указан email для уведомлений, поэтому письма вам не отправляются.
   notifyOnResponseOpenSettings: Открыть настройки профиля
   availability: Приём ответов
   availabilityDescription: Прекратите приём ответов в заданное время, после определённого числа ответов или прямо сейчас. Респонденты увидят сообщение о закрытии вместо формы.

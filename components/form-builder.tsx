@@ -274,7 +274,6 @@ export function FormBuilder({
       initialForm.maxResponses === null ? "" : String(initialForm.maxResponses),
     closedManually: initialForm.closedManually,
     closedMessage: initialForm.closedMessage,
-    notifyOnResponse: initialForm.notifyOnResponse,
     slug: initialForm.slug,
   });
 
@@ -374,7 +373,6 @@ export function FormBuilder({
       maxResponses: form.maxResponses === null ? "" : String(form.maxResponses),
       closedManually: form.closedManually,
       closedMessage: form.closedMessage,
-      notifyOnResponse: form.notifyOnResponse,
       slug: form.slug,
     });
   }, [
@@ -392,7 +390,6 @@ export function FormBuilder({
     form.maxResponses,
     form.closedManually,
     form.closedMessage,
-    form.notifyOnResponse,
     form.slug,
   ]);
 
@@ -475,6 +472,32 @@ export function FormBuilder({
       setForm(payload.form);
       showToast(t("builder.toasts.savedFormSettings"));
     });
+  }
+
+  // The subscription is the viewer's own and is saved on its own, not with
+  // the form settings. The checkbox flips at once and flips back on failure.
+  async function setNotificationsEnabled(enabled: boolean) {
+    const previous = form.notificationsEnabled;
+    setForm((current) => ({ ...current, notificationsEnabled: enabled }));
+
+    const saved = await withTask("notifications", async () => {
+      const payload = await fetchJson<{ enabled: boolean }>(
+        `/api/forms/${form.id}/notifications`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ enabled }),
+        },
+      );
+
+      setForm((current) => ({
+        ...current,
+        notificationsEnabled: payload.enabled,
+      }));
+    });
+
+    if (!saved) {
+      setForm((current) => ({ ...current, notificationsEnabled: previous }));
+    }
   }
 
   async function renameForm(title: string) {
@@ -1188,6 +1211,7 @@ export function FormBuilder({
                   copyShareLink={copyShareLink}
                   deleteForm={deleteForm}
                   saveMetadata={saveMetadata}
+                  setNotificationsEnabled={setNotificationsEnabled}
                   busy={busy}
                 />
               ) : blockDraft ? (

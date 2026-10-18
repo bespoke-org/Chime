@@ -99,7 +99,6 @@ export type FormMetadataDraft = {
   maxResponses: string;
   closedManually: boolean;
   closedMessage: string;
-  notifyOnResponse: boolean;
   slug: string;
 };
 
@@ -288,6 +287,7 @@ export function FormSettingsPanel({
   copyShareLink,
   deleteForm,
   saveMetadata,
+  setNotificationsEnabled,
   busy,
 }: {
   form: BuilderForm;
@@ -297,6 +297,7 @@ export function FormSettingsPanel({
   copyShareLink: () => void;
   deleteForm: () => void;
   saveMetadata: () => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
   busy: string | null;
 }) {
   const { t } = useI18n();
@@ -543,13 +544,9 @@ export function FormSettingsPanel({
 
         <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
           <Checkbox
-            checked={metadataDraft.notifyOnResponse}
-            onChange={(event) =>
-              setMetadataDraft((current) => ({
-                ...current,
-                notifyOnResponse: event.target.checked,
-              }))
-            }
+            checked={form.notificationsEnabled}
+            disabled={busy === "notifications"}
+            onChange={(event) => setNotificationsEnabled(event.target.checked)}
           />
           <div className="grid gap-1">
             <span className="font-medium text-[var(--ink)]">
@@ -561,7 +558,7 @@ export function FormSettingsPanel({
           </div>
         </label>
 
-        {form.ownerHasNotificationEmail ? null : (
+        {form.viewerHasNotificationEmail ? null : (
           <p className="text-sm leading-6 text-[var(--muted)]">
             {t("builder.notifyOnResponseMissingEmail")}{" "}
             <Link

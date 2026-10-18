@@ -390,16 +390,3 @@ describe("formMetadataSchema closing", () => {
     expect(metadata({ closedManually: true }).closedManually).toBe(true);
   });
 });
-
-describe("formMetadataSchema notifyOnResponse", () => {
-  test("defaults to off and keeps an explicit value", () => {
-    expect(metadata({}).notifyOnResponse).toBe(false);
-    expect(metadata({ notifyOnResponse: true }).notifyOnResponse).toBe(true);
-    expect(metadata({ notifyOnResponse: false }).notifyOnResponse).toBe(false);
-  });
-
-  test("rejects non-boolean values", () => {
-    expect(throws(() => metadata({ notifyOnResponse: "true" }))).toBe(true);
-    expect(throws(() => metadata({ notifyOnResponse: 1 }))).toBe(true);
-  });
-});

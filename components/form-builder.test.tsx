@@ -62,8 +62,8 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
     maxResponses: null,
     closedManually: false,
     closedMessage: "",
-    notifyOnResponse: false,
-    ownerHasNotificationEmail: false,
+    notificationsEnabled: false,
+    viewerHasNotificationEmail: false,
     slug: "demo-form",
     status: "DRAFT",
     updatedAt: "2026-04-14T12:00:00.000Z",
@@ -1132,6 +1132,62 @@ describe("FormBuilder", () => {
 
     await waitFor(() => {
       expect(view.getByText("builder.toasts.addedBlock") !== null).toBe(true);
+    });
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("saves the notification subscription as soon as it is toggled", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({ enabled: true }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock]), undefined, {
+      builder: { notifyOnResponse: "Email me about new responses" },
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+
+    await waitFor(() => {
+      expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
+    });
+
+    const checkbox = view.getByRole("checkbox", {
+      name: /Email me about new responses/,
+    }) as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+
+    fireEvent.click(checkbox);
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/notifications");
+    expect(fetchCalls[0]?.init?.method).toBe("PUT");
+    expect(String(fetchCalls[0]?.init?.body)).toBe('{"enabled":true}');
+
+    await waitFor(() => {
+      expect(checkbox.checked).toBe(true);
     });
 
     globalThis.fetch = previousFetch;

@@ -224,14 +224,21 @@ export async function removeOrganizationMember(
     throw new AppError("Member not found.", 404);
   }
 
-  await db.organizationMembership.delete({
-    where: {
-      organizationId_userId: {
-        organizationId,
-        userId: memberUserId,
+  // A former member must stop receiving mail about the organization's forms,
+  // so their subscriptions go in the same transaction as the membership.
+  await db.$transaction([
+    db.formNotificationSubscription.deleteMany({
+      where: { userId: memberUserId, form: { organizationId } },
+    }),
+    db.organizationMembership.delete({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId: memberUserId,
+        },
       },
-    },
-  });
+    }),
+  ]);
 }
 
 export async function getOrganizationInviteState(

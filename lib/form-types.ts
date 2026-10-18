@@ -54,8 +54,8 @@ export type BuilderForm = {
   maxResponses: number | null;
   closedManually: boolean;
   closedMessage: string;
-  notifyOnResponse: boolean;
-  ownerHasNotificationEmail: boolean;
+  notificationsEnabled: boolean;
+  viewerHasNotificationEmail: boolean;
   slug: string;
   status: FormStatus;
   updatedAt: string;

@@ -51,6 +51,7 @@ model User {
   organizationMemberships OrganizationMembership[]
   ownedOrganizations      Organization[]         @relation("OrganizationOwner")
   createdInviteLinks      OrganizationInviteLink[] @relation("OrganizationInviteLinkCreator")
+  formSubscriptions       FormNotificationSubscription[]
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
 }
@@ -129,7 +130,6 @@ model Form {
   maxResponses        Int?
   closedManually      Boolean       @default(false)
   closedMessage       String        @default("")
-  notifyOnResponse    Boolean       @default(false)
   slug                String        @unique
   status              FormStatus    @default(DRAFT)
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -137,6 +137,7 @@ model Form {
   blocks              FormBlock[]
   responses           Response[]
   uploads             Upload[]
+  subscriptions       FormNotificationSubscription[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -158,6 +159,17 @@ model FormBlock {
   updatedAt   DateTime      @updatedAt
 
   @@index([formId, position(sort: Asc)])
+}
+
+model FormNotificationSubscription {
+  formId    String
+  userId    String
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([formId, userId])
+  @@index([userId])
 }
 
 model Response {

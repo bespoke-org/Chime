@@ -13,13 +13,12 @@ type FormRecord = {
   closesAt: Date | null;
   maxResponses: number | null;
   closedManually: boolean;
-  notifyOnResponse: boolean;
   blocks: Array<Record<string, unknown>>;
 };
 
 let currentForm: FormRecord | null = null;
 let createdResponses: Array<Record<string, unknown>> = [];
-let ownerLookups = 0;
+let subscriptionLookups = 0;
 
 const { mock } = (await import("bun:test")) as unknown as {
   mock: {
@@ -44,10 +43,18 @@ mock.module("@/lib/db", () => ({
         };
       },
     },
-    user: {
-      findUnique: async () => {
-        ownerLookups += 1;
-        return { notificationEmail: "owner@example.com", locale: "en" };
+    formNotificationSubscription: {
+      findMany: async () => {
+        subscriptionLookups += 1;
+        return [
+          {
+            user: {
+              id: "user-1",
+              notificationEmail: "owner@example.com",
+              locale: "en",
+            },
+          },
+        ];
       },
     },
   },
@@ -73,7 +80,7 @@ function block(id: string, type: string, title: string, position: number) {
   };
 }
 
-function resetTestState(overrides: Partial<FormRecord> = {}) {
+function resetTestState() {
   currentForm = {
     id: "form-1",
     userId: "user-1",
@@ -85,15 +92,13 @@ function resetTestState(overrides: Partial<FormRecord> = {}) {
     closesAt: null,
     maxResponses: null,
     closedManually: false,
-    notifyOnResponse: false,
     blocks: [
       block("intro", "TEXT", "Welcome", 0),
       block("q-1", "SHORT_TEXT", "Name", 1),
     ],
-    ...overrides,
   };
   createdResponses = [];
-  ownerLookups = 0;
+  subscriptionLookups = 0;
 }
 
 // The notification is fired without being awaited, so the test yields to the
@@ -103,11 +108,11 @@ function settle() {
 }
 
 describe("createAnonymousResponse email notification", () => {
-  test("does not touch the mailer when the form has notifications off", async () => {
+  test("does not read subscribers when the mailer is not configured", async () => {
     resetTestState();
     const sent: MailMessage[] = [];
     setResponseNotificationMailer({
-      isConfigured: () => true,
+      isConfigured: () => false,
       sendMail: async (message) => {
         sent.push(message);
         return { ok: true };
@@ -119,15 +124,15 @@ describe("createAnonymousResponse email notification", () => {
       await settle();
 
       expect(createdResponses.length).toBe(1);
-      expect(ownerLookups).toBe(0);
+      expect(subscriptionLookups).toBe(0);
       expect(sent.length).toBe(0);
     } finally {
       setResponseNotificationMailer(null);
     }
   });
 
-  test("emails the owner after the response is stored", async () => {
-    resetTestState({ notifyOnResponse: true });
+  test("emails the subscribers after the response is stored", async () => {
+    resetTestState();
     const sent: MailMessage[] = [];
     let responsesWhenSent = -1;
     setResponseNotificationMailer({
@@ -158,8 +163,10 @@ describe("createAnonymousResponse email notification", () => {
   });
 
   test("stores the response when the mailer reports a failure", async () => {
-    resetTestState({ notifyOnResponse: true });
+    resetTestState();
     let attempts = 0;
+    const originalWarn = console.warn;
+    console.warn = () => {};
     setResponseNotificationMailer({
       isConfigured: () => true,
       sendMail: async () => {
@@ -176,6 +183,7 @@ describe("createAnonymousResponse email notification", () => {
       expect(createdResponses.length).toBe(1);
       expect(attempts).toBe(1);
     } finally {
+      console.warn = originalWarn;
       setResponseNotificationMailer(null);
     }
   });
