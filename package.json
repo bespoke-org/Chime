@@ -5,13 +5,13 @@
   "description": "A conversational form builder inspired by Typeform.",
   "license": "AGPL-3.0-only",
   "author": "Michael Chernigin <michaelchernigin@gmail.com>",
-  "homepage": "https://codeberg.org/chernigin/lively-forms",
+  "homepage": "https://tangled.org/chernigin.com/lively-forms",
   "bugs": {
-    "url": "https://codeberg.org/chernigin/lively-forms/issues"
+    "url": "https://tangled.org/chernigin.com/lively-forms/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://codeberg.org/chernigin/lively-forms.git"
+    "url": "https://tangled.org/chernigin.com/lively-forms"
   },
   "scripts": {
     "dev": "next dev",
@@ -25,10 +25,10 @@
     "format:check": "prettier --check . --ignore-unknown",
     "check": "bun run format:check && bun test && bun run lint && bun run typecheck && bun run build",
     "hooks:install": "git config core.hooksPath .githooks",
-    "db:up": "podman-compose up -d",
-    "db:down": "podman-compose down",
-    "db:logs": "podman-compose logs -f postgres",
-    "db:reset": "podman-compose down -v && podman-compose up -d",
+    "db:up": "bash scripts/compose.sh up -d",
+    "db:down": "bash scripts/compose.sh down",
+    "db:logs": "bash scripts/compose.sh logs -f postgres",
+    "db:reset": "bash scripts/compose.sh down -v && bash scripts/compose.sh up -d",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
