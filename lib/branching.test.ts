@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import type { SerializedBlock } from "@/lib/blocks";
+import { parseBlockConfig, type SerializedBlock } from "@/lib/blocks";
 import {
   analyzeBranchingGraph,
+  branchRuleMatches,
   resolveNextBlockId,
   resolveVisitedBlockIds,
 } from "@/lib/branching";
@@ -624,5 +625,615 @@ describe("publish-time graph validation", () => {
           issue.blockId === "skipped-forever",
       ),
     ).toBe(true);
+  });
+});
+
+function rule(
+  operator: string,
+  value: string | null,
+  targetBlockId: string,
+): { operator: never; value: string | null; targetBlockId: string } {
+  return { operator: operator as never, value, targetBlockId };
+}
+
+function numberBlock(
+  id: string,
+  position: number,
+  rules: ReturnType<typeof rule>[] = [],
+  allowFloat = true,
+) {
+  return createBlock({
+    id,
+    type: "NUMBER",
+    position,
+    config: {
+      placeholder: "",
+      allowFloat,
+      min: null,
+      max: null,
+      branchRules: rules,
+      defaultNextBlockId: null,
+    },
+  });
+}
+
+function dateBlock(
+  id: string,
+  position: number,
+  rules: ReturnType<typeof rule>[] = [],
+) {
+  return createBlock({
+    id,
+    type: "DATE",
+    position,
+    config: { branchRules: rules, defaultNextBlockId: null },
+  });
+}
+
+function textBlock(
+  id: string,
+  position: number,
+  rules: ReturnType<typeof rule>[] = [],
+) {
+  return createBlock({
+    id,
+    type: "SHORT_TEXT",
+    position,
+    config: {
+      placeholder: "",
+      validationRegex: null,
+      branchRules: rules,
+      defaultNextBlockId: null,
+    },
+  });
+}
+
+describe("branch rule targets at runtime", () => {
+  test("skips rules that point to the block itself, an earlier block or a missing block", () => {
+    const blocks = [
+      createBlock({ id: "intro", type: "TEXT", position: 0 }),
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [
+            rule("equals", "yes", "gate"),
+            rule("equals", "yes", "intro"),
+            rule("equals", "yes", "ghost"),
+          ],
+          defaultNextBlockId: null,
+        },
+      }),
+      createBlock({ id: "after", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(resolveNextBlockId(blocks, "gate", { gate: "yes" })).toBe("after");
+  });
+
+  test("falls back to the linear order when the default route points backward", () => {
+    const blocks = [
+      createBlock({ id: "intro", type: "TEXT", position: 0 }),
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [],
+          defaultNextBlockId: "intro",
+        },
+      }),
+      createBlock({ id: "after", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(resolveNextBlockId(blocks, "gate", { gate: "no" })).toBe("after");
+  });
+
+  test("ends the form on a terminal block even when its rules match", () => {
+    const blocks = [
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "after")],
+          defaultNextBlockId: "after",
+          endForm: true,
+        },
+      }),
+      createBlock({ id: "after", type: "SHORT_TEXT", position: 1 }),
+    ];
+
+    expect(resolveNextBlockId(blocks, "gate", { gate: "yes" })).toBe(null);
+    expect(
+      JSON.stringify(resolveVisitedBlockIds(blocks, { gate: "yes" })),
+    ).toBe(JSON.stringify(["gate"]));
+  });
+
+  test("returns null for a block id that is not part of the form", () => {
+    const blocks = [
+      createBlock({ id: "only", type: "SHORT_TEXT", position: 0 }),
+    ];
+
+    expect(resolveNextBlockId(blocks, "ghost", {})).toBe(null);
+  });
+});
+
+describe("number branch comparisons", () => {
+  const block = numberBlock("amount", 0);
+
+  test("treats the operand as an exclusive bound for gt and lt and inclusive for gte and lte", () => {
+    expect(branchRuleMatches(block, "10", rule("gt", "10", "x"))).toBe(false);
+    expect(branchRuleMatches(block, "10", rule("gte", "10", "x"))).toBe(true);
+    expect(branchRuleMatches(block, "10", rule("lt", "10", "x"))).toBe(false);
+    expect(branchRuleMatches(block, "10", rule("lte", "10", "x"))).toBe(true);
+    expect(branchRuleMatches(block, "10.0001", rule("gt", "10", "x"))).toBe(
+      true,
+    );
+  });
+
+  test("compares numerically, not as strings", () => {
+    expect(branchRuleMatches(block, "9", rule("lt", "10", "x"))).toBe(true);
+    expect(branchRuleMatches(block, "100", rule("gt", "20", "x"))).toBe(true);
+    expect(branchRuleMatches(block, "1.0", rule("equals", "1", "x"))).toBe(
+      true,
+    );
+    expect(branchRuleMatches(block, "007", rule("equals", "7", "x"))).toBe(
+      true,
+    );
+  });
+
+  test("accepts a comma decimal on either side", () => {
+    expect(branchRuleMatches(block, "12,5", rule("equals", "12.5", "x"))).toBe(
+      true,
+    );
+    expect(branchRuleMatches(block, "12.5", rule("gte", "12,5", "x"))).toBe(
+      true,
+    );
+  });
+
+  test("handles negative numbers", () => {
+    expect(branchRuleMatches(block, "-5", rule("lt", "0", "x"))).toBe(true);
+    expect(branchRuleMatches(block, "-5", rule("gt", "-10", "x"))).toBe(true);
+    expect(branchRuleMatches(block, "-0", rule("equals", "0", "x"))).toBe(true);
+  });
+
+  test("never matches when the operand is not a plain decimal", () => {
+    for (const operand of ["1e3", "0x10", "Infinity", "abc", ""]) {
+      expect(branchRuleMatches(block, "1000", rule("gte", operand, "x"))).toBe(
+        false,
+      );
+      expect(
+        branchRuleMatches(block, "1000", rule("equals", operand, "x")),
+      ).toBe(false);
+    }
+  });
+
+  test("never matches a comparison when the answer is not numeric", () => {
+    expect(branchRuleMatches(block, "ten", rule("gt", "5", "x"))).toBe(false);
+    expect(
+      branchRuleMatches(block, "ten", rule("is_not_empty", null, "x")),
+    ).toBe(false);
+    expect(branchRuleMatches(block, "ten", rule("is_empty", null, "x"))).toBe(
+      true,
+    );
+  });
+});
+
+describe("date branch comparisons", () => {
+  const block = dateBlock("when", 0);
+
+  test("compares dates at the day boundary", () => {
+    expect(
+      branchRuleMatches(block, "2024-03-01", rule("gt", "2024-02-29", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "2024-02-29", rule("gt", "2024-02-29", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, "2024-02-29", rule("gte", "2024-02-29", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "2024-02-29", rule("lte", "2024-02-29", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "2024-02-28", rule("lt", "2024-02-29", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "2024-02-29", rule("equals", "2024-02-29", "x")),
+    ).toBe(true);
+  });
+
+  test("orders across year and month boundaries", () => {
+    expect(
+      branchRuleMatches(block, "2025-01-01", rule("gt", "2024-12-31", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "2024-10-01", rule("gt", "2024-09-30", "x")),
+    ).toBe(true);
+  });
+
+  test("never matches when the operand is not a calendar date", () => {
+    for (const operand of ["2023-02-29", "2024-2-5", "05.02.2024", ""]) {
+      expect(
+        branchRuleMatches(block, "2024-03-01", rule("gt", operand, "x")),
+      ).toBe(false);
+    }
+  });
+
+  test("treats an invalid answer as empty", () => {
+    expect(
+      branchRuleMatches(block, "2024-02-30", rule("is_empty", null, "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "2024-02-30", rule("lte", "2024-12-31", "x")),
+    ).toBe(false);
+  });
+});
+
+describe("multiple choice branch comparisons", () => {
+  const block = createBlock({
+    id: "colors",
+    type: "MULTIPLE_CHOICE",
+    position: 0,
+  });
+
+  test("contains_any matches when the operand is among the selections, in any order", () => {
+    expect(
+      branchRuleMatches(
+        block,
+        ["blue", "red"],
+        rule("contains_any", "red", "x"),
+      ),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(
+        block,
+        ["red", "blue", "green"],
+        rule("contains_any", "green", "x"),
+      ),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, ["blue"], rule("contains_any", "red", "x")),
+    ).toBe(false);
+  });
+
+  test("equals behaves as membership rather than exact set equality", () => {
+    expect(
+      branchRuleMatches(block, ["red", "blue"], rule("equals", "red", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, ["red", "blue"], rule("not_equals", "red", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, ["blue"], rule("not_equals", "red", "x")),
+    ).toBe(true);
+  });
+
+  test("ignores selections that are not options and treats the rest as the answer", () => {
+    expect(
+      branchRuleMatches(block, ["purple"], rule("is_empty", null, "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(
+        block,
+        ["purple", " red "],
+        rule("contains_any", "red", "x"),
+      ),
+    ).toBe(true);
+  });
+
+  test("an empty array is empty and matches nothing else", () => {
+    expect(branchRuleMatches(block, [], rule("is_empty", null, "x"))).toBe(
+      true,
+    );
+    expect(branchRuleMatches(block, [], rule("is_not_empty", null, "x"))).toBe(
+      false,
+    );
+    expect(branchRuleMatches(block, [], rule("contains_any", "red", "x"))).toBe(
+      false,
+    );
+    expect(branchRuleMatches(block, [], rule("not_equals", "red", "x"))).toBe(
+      false,
+    );
+  });
+
+  test("never matches an operand that is not one of the options", () => {
+    expect(
+      branchRuleMatches(block, ["red"], rule("contains_any", "purple", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, ["red"], rule("contains_any", "Red", "x")),
+    ).toBe(false);
+  });
+
+  test("a plain string answer is treated as empty", () => {
+    expect(
+      branchRuleMatches(block, "red", rule("contains_any", "red", "x")),
+    ).toBe(false);
+    expect(branchRuleMatches(block, "red", rule("is_empty", null, "x"))).toBe(
+      true,
+    );
+  });
+});
+
+describe("text branch comparisons", () => {
+  const block = textBlock("notes", 0);
+
+  test("contains and equals are case-sensitive", () => {
+    expect(
+      branchRuleMatches(block, "Hello world", rule("contains", "hello", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, "Hello world", rule("contains", "Hello", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "Hello", rule("equals", "hello", "x")),
+    ).toBe(false);
+  });
+
+  test("trims both the answer and the operand before comparing", () => {
+    expect(
+      branchRuleMatches(block, "  hello  ", rule("equals", " hello ", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(
+        block,
+        "  hello world  ",
+        rule("contains", " lo wo ", "x"),
+      ),
+    ).toBe(true);
+  });
+
+  test("handles Cyrillic and emoji", () => {
+    expect(
+      branchRuleMatches(block, "Привет, мир", rule("contains", "мир", "x")),
+    ).toBe(true);
+    expect(
+      branchRuleMatches(block, "Привет, мир", rule("contains", "Мир", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, "I ❤️ forms", rule("contains", "❤️", "x")),
+    ).toBe(true);
+    expect(branchRuleMatches(block, "Ёлка", rule("equals", "Ёлка", "x"))).toBe(
+      true,
+    );
+  });
+
+  test("an empty or whitespace operand never matches a value operator", () => {
+    expect(
+      branchRuleMatches(block, "anything", rule("contains", "", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, "anything", rule("contains", "   ", "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, "anything", rule("equals", null, "x")),
+    ).toBe(false);
+  });
+
+  test("a whitespace-only answer counts as empty", () => {
+    expect(branchRuleMatches(block, " \n ", rule("is_empty", null, "x"))).toBe(
+      true,
+    );
+    expect(
+      branchRuleMatches(block, " \n ", rule("is_not_empty", null, "x")),
+    ).toBe(false);
+    expect(
+      branchRuleMatches(block, undefined, rule("is_empty", null, "x")),
+    ).toBe(true);
+  });
+});
+
+describe("degenerate forms", () => {
+  test("walks a chain of text-only blocks in saved order", () => {
+    const blocks = [
+      createBlock({ id: "a", type: "TEXT", position: 0 }),
+      createBlock({ id: "b", type: "TEXT", position: 1 }),
+      createBlock({ id: "c", type: "TEXT", position: 2 }),
+    ];
+
+    expect(JSON.stringify(resolveVisitedBlockIds(blocks, {}))).toBe(
+      JSON.stringify(["a", "b", "c"]),
+    );
+    expect(analyzeBranchingGraph(blocks).blockers.length).toBe(0);
+  });
+
+  test("handles a single block and an empty form", () => {
+    const single = [
+      createBlock({ id: "only", type: "SHORT_TEXT", position: 0 }),
+    ];
+
+    expect(JSON.stringify(resolveVisitedBlockIds(single, {}))).toBe(
+      JSON.stringify(["only"]),
+    );
+    expect(JSON.stringify(resolveVisitedBlockIds([], {}))).toBe("[]");
+    expect(analyzeBranchingGraph([]).blockers.length).toBe(0);
+  });
+
+  test("a terminal first block makes every later block unreachable", () => {
+    const blocks = [
+      createBlock({
+        id: "intro",
+        type: "TEXT",
+        position: 0,
+        config: { body: "Bye", endForm: true },
+      }),
+      createBlock({ id: "never", type: "SHORT_TEXT", position: 1 }),
+    ];
+
+    expect(JSON.stringify(resolveVisitedBlockIds(blocks, {}))).toBe(
+      JSON.stringify(["intro"]),
+    );
+    expect(
+      analyzeBranchingGraph(blocks).blockers.some(
+        (issue) =>
+          issue.code === "unreachable-block" && issue.blockId === "never",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("branch validation edge cases", () => {
+  test("treats operands that differ only by surrounding whitespace as duplicates", () => {
+    const blocks = [
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [
+            rule("equals", "yes", "a"),
+            rule("equals", "  yes ", "b"),
+          ],
+          defaultNextBlockId: null,
+        },
+      }),
+      createBlock({ id: "a", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "b", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(getIssueCodes(blocks).blockers).toContain("duplicate-condition");
+  });
+
+  test("text operands that differ by case are distinct conditions", () => {
+    const blocks = [
+      textBlock("notes", 0, [
+        rule("contains", "Yes", "a"),
+        rule("contains", "yes", "b"),
+      ]),
+      createBlock({ id: "a", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "b", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(getIssueCodes(blocks).blockers).not.toContain("duplicate-condition");
+  });
+
+  test("a choice operand that is not an option is an invalid condition, not a duplicate", () => {
+    const blocks = [
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "a"), rule("equals", "Yes", "b")],
+          defaultNextBlockId: null,
+        },
+      }),
+      createBlock({ id: "a", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "b", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    const codes = getIssueCodes(blocks).blockers;
+
+    expect(codes).toContain("invalid-condition");
+    expect(codes).not.toContain("duplicate-condition");
+  });
+
+  test("more than 50 rules are rejected by the config schema", () => {
+    const branchRules = Array.from({ length: 51 }, (_, index) =>
+      rule("contains", `v${index}`, "a"),
+    );
+
+    let threw = false;
+    try {
+      parseBlockConfig("SHORT_TEXT", { branchRules, placeholder: "" });
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
+
+    const accepted = parseBlockConfig("SHORT_TEXT", {
+      branchRules: branchRules.slice(0, 50),
+      placeholder: "",
+    });
+    expect("branchRules" in accepted && accepted.branchRules.length).toBe(50);
+  });
+
+  test("a rule and the default route may point to the same block", () => {
+    const blocks = [
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "finish")],
+          defaultNextBlockId: "finish",
+        },
+      }),
+      createBlock({ id: "finish", type: "SHORT_TEXT", position: 1 }),
+    ];
+
+    expect(getIssueCodes(blocks).blockers.length).toBe(0);
+  });
+
+  test("a block reachable only from an unreachable block is itself unreachable", () => {
+    const blocks = [
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [],
+          defaultNextBlockId: "finish",
+        },
+      }),
+      createBlock({
+        id: "orphan",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "orphan-child")],
+          defaultNextBlockId: "finish",
+        },
+      }),
+      createBlock({ id: "orphan-child", type: "SHORT_TEXT", position: 2 }),
+      createBlock({ id: "finish", type: "SHORT_TEXT", position: 3 }),
+    ];
+
+    const unreachable = analyzeBranchingGraph(blocks)
+      .blockers.filter((issue) => issue.code === "unreachable-block")
+      .map((issue) => issue.blockId)
+      .sort();
+
+    expect(JSON.stringify(unreachable)).toBe(
+      JSON.stringify(["orphan", "orphan-child"]),
+    );
+  });
+
+  test("branch rules on a text block are flagged at validation and ignored at runtime", () => {
+    const blocks = [
+      createBlock({
+        id: "intro",
+        type: "TEXT",
+        position: 0,
+        config: {
+          body: "Intro",
+          branchRules: [rule("is_not_empty", null, "far")],
+        } as never,
+      }),
+      createBlock({ id: "near", type: "SHORT_TEXT", position: 1 }),
+      createBlock({ id: "far", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(getIssueCodes(blocks).blockers).toContain("unsupported-operator");
+    expect(resolveNextBlockId(blocks, "intro", {})).toBe("near");
+  });
+
+  test("a number operand that is not a plain decimal is an invalid condition", () => {
+    const blocks = [
+      numberBlock("amount", 0, [rule("gt", "1e3", "finish")]),
+      createBlock({ id: "finish", type: "SHORT_TEXT", position: 1 }),
+    ];
+
+    expect(getIssueCodes(blocks).blockers).toContain("invalid-condition");
   });
 });

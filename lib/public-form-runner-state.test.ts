@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
 import type { SerializedBlock } from "@/lib/blocks";
-import { resolveNextBlockId } from "@/lib/branching";
+import { resolveNextBlockId, resolveVisitedBlockIds } from "@/lib/branching";
 import {
   advanceRunnerRoute,
   createInitialRunnerRoute,
   getCurrentRouteBlockId,
+  getRouteCursor,
   getVisibleRouteTotal,
   hasRunnerProgress,
   retreatRunnerRoute,
@@ -185,5 +186,162 @@ describe("public form runner state helpers", () => {
     expect(JSON.stringify(route.history)).toBe(
       JSON.stringify(["intro", "question", "finish"]),
     );
+  });
+});
+
+describe("public form runner state edge cases", () => {
+  const branchingBlocks = [
+    createBlock({
+      id: "path",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      config: {
+        options: ["yes", "no"],
+        branchRules: [
+          { operator: "equals", value: "yes", targetBlockId: "finish" },
+        ],
+        defaultNextBlockId: "fallback",
+      },
+    }),
+    createBlock({ id: "fallback", type: "SHORT_TEXT", position: 1 }),
+    createBlock({ id: "extra", type: "SHORT_TEXT", position: 2 }),
+    createBlock({ id: "finish", type: "SHORT_TEXT", position: 3 }),
+  ];
+
+  test("changing an earlier answer onto another branch truncates history and shrinks the total", () => {
+    const answers = { path: "no", fallback: "a", extra: "b" };
+    let route = createInitialRunnerRoute(branchingBlocks);
+    route = advanceRunnerRoute(route, "path", "fallback");
+    route = advanceRunnerRoute(route, "fallback", "extra");
+    route = advanceRunnerRoute(route, "extra", "finish");
+    route = { ...route, cursor: 0 };
+
+    expect(
+      getVisibleRouteTotal({
+        blocks: branchingBlocks,
+        currentBlockId: "path",
+        answers,
+        cursor: 0,
+      }),
+    ).toBe(4);
+
+    const switched = { ...answers, path: "yes" };
+    const next = resolveNextBlockId(branchingBlocks, "path", switched);
+    route = advanceRunnerRoute(route, "path", next ?? "fallback");
+
+    expect(JSON.stringify(route.history)).toBe(
+      JSON.stringify(["path", "finish"]),
+    );
+    expect(route.cursor).toBe(1);
+    expect(
+      getVisibleRouteTotal({
+        blocks: branchingBlocks,
+        currentBlockId: "path",
+        answers: switched,
+        cursor: 0,
+      }),
+    ).toBe(2);
+  });
+
+  test("route helpers leave answers from an abandoned branch untouched", () => {
+    const answers = { path: "yes", fallback: "a", extra: "b" };
+    const visited = resolveVisitedBlockIds(branchingBlocks, answers);
+
+    expect(JSON.stringify(visited)).toBe(JSON.stringify(["path", "finish"]));
+    expect(Object.keys(answers).sort().join(",")).toBe("extra,fallback,path");
+  });
+
+  test("ignores an advance whose source is not the active block", () => {
+    const route = { history: ["path", "fallback"], cursor: 1 };
+
+    expect(advanceRunnerRoute(route, "path", "extra")).toBe(route);
+  });
+
+  test("a terminal block has no next step and the total stops there", () => {
+    const blocks = [
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: true,
+        },
+      }),
+      createBlock({ id: "after", type: "SHORT_TEXT", position: 1 }),
+    ];
+
+    expect(resolveNextBlockId(blocks, "gate", { gate: "yes" })).toBe(null);
+    expect(
+      getVisibleRouteTotal({
+        blocks,
+        currentBlockId: "gate",
+        answers: { gate: "yes" },
+        cursor: 0,
+      }),
+    ).toBe(1);
+  });
+
+  test("back navigation stops at the first step", () => {
+    const route = retreatRunnerRoute({ history: ["a", "b"], cursor: 0 });
+
+    expect(route.cursor).toBe(0);
+  });
+
+  test("clamps a cursor that runs past the history", () => {
+    const blocks = [
+      createBlock({ id: "a", type: "SHORT_TEXT", position: 0 }),
+      createBlock({ id: "b", type: "SHORT_TEXT", position: 1 }),
+    ];
+    const route = { history: ["a", "b"], cursor: 7 };
+
+    expect(getRouteCursor(route)).toBe(1);
+    expect(getCurrentRouteBlockId(route, blocks)).toBe("b");
+    expect(getCurrentRouteBlockId({ history: [], cursor: 3 }, blocks)).toBe(
+      "a",
+    );
+    expect(getCurrentRouteBlockId({ history: [], cursor: 0 }, [])).toBe(null);
+  });
+
+  test("a current block that no longer exists yields a total of the steps taken so far", () => {
+    const blocks = [createBlock({ id: "a", type: "SHORT_TEXT", position: 0 })];
+
+    expect(
+      getVisibleRouteTotal({
+        blocks,
+        currentBlockId: "removed",
+        answers: {},
+        cursor: 2,
+      }),
+    ).toBe(3);
+    expect(
+      getVisibleRouteTotal({
+        blocks,
+        currentBlockId: null,
+        answers: {},
+        cursor: 2,
+      }),
+    ).toBe(1);
+  });
+
+  test("whitespace-only and empty-array answers do not count as progress", () => {
+    expect(
+      hasRunnerProgress({
+        answers: { a: "   ", b: [] },
+        cursor: 0,
+        historyLength: 1,
+        initialHistoryLength: 1,
+      }),
+    ).toBe(false);
+    expect(
+      hasRunnerProgress({
+        answers: { b: ["x"] },
+        cursor: 0,
+        historyLength: 1,
+        initialHistoryLength: 1,
+      }),
+    ).toBe(true);
   });
 });

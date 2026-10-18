@@ -3,9 +3,16 @@ import { describe, expect, test } from "bun:test";
 import type { SerializedBlock } from "@/lib/blocks";
 import type { PublicForm } from "@/lib/form-types";
 import {
+  PUBLIC_FORM_DRAFT_STORAGE_PREFIX,
   createPublicFormDraft,
+  createPublicFormDraftFingerprint,
+  getPublicFormDraftStorageKey,
+  parsePublicFormDraft,
   readStoredPublicFormDraft,
+  removeStoredPublicFormDraft,
   validatePublicFormDraft,
+  writeStoredPublicFormDraft,
+  type PublicFormDraft,
 } from "@/lib/public-form-draft";
 
 function createForm(blocks: SerializedBlock[]): PublicForm {
@@ -229,5 +236,304 @@ describe("public form draft validation", () => {
     const result = validatePublicFormDraft(form, draft);
 
     expect(JSON.stringify(result)).toBe(JSON.stringify({ status: "invalid" }));
+  });
+});
+
+describe("public form draft fingerprint", () => {
+  const baseBlocks = [
+    createBlock({ id: "intro", type: "TEXT", position: 0 }),
+    createBlock({ id: "choice", type: "SINGLE_CHOICE", position: 1 }),
+  ];
+  const baseFingerprint = createPublicFormDraftFingerprint(
+    createForm(baseBlocks),
+  );
+
+  test("changes when an option is renamed", () => {
+    const blocks = [
+      baseBlocks[0],
+      createBlock({
+        id: "choice",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          options: ["yes", "maybe"],
+          branchRules: [],
+          defaultNextBlockId: null,
+        },
+      }),
+    ];
+
+    expect(
+      createPublicFormDraftFingerprint(createForm(blocks)) !== baseFingerprint,
+    ).toBe(true);
+  });
+
+  test("changes when blocks are reordered, retyped or made required", () => {
+    const reordered = [
+      createBlock({ id: "intro", type: "TEXT", position: 1 }),
+      createBlock({ id: "choice", type: "SINGLE_CHOICE", position: 0 }),
+    ];
+    const retyped = [
+      baseBlocks[0],
+      createBlock({
+        id: "choice",
+        type: "MULTIPLE_CHOICE",
+        position: 1,
+        config: baseBlocks[1].config,
+      }),
+    ];
+    const required = [
+      baseBlocks[0],
+      createBlock({
+        id: "choice",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        required: true,
+      }),
+    ];
+
+    for (const blocks of [reordered, retyped, required]) {
+      expect(
+        createPublicFormDraftFingerprint(createForm(blocks)) !==
+          baseFingerprint,
+      ).toBe(true);
+    }
+  });
+
+  test("ignores title, description and timestamps", () => {
+    const blocks = [
+      createBlock({
+        id: "intro",
+        type: "TEXT",
+        position: 0,
+        title: "New title",
+        description: "New description",
+        updatedAt: new Date("2030-01-01T00:00:00.000Z"),
+      }),
+      createBlock({
+        id: "choice",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        title: "Renamed",
+      }),
+    ];
+
+    expect(createPublicFormDraftFingerprint(createForm(blocks))).toBe(
+      baseFingerprint,
+    );
+  });
+
+  test("does not depend on key order inside configs", () => {
+    const blocks = [
+      baseBlocks[0],
+      createBlock({
+        id: "choice",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          defaultNextBlockId: null,
+          branchRules: [],
+          options: ["yes", "no"],
+        },
+      }),
+    ];
+
+    expect(createPublicFormDraftFingerprint(createForm(blocks))).toBe(
+      baseFingerprint,
+    );
+  });
+});
+
+describe("public form draft parsing and restoring", () => {
+  const form = createForm([
+    createBlock({ id: "intro", type: "TEXT", position: 0 }),
+    createBlock({ id: "choice", type: "SINGLE_CHOICE", position: 1 }),
+    createBlock({ id: "notes", type: "LONG_TEXT", position: 2 }),
+  ]);
+
+  function validDraft(
+    overrides: Partial<PublicFormDraft> = {},
+  ): PublicFormDraft {
+    return {
+      ...createPublicFormDraft(form, {
+        answers: { choice: "yes" },
+        history: ["intro", "choice"],
+        cursor: 1,
+      }),
+      ...overrides,
+    };
+  }
+
+  test("rejects a draft with another version or malformed fields", () => {
+    expect(parsePublicFormDraft({ ...validDraft(), version: 2 })).toBe(null);
+    expect(parsePublicFormDraft({ ...validDraft(), cursor: -1 })).toBe(null);
+    expect(parsePublicFormDraft({ ...validDraft(), cursor: 1.5 })).toBe(null);
+    expect(
+      parsePublicFormDraft({ ...validDraft(), savedAt: "yesterday" }),
+    ).toBe(null);
+    expect(
+      parsePublicFormDraft({ ...validDraft(), answers: { choice: 1 } }),
+    ).toBe(null);
+    expect(
+      parsePublicFormDraft({ ...validDraft(), answers: { choice: [1] } }),
+    ).toBe(null);
+    expect(parsePublicFormDraft({ ...validDraft(), history: "intro" })).toBe(
+      null,
+    );
+    expect(parsePublicFormDraft(null)).toBe(null);
+    expect(parsePublicFormDraft("{}")).toBe(null);
+    expect(parsePublicFormDraft(validDraft()) !== null).toBe(true);
+  });
+
+  test("drops answers for blocks that are not in the form when restoring", () => {
+    const result = validatePublicFormDraft(
+      form,
+      validDraft({ answers: { choice: "yes", ghost: "boo", other: ["x"] } }),
+    );
+
+    expect(result.status).toBe("restored");
+    if (result.status !== "restored") {
+      return;
+    }
+
+    expect(JSON.stringify(result.draft.answers)).toBe(
+      JSON.stringify({ choice: "yes" }),
+    );
+  });
+
+  test("keeps an answer whose shape does not fit the block for later validation", () => {
+    const result = validatePublicFormDraft(
+      form,
+      validDraft({ answers: { choice: ["yes"] } }),
+    );
+
+    expect(result.status).toBe("restored");
+    if (result.status !== "restored") {
+      return;
+    }
+
+    expect(JSON.stringify(result.draft.answers)).toBe(
+      JSON.stringify({ choice: ["yes"] }),
+    );
+  });
+
+  test("rejects a cursor past the history and a history that does not start at the first block", () => {
+    expect(
+      validatePublicFormDraft(form, validDraft({ cursor: 2 })).status,
+    ).toBe("invalid");
+    expect(
+      validatePublicFormDraft(form, validDraft({ history: [] })).status,
+    ).toBe("invalid");
+    expect(
+      validatePublicFormDraft(
+        form,
+        validDraft({ history: ["choice", "notes"] }),
+      ).status,
+    ).toBe("invalid");
+  });
+
+  test("rejects a history that references a block no longer in the form", () => {
+    expect(
+      validatePublicFormDraft(
+        form,
+        validDraft({ history: ["intro", "removed"], cursor: 1 }),
+      ).status,
+    ).toBe("invalid");
+  });
+
+  test("treats a draft for another form as stale", () => {
+    expect(
+      validatePublicFormDraft(form, validDraft({ formId: "form-2" })).status,
+    ).toBe("stale");
+  });
+
+  test("restores an empty form only from an empty draft", () => {
+    const emptyForm = createForm([]);
+    const draft = createPublicFormDraft(emptyForm, {
+      answers: {},
+      history: [],
+      cursor: 0,
+    });
+
+    expect(validatePublicFormDraft(emptyForm, draft).status).toBe("restored");
+    expect(
+      validatePublicFormDraft(emptyForm, { ...draft, history: ["x"] }).status,
+    ).toBe("invalid");
+  });
+
+  test("strips non-string answers when creating a draft", () => {
+    const draft = createPublicFormDraft(form, {
+      answers: {
+        choice: "yes",
+        notes: 42 as unknown as string,
+        other: [1, "a"] as unknown as string[],
+      },
+      history: ["intro"],
+      cursor: 0,
+    });
+
+    expect(JSON.stringify(draft.answers)).toBe(
+      JSON.stringify({ choice: "yes" }),
+    );
+  });
+});
+
+describe("public form draft storage failures", () => {
+  test("write and remove swallow storage errors", () => {
+    try {
+      mockWindowWithStorage({
+        getItem: () => null,
+        setItem: () => {
+          throw new Error("QuotaExceededError");
+        },
+        removeItem: () => {
+          throw new Error("SecurityError");
+        },
+      });
+      const form = createForm([
+        createBlock({ id: "a", type: "SHORT_TEXT", position: 0 }),
+      ]);
+      const draft = createPublicFormDraft(form, {
+        answers: {},
+        history: ["a"],
+        cursor: 0,
+      });
+
+      let threw = false;
+      try {
+        writeStoredPublicFormDraft("key", draft);
+        removeStoredPublicFormDraft("key");
+      } catch {
+        threw = true;
+      }
+      expect(threw).toBe(false);
+    } finally {
+      restoreWindow();
+    }
+  });
+
+  test("a stored value that parses but fails the schema is invalid, an empty one is missing", () => {
+    try {
+      mockWindowWithStorage({ getItem: () => JSON.stringify({ version: 1 }) });
+      expect(readStoredPublicFormDraft("k").status).toBe("invalid");
+
+      mockWindowWithStorage({ getItem: () => "" });
+      expect(readStoredPublicFormDraft("k").status).toBe("missing");
+
+      mockWindowWithStorage({ getItem: () => "null" });
+      expect(readStoredPublicFormDraft("k").status).toBe("invalid");
+    } finally {
+      restoreWindow();
+    }
+  });
+
+  test("storage key is namespaced per form", () => {
+    expect(getPublicFormDraftStorageKey("form-1")).toBe(
+      `${PUBLIC_FORM_DRAFT_STORAGE_PREFIX}:form-1`,
+    );
+    expect(
+      getPublicFormDraftStorageKey("form-1") !==
+        getPublicFormDraftStorageKey("form-10"),
+    ).toBe(true);
   });
 });

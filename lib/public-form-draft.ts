@@ -220,11 +220,18 @@ export function validatePublicFormDraft(
     }
   }
 
+  const knownBlockIds = new Set(form.blocks.map((block) => block.id));
+  const knownAnswers = Object.fromEntries(
+    Object.entries(draft.answers).filter(([blockId]) =>
+      knownBlockIds.has(blockId),
+    ),
+  );
+
   return {
     status: "restored",
     draft: {
       ...draft,
-      answers: sanitizeAnswersForDraft(draft.answers),
+      answers: sanitizeAnswersForDraft(knownAnswers),
       history: activeHistory,
       cursor: activeHistory.length - 1,
     },
