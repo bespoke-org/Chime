@@ -154,6 +154,68 @@ describe("FormBuilder", () => {
     await cleanupAndRestore(restoreDom);
   });
 
+  test("offers the public link only once the form is published", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+
+    const draftView = renderBuilder(createForm([firstBlock]));
+
+    expect(draftView.queryByText("builder.publicationMenu")).toBe(null);
+    expect(draftView.getByText("builder.publish") !== null).toBe(true);
+    expect(
+      (
+        draftView
+          .getByText("builder.responses")
+          .closest("button") as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+
+    fireEvent.click(
+      draftView.getByRole("button", { name: "builder.settings" }),
+    );
+
+    await waitFor(() => {
+      expect(draftView.getByText("builder.shareDraftHint") !== null).toBe(true);
+    });
+    expect(draftView.queryByText("builder.openRunner")).toBe(null);
+    expect(draftView.queryByText("builder.copyLink")).toBe(null);
+
+    cleanup();
+
+    const publishedView = renderBuilder({
+      ...createForm([firstBlock]),
+      status: "PUBLISHED",
+    });
+
+    expect(publishedView.getByText("builder.publicationMenu") !== null).toBe(
+      true,
+    );
+    expect(publishedView.queryByText("builder.publish")).toBe(null);
+    expect(
+      (
+        publishedView
+          .getByText("builder.responses")
+          .closest("button") as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+
+    fireEvent.click(
+      publishedView.getByRole("button", { name: "builder.settings" }),
+    );
+
+    await waitFor(() => {
+      expect(publishedView.getByText("builder.openRunner") !== null).toBe(true);
+    });
+    expect(publishedView.queryByText("builder.shareDraftHint")).toBe(null);
+
+    await cleanupAndRestore(restoreDom);
+  });
+
   test("saves a restored respondent locale override from form settings", async () => {
     const restoreDom = installTestDom();
     const firstBlock = createBlock({

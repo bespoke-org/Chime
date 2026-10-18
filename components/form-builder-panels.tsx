@@ -137,6 +137,9 @@ export function BuilderHeader({
     React.useState(false);
   const isPublished = form.status === "PUBLISHED";
   const isPublishBusy = busy === "publish";
+  // A draft that already collected responses before being unpublished still
+  // needs its responses page reachable.
+  const hasResponsesToShow = isPublished || form.responseCount > 0;
   const availability = useFormAvailability(form);
 
   return (
@@ -160,78 +163,86 @@ export function BuilderHeader({
           <Settings2 className="size-4" />
           {t("builder.settings")}
         </Button>
-        <Link href={`/forms/${form.id}/responses`}>
-          <Button variant="secondary">
+        {hasResponsesToShow ? (
+          <Link href={`/forms/${form.id}/responses`}>
+            <Button variant="secondary">
+              <MessagesSquare className="size-4" />
+              {t("builder.responses", { count: form.responseCount })}
+            </Button>
+          </Link>
+        ) : (
+          <Button variant="secondary" disabled>
             <MessagesSquare className="size-4" />
             {t("builder.responses", { count: form.responseCount })}
           </Button>
-        </Link>
-        <Popover
-          open={isPublicationMenuOpen}
-          onOpenChange={setIsPublicationMenuOpen}
-        >
-          <PopoverTrigger asChild>
-            <Button
-              variant={isPublished ? "default" : "secondary"}
-              aria-haspopup="menu"
-              aria-expanded={isPublicationMenuOpen}
-            >
-              {isPublishBusy ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Globe className="size-4" />
-              )}
-              {t("builder.publicationMenu")}
-              <ChevronDown className="size-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-64 p-2">
-            <div className="grid gap-1">
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:text-[var(--muted)] disabled:hover:bg-transparent"
-                disabled={isPublishBusy}
-                onClick={() => {
-                  setIsPublicationMenuOpen(false);
-                  if (isPublished) {
-                    onUnpublish();
-                    return;
-                  }
-
-                  onPublish();
-                }}
+        )}
+        {isPublished ? (
+          <Popover
+            open={isPublicationMenuOpen}
+            onOpenChange={setIsPublicationMenuOpen}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                aria-haspopup="menu"
+                aria-expanded={isPublicationMenuOpen}
               >
-                {isPublished ? (
-                  <EyeOff className="size-4" />
+                {isPublishBusy ? (
+                  <LoaderCircle className="size-4 animate-spin" />
                 ) : (
-                  <Upload className="size-4" />
+                  <Globe className="size-4" />
                 )}
-                {t(isPublished ? "builder.unpublish" : "builder.publish")}
-              </button>
-              <div className="my-1 h-px bg-[color:var(--line)]" />
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
-                onClick={() => {
-                  setIsPublicationMenuOpen(false);
-                  onCopyShareLink();
-                }}
-              >
-                <Copy className="size-4" />
-                {t("builder.copyLink")}
-              </button>
-              <Link
-                href={shareHref}
-                target="_blank"
-                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
-                onClick={() => setIsPublicationMenuOpen(false)}
-              >
-                <ExternalLink className="size-4" />
-                {t("builder.openRunner")}
-              </Link>
-            </div>
-          </PopoverContent>
-        </Popover>
+                {t("builder.publicationMenu")}
+                <ChevronDown className="size-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-2">
+              <div className="grid gap-1">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+                  onClick={() => {
+                    setIsPublicationMenuOpen(false);
+                    onCopyShareLink();
+                  }}
+                >
+                  <Copy className="size-4" />
+                  {t("builder.copyLink")}
+                </button>
+                <Link
+                  href={shareHref}
+                  target="_blank"
+                  className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+                  onClick={() => setIsPublicationMenuOpen(false)}
+                >
+                  <ExternalLink className="size-4" />
+                  {t("builder.openRunner")}
+                </Link>
+                <div className="my-1 h-px bg-[color:var(--line)]" />
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:text-[var(--muted)] disabled:hover:bg-transparent"
+                  disabled={isPublishBusy}
+                  onClick={() => {
+                    setIsPublicationMenuOpen(false);
+                    onUnpublish();
+                  }}
+                >
+                  <EyeOff className="size-4" />
+                  {t("builder.unpublish")}
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <Button disabled={isPublishBusy} onClick={onPublish}>
+            {isPublishBusy ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <Upload className="size-4" />
+            )}
+            {t("builder.publish")}
+          </Button>
+        )}
       </div>
     </section>
   );
@@ -339,18 +350,24 @@ export function FormSettingsPanel({
                 }
               />
             </div>
-            <div className="flex flex-wrap gap-3 lg:shrink-0">
-              <Button variant="secondary" onClick={copyShareLink}>
-                <Copy className="size-4" />
-                {t("builder.copyLink")}
-              </Button>
-              <Link href={shareHref} target="_blank">
-                <Button variant="secondary">
-                  <LinkIcon className="size-4" />
-                  {t("builder.openRunner")}
+            {form.status === "PUBLISHED" ? (
+              <div className="flex flex-wrap gap-3 lg:shrink-0">
+                <Button variant="secondary" onClick={copyShareLink}>
+                  <Copy className="size-4" />
+                  {t("builder.copyLink")}
                 </Button>
-              </Link>
-            </div>
+                <Link href={shareHref} target="_blank">
+                  <Button variant="secondary">
+                    <LinkIcon className="size-4" />
+                    {t("builder.openRunner")}
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--muted)] lg:shrink-0">
+                {t("builder.shareDraftHint")}
+              </p>
+            )}
           </div>
         </div>
       </div>
