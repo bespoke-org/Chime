@@ -11,7 +11,7 @@ const buttonVariants = cva(
         default:
           "bg-[var(--accent)] px-5 py-3 text-[var(--accent-contrast)] hover:bg-[var(--accent-hover)] focus-visible:ring-[var(--accent)]",
         secondary:
-          "bg-[var(--surface-strong)] px-5 py-3 text-[var(--ink)] ring-1 ring-[color:var(--line)] hover:bg-[var(--surface)] focus-visible:ring-[var(--ink)]",
+          "bg-[var(--surface-strong)] px-5 py-3 text-[var(--ink)] ring-1 ring-[color:var(--line)] hover:bg-[var(--accent-soft)] hover:ring-[color:var(--line-strong)] focus-visible:ring-[var(--accent)]",
         ghost:
           "px-3 py-2 text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)] focus-visible:ring-[var(--ink)]",
         danger:
