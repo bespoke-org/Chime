@@ -101,6 +101,11 @@ const builderFormInclude = {
       position: "asc",
     },
   },
+  webhooks: {
+    orderBy: {
+      position: "asc",
+    },
+  },
   _count: {
     select: {
       responses: true,
@@ -184,8 +189,10 @@ function toBuilderForm(
       : null,
     showProgress: form.showProgress,
     allowBackNavigation: form.allowBackNavigation,
-    webhookUrl: form.webhookUrl,
-    webhookSecret: form.webhookSecret,
+    webhooks: form.webhooks.map((webhook) => ({
+      url: webhook.url,
+      secret: webhook.secret,
+    })),
     closesAt: form.closesAt ? form.closesAt.toISOString() : null,
     maxResponses: form.maxResponses,
     closedManually: form.closedManually,
@@ -490,13 +497,24 @@ export async function updateOwnedFormMetadata(
   payload: unknown,
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
-  const parsed = formMetadataSchema.parse(payload);
+  const { webhooks, ...parsed } = formMetadataSchema.parse(payload);
   await assertAccessibleForm(userId, formId);
   await ensureUniqueSlug(parsed.slug, formId, locale);
 
+  // The saved list replaces the form's webhooks in the same update.
   const form = await db.form.update({
     where: { id: formId },
-    data: parsed,
+    data: {
+      ...parsed,
+      webhooks: {
+        deleteMany: {},
+        create: webhooks.map((webhook, position) => ({
+          url: webhook.url,
+          secret: webhook.secret,
+          position,
+        })),
+      },
+    },
     include: builderFormInclude,
   });
 
@@ -723,6 +741,11 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
           position: "asc",
         },
       },
+      webhooks: {
+        orderBy: {
+          position: "asc",
+        },
+      },
     },
   });
 
@@ -754,22 +777,27 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     ? await createResponseWithUploads(form.id, responseData, fileAnswers)
     : await db.response.create({ data: responseData });
 
-  if (form.webhookUrl) {
-    // Delivery runs in the background and never throws, so the stored
-    // response and the HTTP answer do not depend on the webhook endpoint.
-    void getWebhookDeliverer()({
-      url: form.webhookUrl,
-      secret: form.webhookSecret,
-      payload: buildWebhookPayload(
-        form,
-        {
-          id: response.id,
-          submittedAt: response.submittedAt,
-          answers: normalizedAnswers,
-        },
-        snapshot,
-      ),
-    });
+  if (form.webhooks.length) {
+    const payload = buildWebhookPayload(
+      form,
+      {
+        id: response.id,
+        submittedAt: response.submittedAt,
+        answers: normalizedAnswers,
+      },
+      snapshot,
+    );
+
+    // Each delivery runs in the background and never throws, so the stored
+    // response, the HTTP answer and the other webhooks do not depend on one
+    // endpoint.
+    for (const webhook of form.webhooks) {
+      void getWebhookDeliverer()({
+        url: webhook.url,
+        secret: webhook.secret,
+        payload,
+      });
+    }
   }
 
   // Same rule as the webhook: the email is sent in the background and a

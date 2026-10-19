@@ -57,8 +57,7 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
     respondentLocale: null,
     showProgress: true,
     allowBackNavigation: true,
-    webhookUrl: null,
-    webhookSecret: null,
+    webhooks: [],
     closesAt: null,
     maxResponses: null,
     closedManually: false,
@@ -374,6 +373,63 @@ describe("FormBuilder", () => {
 
     expect(String(fetchCalls[0]?.init?.body)).toContain(
       '"allowBackNavigation":true',
+    );
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("shows a webhook card only after one is added and saves the list", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({
+          form: createForm([firstBlock]),
+        }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock]), undefined, {
+      builder: { saveFormSettings: "Save form settings" },
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+
+    await waitFor(() => {
+      expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
+    });
+    expect(view.queryByText("builder.webhookUrl")).toBe(null);
+
+    fireEvent.click(view.getByRole("button", { name: "builder.addWebhook" }));
+
+    const urlInput = await view.findByPlaceholderText(
+      "builder.webhookUrlPlaceholder",
+    );
+    typeIntoInput(urlInput, "https://hooks.example.com/lively");
+
+    fireEvent.click(view.getByRole("button", { name: "Save form settings" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    expect(String(fetchCalls[0]?.init?.body)).toContain(
+      '"webhooks":[{"url":"https://hooks.example.com/lively","secret":""}]',
     );
 
     globalThis.fetch = previousFetch;

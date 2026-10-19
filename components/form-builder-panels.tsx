@@ -80,7 +80,11 @@ import {
   type BranchRuleDraft,
   type ChoiceOptionDraft,
 } from "@/lib/form-builder-drafts";
-import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
+import {
+  MAX_FORM_WEBHOOKS,
+  type BuilderBlock,
+  type BuilderForm,
+} from "@/lib/form-types";
 import { supportedLocales, type AppLocale } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 
@@ -93,8 +97,7 @@ export type FormMetadataDraft = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
-  webhookUrl: string;
-  webhookSecret: string;
+  webhooks: Array<{ url: string; secret: string }>;
   closesAt: string;
   maxResponses: string;
   closedManually: boolean;
@@ -301,6 +304,18 @@ export function FormSettingsPanel({
   busy: string | null;
 }) {
   const { t } = useI18n();
+
+  function updateWebhookDraft(
+    index: number,
+    patch: Partial<FormMetadataDraft["webhooks"][number]>,
+  ) {
+    setMetadataDraft((current) => ({
+      ...current,
+      webhooks: current.webhooks.map((webhook, webhookIndex) =>
+        webhookIndex === index ? { ...webhook, ...patch } : webhook,
+      ),
+    }));
+  }
 
   return (
     <div className="space-y-8">
@@ -656,53 +671,94 @@ export function FormSettingsPanel({
       </div>
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
-        <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-            {t("builder.webhook")}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.webhookDescription")}
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+              {t("builder.webhook")}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+              {t("builder.webhookDescription")}
+            </p>
+          </div>
+          <Button
+            size="icon"
+            variant="secondary"
+            aria-label={t("builder.addWebhook")}
+            title={t("builder.addWebhook")}
+            disabled={metadataDraft.webhooks.length >= MAX_FORM_WEBHOOKS}
+            onClick={() =>
+              setMetadataDraft((current) => ({
+                ...current,
+                webhooks: [...current.webhooks, { url: "", secret: "" }],
+              }))
+            }
+          >
+            <Plus className="size-4" />
+          </Button>
         </div>
 
-        <div className="grid gap-5">
-          <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.webhookUrl")}
-            </span>
-            <Input
-              value={metadataDraft.webhookUrl}
-              placeholder={t("builder.webhookUrlPlaceholder")}
-              onChange={(event) =>
-                setMetadataDraft((current) => ({
-                  ...current,
-                  webhookUrl: event.target.value,
-                }))
-              }
-            />
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.webhookUrlHelp")}
-            </span>
-          </label>
-          <label className="grid gap-2 text-sm text-[var(--muted)]">
-            <span className="font-medium text-[var(--ink)]">
-              {t("builder.webhookSecret")}
-            </span>
-            <Input
-              value={metadataDraft.webhookSecret}
-              autoComplete="off"
-              onChange={(event) =>
-                setMetadataDraft((current) => ({
-                  ...current,
-                  webhookSecret: event.target.value,
-                }))
-              }
-            />
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.webhookSecretHelp")}
-            </span>
-          </label>
-        </div>
+        {/* Usually there is one webhook, so a card exists only once the
+            creator adds it; the field hints are shown on the first card. */}
+        {metadataDraft.webhooks.map((webhook, index) => (
+          <div
+            key={index}
+            className="grid gap-4 rounded-[18px] border border-[color:var(--line)] p-4"
+          >
+            <div className="flex items-start gap-2">
+              <label className="grid flex-1 gap-2 text-sm text-[var(--muted)]">
+                <span className="font-medium text-[var(--ink)]">
+                  {t("builder.webhookUrl")}
+                </span>
+                <Input
+                  value={webhook.url}
+                  placeholder={t("builder.webhookUrlPlaceholder")}
+                  onChange={(event) =>
+                    updateWebhookDraft(index, { url: event.target.value })
+                  }
+                />
+                {index === 0 ? (
+                  <span className="text-xs text-[var(--muted)]">
+                    {t("builder.webhookUrlHelp")}
+                  </span>
+                ) : null}
+              </label>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="mt-7"
+                aria-label={t("builder.removeWebhook")}
+                title={t("builder.removeWebhook")}
+                onClick={() =>
+                  setMetadataDraft((current) => ({
+                    ...current,
+                    webhooks: current.webhooks.filter(
+                      (_, webhookIndex) => webhookIndex !== index,
+                    ),
+                  }))
+                }
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+            <label className="grid gap-2 text-sm text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]">
+                {t("builder.webhookSecret")}
+              </span>
+              <Input
+                value={webhook.secret}
+                autoComplete="off"
+                onChange={(event) =>
+                  updateWebhookDraft(index, { secret: event.target.value })
+                }
+              />
+              {index === 0 ? (
+                <span className="text-xs text-[var(--muted)]">
+                  {t("builder.webhookSecretHelp")}
+                </span>
+              ) : null}
+            </label>
+          </div>
+        ))}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">

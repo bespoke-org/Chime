@@ -112,30 +112,32 @@ describe("formMetadataSchema fields", () => {
   });
 });
 
-describe("formMetadataSchema webhook", () => {
-  test("stores empty or missing webhook fields as null", () => {
-    expect(metadata({}).webhookUrl).toBe(null);
-    expect(metadata({}).webhookSecret).toBe(null);
-    expect(metadata({ webhookUrl: "  ", webhookSecret: "" }).webhookUrl).toBe(
-      null,
-    );
+describe("formMetadataSchema webhooks", () => {
+  test("defaults to no webhooks and drops cards without a URL", () => {
+    expect(metadata({}).webhooks.length).toBe(0);
     expect(
-      metadata({ webhookUrl: "  ", webhookSecret: "" }).webhookSecret,
-    ).toBe(null);
+      metadata({ webhooks: [{ url: "  ", secret: "s3cret" }] }).webhooks.length,
+    ).toBe(0);
   });
 
-  test("trims and keeps a public webhook URL and secret", () => {
+  test("trims each URL and secret, keeps order, stores an empty secret as null", () => {
     const parsed = metadata({
-      webhookUrl: " https://hooks.example.com/lively ",
-      webhookSecret: " s3cret ",
+      webhooks: [
+        { url: " https://hooks.example.com/one ", secret: " s3cret " },
+        { url: "https://hooks.example.com/two", secret: "" },
+      ],
     });
 
-    expect(parsed.webhookUrl).toBe("https://hooks.example.com/lively");
-    expect(parsed.webhookSecret).toBe("s3cret");
+    expect(JSON.stringify(parsed.webhooks)).toBe(
+      JSON.stringify([
+        { url: "https://hooks.example.com/one", secret: "s3cret" },
+        { url: "https://hooks.example.com/two", secret: null },
+      ]),
+    );
   });
 
   test("rejects invalid, private, and too long webhook URLs", () => {
-    for (const webhookUrl of [
+    for (const url of [
       "ftp://example.com/hook",
       "example.com/hook",
       "http://localhost:3000/hook",
@@ -144,17 +146,36 @@ describe("formMetadataSchema webhook", () => {
       "https://service.internal/hook",
       `https://example.com/${"x".repeat(2048)}`,
     ]) {
-      expect(throws(() => metadata({ webhookUrl }))).toBe(true);
+      expect(
+        throws(() =>
+          metadata({
+            webhooks: [{ url: "https://hooks.example.com/ok" }, { url }],
+          }),
+        ),
+      ).toBe(true);
     }
   });
 
   test("rejects a secret over two hundred characters", () => {
-    expect(throws(() => metadata({ webhookSecret: "x".repeat(201) }))).toBe(
-      true,
-    );
-    expect(metadata({ webhookSecret: "x".repeat(200) }).webhookSecret).toBe(
-      "x".repeat(200),
-    );
+    const url = "https://hooks.example.com/lively";
+
+    expect(
+      throws(() => metadata({ webhooks: [{ url, secret: "x".repeat(201) }] })),
+    ).toBe(true);
+    expect(
+      metadata({ webhooks: [{ url, secret: "x".repeat(200) }] }).webhooks[0]
+        ?.secret,
+    ).toBe("x".repeat(200));
+  });
+
+  test("accepts ten webhooks and rejects eleven", () => {
+    const webhooks = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        url: `https://hooks.example.com/${index}`,
+      }));
+
+    expect(metadata({ webhooks: webhooks(10) }).webhooks.length).toBe(10);
+    expect(throws(() => metadata({ webhooks: webhooks(11) }))).toBe(true);
   });
 });
 

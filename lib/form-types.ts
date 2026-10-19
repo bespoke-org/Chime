@@ -37,6 +37,13 @@ export type CreatorWorkspaceOption =
       isOwner: boolean;
     };
 
+export const MAX_FORM_WEBHOOKS = 10;
+
+export type FormWebhookSettings = {
+  url: string;
+  secret: string | null;
+};
+
 export type BuilderForm = {
   id: string;
   title: string;
@@ -48,8 +55,7 @@ export type BuilderForm = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
-  webhookUrl: string | null;
-  webhookSecret: string | null;
+  webhooks: FormWebhookSettings[];
   closesAt: string | null;
   maxResponses: number | null;
   closedManually: boolean;

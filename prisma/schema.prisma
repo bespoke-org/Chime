@@ -124,8 +124,6 @@ model Form {
   respondentLocale    String?
   showProgress        Boolean       @default(true)
   allowBackNavigation Boolean       @default(true)
-  webhookUrl          String?
-  webhookSecret       String?
   closesAt            DateTime?
   maxResponses        Int?
   closedManually      Boolean       @default(false)
@@ -139,6 +137,7 @@ model Form {
   uploads             Upload[]
   subscriptions       FormNotificationSubscription[]
   visits              FormVisit[]
+  webhooks            FormWebhook[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -158,6 +157,20 @@ model FormBlock {
   form        Form          @relation(fields: [formId], references: [id], onDelete: Cascade)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([formId, position(sort: Asc)])
+}
+
+// Each webhook receives every new response; position keeps the order the
+// creator added them in.
+model FormWebhook {
+  id        String   @id @default(cuid())
+  formId    String
+  url       String
+  secret    String?
+  position  Int
+  createdAt DateTime @default(now())
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@index([formId, position(sort: Asc)])
 }

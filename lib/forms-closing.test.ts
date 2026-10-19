@@ -5,8 +5,7 @@ type FormRecord = {
   slug: string;
   title: string;
   status: "PUBLISHED";
-  webhookUrl: null;
-  webhookSecret: null;
+  webhooks: [];
   closesAt: Date | null;
   maxResponses: number | null;
   closedManually: boolean;
@@ -76,8 +75,7 @@ function resetTestState(
     slug: "demo",
     title: "Demo",
     status: "PUBLISHED",
-    webhookUrl: null,
-    webhookSecret: null,
+    webhooks: [],
     closesAt: null,
     maxResponses: null,
     closedManually: false,

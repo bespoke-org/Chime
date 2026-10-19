@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { parseAvatarPath } from "@/lib/avatar-rules";
 import { blockTypeSchema } from "@/lib/blocks";
+import { MAX_FORM_WEBHOOKS } from "@/lib/form-types";
 import { supportedLocales } from "@/lib/i18n";
 import { isPublicWebhookUrl } from "@/lib/webhooks";
 
@@ -16,8 +17,15 @@ export const formMetadataSchema = z
     respondentLocale: z.enum(supportedLocales).nullable().default(null),
     showProgress: z.boolean().default(true),
     allowBackNavigation: z.boolean().default(true),
-    webhookUrl: z.string().trim().max(2048).nullable().default(null),
-    webhookSecret: z.string().trim().max(200).nullable().default(null),
+    webhooks: z
+      .array(
+        z.object({
+          url: z.string().trim().max(2048).default(""),
+          secret: z.string().trim().max(200).nullable().default(null),
+        }),
+      )
+      .max(MAX_FORM_WEBHOOKS)
+      .default([]),
     closesAt: z
       .string()
       .trim()
@@ -57,14 +65,16 @@ export const formMetadataSchema = z
       });
     }
 
-    if (value.webhookUrl && !isPublicWebhookUrl(value.webhookUrl)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["webhookUrl"],
-        message:
-          "Use a full http:// or https:// webhook URL that points to a public host.",
-      });
-    }
+    value.webhooks.forEach((webhook, index) => {
+      if (webhook.url && !isPublicWebhookUrl(webhook.url)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["webhooks", index, "url"],
+          message:
+            "Use a full http:// or https:// webhook URL that points to a public host.",
+        });
+      }
+    });
 
     if (!hasUrl) {
       return;
@@ -94,8 +104,10 @@ export const formMetadataSchema = z
     completionLinkLabel: value.completionLinkLabel || null,
     completionLinkUrl: value.completionLinkUrl || null,
     allowBackNavigation: value.allowBackNavigation,
-    webhookUrl: value.webhookUrl || null,
-    webhookSecret: value.webhookSecret || null,
+    // A card left without a URL is dropped rather than rejected.
+    webhooks: value.webhooks
+      .filter((webhook) => webhook.url)
+      .map((webhook) => ({ url: webhook.url, secret: webhook.secret || null })),
     closesAt: value.closesAt ? new Date(value.closesAt) : null,
   }));
 

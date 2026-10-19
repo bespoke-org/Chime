@@ -233,6 +233,13 @@ function StaticBlockRow({
   );
 }
 
+function toWebhookDrafts(webhooks: BuilderForm["webhooks"]) {
+  return webhooks.map((webhook) => ({
+    url: webhook.url,
+    secret: webhook.secret ?? "",
+  }));
+}
+
 export function FormBuilder({
   initialForm,
   initialMode = "standard",
@@ -269,8 +276,7 @@ export function FormBuilder({
     respondentLocale: initialForm.respondentLocale,
     showProgress: initialForm.showProgress,
     allowBackNavigation: initialForm.allowBackNavigation,
-    webhookUrl: initialForm.webhookUrl ?? "",
-    webhookSecret: initialForm.webhookSecret ?? "",
+    webhooks: toWebhookDrafts(initialForm.webhooks),
     closesAt: toDateTimeLocalValue(initialForm.closesAt),
     maxResponses:
       initialForm.maxResponses === null ? "" : String(initialForm.maxResponses),
@@ -409,8 +415,7 @@ export function FormBuilder({
       respondentLocale: form.respondentLocale,
       showProgress: form.showProgress,
       allowBackNavigation: form.allowBackNavigation,
-      webhookUrl: form.webhookUrl ?? "",
-      webhookSecret: form.webhookSecret ?? "",
+      webhooks: toWebhookDrafts(form.webhooks),
       closesAt: toDateTimeLocalValue(form.closesAt),
       maxResponses: form.maxResponses === null ? "" : String(form.maxResponses),
       closedManually: form.closedManually,
@@ -426,8 +431,7 @@ export function FormBuilder({
     form.respondentLocale,
     form.showProgress,
     form.allowBackNavigation,
-    form.webhookUrl,
-    form.webhookSecret,
+    form.webhooks,
     form.closesAt,
     form.maxResponses,
     form.closedManually,

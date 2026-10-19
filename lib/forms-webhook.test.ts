@@ -7,8 +7,7 @@ type FormRecord = {
   slug: string;
   title: string;
   status: "PUBLISHED";
-  webhookUrl: string | null;
-  webhookSecret: string | null;
+  webhooks: Array<{ url: string; secret: string | null }>;
   closesAt: Date | null;
   maxResponses: number | null;
   closedManually: boolean;
@@ -71,8 +70,7 @@ function resetTestState(overrides: Partial<FormRecord> = {}) {
     slug: "demo",
     title: "Demo",
     status: "PUBLISHED",
-    webhookUrl: null,
-    webhookSecret: null,
+    webhooks: [],
     closesAt: null,
     maxResponses: null,
     closedManually: false,
@@ -95,7 +93,7 @@ function captureDeliveries() {
 }
 
 describe("createAnonymousResponse webhook", () => {
-  test("does not call the deliverer when no webhook URL is set", async () => {
+  test("does not call the deliverer when the form has no webhooks", async () => {
     resetTestState();
     const deliveries = captureDeliveries();
 
@@ -112,8 +110,7 @@ describe("createAnonymousResponse webhook", () => {
 
   test("delivers the stored response to the configured URL", async () => {
     resetTestState({
-      webhookUrl: "https://example.com/hook",
-      webhookSecret: "s3cret",
+      webhooks: [{ url: "https://example.com/hook", secret: "s3cret" }],
     });
     const deliveries = captureDeliveries();
 
@@ -142,7 +139,9 @@ describe("createAnonymousResponse webhook", () => {
   });
 
   test("stores the response even when delivery fails", async () => {
-    resetTestState({ webhookUrl: "https://example.com/hook" });
+    resetTestState({
+      webhooks: [{ url: "https://example.com/hook", secret: null }],
+    });
     let called = 0;
     setWebhookDeliverer(async () => {
       called += 1;
@@ -155,6 +154,56 @@ describe("createAnonymousResponse webhook", () => {
       expect(response.id).toBe("resp-1");
       expect(createdResponses.length).toBe(1);
       expect(called).toBe(1);
+    } finally {
+      setWebhookDeliverer(null);
+    }
+  });
+
+  test("delivers the same payload to every webhook with its own secret", async () => {
+    resetTestState({
+      webhooks: [
+        { url: "https://one.example.com/hook", secret: "first" },
+        { url: "https://two.example.com/hook", secret: null },
+      ],
+    });
+    const deliveries = captureDeliveries();
+
+    try {
+      await createAnonymousResponse("demo", { "q-1": "Ada" });
+
+      expect(deliveries.map((delivery) => delivery.url).join(",")).toBe(
+        "https://one.example.com/hook,https://two.example.com/hook",
+      );
+      expect(deliveries[0].secret).toBe("first");
+      expect(deliveries[1].secret).toBe(null);
+      expect(deliveries[0].payload).toBe(deliveries[1].payload);
+    } finally {
+      setWebhookDeliverer(null);
+    }
+  });
+
+  test("a failing webhook does not stop the others", async () => {
+    resetTestState({
+      webhooks: [
+        { url: "https://down.example.com/hook", secret: null },
+        { url: "https://up.example.com/hook", secret: null },
+      ],
+    });
+    const called: string[] = [];
+    setWebhookDeliverer(async (input) => {
+      called.push(input.url);
+      return input.url.includes("down")
+        ? { ok: false, error: "timeout" }
+        : { ok: true, status: 200 };
+    });
+
+    try {
+      const response = await createAnonymousResponse("demo", { "q-1": "Ada" });
+
+      expect(response.id).toBe("resp-1");
+      expect(called.join(",")).toBe(
+        "https://down.example.com/hook,https://up.example.com/hook",
+      );
     } finally {
       setWebhookDeliverer(null);
     }
