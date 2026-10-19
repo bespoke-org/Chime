@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { FormBuilder } from "@/components/form-builder";
 import { requireServerSessionUser } from "@/lib/auth";
@@ -8,7 +9,8 @@ import { getOwnedFormForBuilder } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 
-async function getEditableForm(id: string) {
+// Shared by generateMetadata and the page so the form is loaded once.
+const getEditableForm = cache(async (id: string) => {
   const user = await requireServerSessionUser();
 
   try {
@@ -20,7 +22,7 @@ async function getEditableForm(id: string) {
 
     throw error;
   }
-}
+});
 
 export async function generateMetadata({
   params,

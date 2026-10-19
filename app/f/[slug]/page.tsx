@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { I18nProvider } from "@/components/i18n-provider";
 import { PublicFormClosed } from "@/components/public-form-closed";
@@ -13,7 +14,8 @@ import {
 } from "@/lib/i18n-server";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 
-async function getPublicForm(slug: string) {
+// Shared by generateMetadata and the page so the form is loaded once.
+const getPublicForm = cache(async (slug: string) => {
   const result = await getPublicFormBySlug(slug);
 
   if (!result) {
@@ -21,7 +23,7 @@ async function getPublicForm(slug: string) {
   }
 
   return result;
-}
+});
 
 export async function generateMetadata({
   params,

@@ -10,6 +10,7 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { normalizeLocale } from "@/lib/i18n";
@@ -124,9 +125,11 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export function getServerAuthSession() {
-  return getServerSession(authOptions);
-}
+// Layouts, metadata and pages each ask for the session; with the database
+// strategy every call is a query, so dedupe them within one request.
+export const getServerAuthSession = cache(() =>
+  getServerSession(authOptions),
+);
 
 type AuthenticatedSession = Session & {
   user: NonNullable<Session["user"]> & {

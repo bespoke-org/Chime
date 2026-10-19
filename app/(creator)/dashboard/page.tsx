@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
+import { cache } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
 import { DashboardFormBrowser } from "@/components/dashboard-form-browser";
@@ -12,7 +13,8 @@ import { getRequestI18n } from "@/lib/i18n-server";
 import { getActiveWorkspaceForUser } from "@/lib/workspaces";
 import { withTitle } from "@/lib/metadata";
 
-async function getDashboardData() {
+// Shared by generateMetadata and the page so the forms are loaded once.
+const getDashboardData = cache(async () => {
   const user = await requireServerSessionUser();
   const { t } = await getRequestI18n();
   const workspaceState = await getActiveWorkspaceForUser(user.id);
@@ -26,7 +28,7 @@ async function getDashboardData() {
       : workspaceState.activeOption.label;
 
   return { forms, workspaceLabel };
-}
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const { workspaceLabel } = await getDashboardData();

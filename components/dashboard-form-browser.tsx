@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
@@ -40,7 +40,6 @@ export function DashboardFormBrowser({
   forms: FormListItem[];
   workspaceLabel: string;
 }) {
-  const router = useRouter();
   const { locale, t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -60,9 +59,13 @@ export function DashboardFormBrowser({
     }
 
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-      scroll: false,
-    });
+    // The server page ignores ?view, so update the URL without a navigation;
+    // useSearchParams picks up history changes.
+    window.history.replaceState(
+      null,
+      "",
+      nextQuery ? `${pathname}?${nextQuery}` : pathname,
+    );
   }
 
   const sortedForms = useMemo(() => {

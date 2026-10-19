@@ -475,8 +475,11 @@ export async function createDraftForm(
 }
 
 export async function getOwnedFormForBuilder(userId: string, formId: string) {
-  const form = await assertAccessibleForm(userId, formId);
-  return toBuilderForm(form, await loadViewerNotificationState(userId, formId));
+  const [form, notificationState] = await Promise.all([
+    assertAccessibleForm(userId, formId),
+    loadViewerNotificationState(userId, formId),
+  ]);
+  return toBuilderForm(form, notificationState);
 }
 
 export async function updateOwnedFormMetadata(
