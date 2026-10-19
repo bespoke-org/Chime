@@ -83,6 +83,7 @@ settings:
       ru: Russian
   appearance:
     title: Theme settings
+    toggle: Switch theme
     description: Choose how Lively Forms looks across creator pages, public forms, and the home page.
     options:
       light:
