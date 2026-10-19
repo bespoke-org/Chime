@@ -44,7 +44,5 @@ export default async function GraphFormPage({
   const { id } = await params;
   const form = await getEditableForm(id);
 
-  return (
-    <FormBuilder initialForm={form} initialMode="graph" />
-  );
+  return <FormBuilder initialForm={form} initialMode="graph" />;
 }

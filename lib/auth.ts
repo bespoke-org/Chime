@@ -127,9 +127,7 @@ export const authOptions: NextAuthOptions = {
 
 // Layouts, metadata and pages each ask for the session; with the database
 // strategy every call is a query, so dedupe them within one request.
-export const getServerAuthSession = cache(() =>
-  getServerSession(authOptions),
-);
+export const getServerAuthSession = cache(() => getServerSession(authOptions));
 
 type AuthenticatedSession = Session & {
   user: NonNullable<Session["user"]> & {

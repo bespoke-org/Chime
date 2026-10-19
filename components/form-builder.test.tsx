@@ -1264,9 +1264,8 @@ describe("FormBuilder", () => {
       expect(view.getByText("Form title") !== null).toBe(true);
     });
 
-    const canvas = view.container.querySelector<HTMLElement>(
-      ".overscroll-x-none",
-    );
+    const canvas =
+      view.container.querySelector<HTMLElement>(".overscroll-x-none");
     if (!canvas) {
       throw new Error("Graph canvas not found");
     }
