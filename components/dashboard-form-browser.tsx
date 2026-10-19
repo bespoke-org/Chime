@@ -1,14 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import {
-  ArrowDown,
-  ArrowUp,
-  LayoutGrid,
-  Plus,
-  TableProperties,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { createFormAction } from "@/app/(creator)/actions";
@@ -18,9 +11,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import type { FormListItem } from "@/lib/form-types";
-import { cn, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
-type DashboardView = "grid" | "table";
 type SortKey = "title" | "status" | "responseCount" | "updatedAt";
 type SortDirection = "asc" | "desc";
 
@@ -41,32 +33,8 @@ export function DashboardFormBrowser({
   workspaceLabel: string;
 }) {
   const { locale, t } = useI18n();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const view: DashboardView =
-    searchParams.get("view") === "table" ? "table" : "grid";
-
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-
-  function setDashboardView(nextView: DashboardView) {
-    const nextParams = new URLSearchParams(searchParams.toString());
-
-    if (nextView === "grid") {
-      nextParams.delete("view");
-    } else {
-      nextParams.set("view", nextView);
-    }
-
-    const nextQuery = nextParams.toString();
-    // The server page ignores ?view, so update the URL without a navigation;
-    // useSearchParams picks up history changes.
-    window.history.replaceState(
-      null,
-      "",
-      nextQuery ? `${pathname}?${nextQuery}` : pathname,
-    );
-  }
 
   const sortedForms = useMemo(() => {
     const next = [...forms];
@@ -135,36 +103,6 @@ export function DashboardFormBrowser({
         className="pb-6"
         actions={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
-              <button
-                type="button"
-                onClick={() => setDashboardView("grid")}
-                className={cn(
-                  "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
-                  view === "grid"
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
-                    : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
-                )}
-                aria-pressed={view === "grid"}
-              >
-                <LayoutGrid className="size-4" />
-                {t("dashboard.viewGrid")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardView("table")}
-                className={cn(
-                  "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
-                  view === "table"
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
-                    : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
-                )}
-                aria-pressed={view === "table"}
-              >
-                <TableProperties className="size-4" />
-                {t("dashboard.viewTable")}
-              </button>
-            </div>
             <form action={createFormAction}>
               <Button size="lg" type="submit">
                 <Plus className="size-4" />
@@ -175,149 +113,84 @@ export function DashboardFormBrowser({
         }
       />
 
-      {view === "grid" ? (
-        <section className="grid gap-5 lg:grid-cols-2">
-          {sortedForms.map((form) => (
-            <Card key={form.id} className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="font-display text-3xl text-[var(--ink)]">
-                      {form.title}
-                    </h2>
+      <Card className="overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-[color:var(--line)] text-left">
+            <thead className="bg-[var(--bg-strong)] border-b border-[color:var(--line)] shadow-[inset_0_-1px_0_rgba(23,23,23,0.06)]">
+              <tr className="text-xs uppercase text-[var(--muted)]">
+                <th className="px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("title")}
+                    className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                  >
+                    {t("dashboard.titleColumn")}
+                    {renderSortIcon("title")}
+                  </button>
+                </th>
+                <th className="px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("status")}
+                    className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                  >
+                    {t("dashboard.statusColumn")}
+                    {renderSortIcon("status")}
+                  </button>
+                </th>
+                <th className="px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("responseCount")}
+                    className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                  >
+                    {t("dashboard.responses")}
+                    {renderSortIcon("responseCount")}
+                  </button>
+                </th>
+                <th className="px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("updatedAt")}
+                    className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
+                  >
+                    {t("dashboard.updated")}
+                    {renderSortIcon("updatedAt")}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[color:var(--line)] bg-[var(--surface-strong)] text-sm text-[var(--ink)]">
+              {sortedForms.map((form) => (
+                <tr key={form.id} className="align-top">
+                  <td className="px-5 py-4">
+                    <div className="min-w-[220px]">
+                      <Link
+                        href={`/forms/${form.id}/edit`}
+                        className="font-medium text-[var(--ink)] transition hover:text-[var(--accent)]"
+                      >
+                        {form.title}
+                      </Link>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
                     <FormStatusBadge
                       status={form.status}
                       closed={form.closed}
                     />
-                  </div>
-                </div>
-                <Link href={`/forms/${form.id}/edit`}>
-                  <Button size="sm">{t("dashboard.edit")}</Button>
-                </Link>
-              </div>
-
-              <div className="mt-6 grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-                    {t("dashboard.shareUrl")}
-                  </p>
-                  {form.status === "PUBLISHED" ? (
-                    <a
-                      href={`/f/${form.slug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 block truncate font-mono text-[13px] underline-offset-4 transition hover:text-[var(--accent)] hover:underline"
-                    >
-                      /f/{form.slug}
-                    </a>
-                  ) : (
-                    <p className="mt-2 truncate font-mono text-[13px]">
-                      /f/{form.slug}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-                    {t("dashboard.opened")}
-                  </p>
-                  <p className="mt-2">{form.visitCount}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-                    {t("dashboard.responses")}
-                  </p>
-                  <p className="mt-2">{form.responseCount}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-                    {t("dashboard.updated")}
-                  </p>
-                  <p className="mt-2">{formatDate(form.updatedAt, locale)}</p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </section>
-      ) : (
-        <Card className="overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-[color:var(--line)] text-left">
-              <thead className="bg-[var(--bg-strong)] border-b border-[color:var(--line)] shadow-[inset_0_-1px_0_rgba(23,23,23,0.06)]">
-                <tr className="text-xs uppercase text-[var(--muted)]">
-                  <th className="px-5 py-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("title")}
-                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
-                    >
-                      {t("dashboard.titleColumn")}
-                      {renderSortIcon("title")}
-                    </button>
-                  </th>
-                  <th className="px-5 py-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("status")}
-                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
-                    >
-                      {t("dashboard.statusColumn")}
-                      {renderSortIcon("status")}
-                    </button>
-                  </th>
-                  <th className="px-5 py-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("responseCount")}
-                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
-                    >
-                      {t("dashboard.responses")}
-                      {renderSortIcon("responseCount")}
-                    </button>
-                  </th>
-                  <th className="px-5 py-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("updatedAt")}
-                      className="inline-flex items-center gap-2 font-semibold transition hover:text-[var(--ink)]"
-                    >
-                      {t("dashboard.updated")}
-                      {renderSortIcon("updatedAt")}
-                    </button>
-                  </th>
+                  </td>
+                  <td className="px-5 py-4 text-[var(--muted)]">
+                    {form.responseCount}
+                  </td>
+                  <td className="px-5 py-4 text-[var(--muted)]">
+                    {formatDate(form.updatedAt, locale)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-[color:var(--line)] bg-[var(--surface-strong)] text-sm text-[var(--ink)]">
-                {sortedForms.map((form) => (
-                  <tr key={form.id} className="align-top">
-                    <td className="px-5 py-4">
-                      <div className="min-w-[220px]">
-                        <Link
-                          href={`/forms/${form.id}/edit`}
-                          className="font-medium text-[var(--ink)] transition hover:text-[var(--accent)]"
-                        >
-                          {form.title}
-                        </Link>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <FormStatusBadge
-                        status={form.status}
-                        closed={form.closed}
-                      />
-                    </td>
-                    <td className="px-5 py-4 text-[var(--muted)]">
-                      {form.responseCount}
-                    </td>
-                    <td className="px-5 py-4 text-[var(--muted)]">
-                      {formatDate(form.updatedAt, locale)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

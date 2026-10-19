@@ -131,8 +131,6 @@ dashboard:
   noFormsEyebrow: No forms yet
   noFormsTitle: "Create the first form in {workspace}"
   noFormsDescription: New forms start as drafts so you can edit before publishing.
-  viewGrid: Grid
-  viewTable: Table
   shareUrl: Share URL
   titleColumn: Title
   statusColumn: Status

@@ -131,8 +131,6 @@ dashboard:
   noFormsEyebrow: Форм пока нет
   noFormsTitle: "Создайте первую форму в пространстве {workspace}"
   noFormsDescription: Новые формы создаются как черновики, чтобы вы могли отредактировать их перед публикацией.
-  viewGrid: Сетка
-  viewTable: Таблица
   shareUrl: Публичный URL
   titleColumn: Название
   statusColumn: Статус
