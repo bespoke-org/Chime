@@ -136,6 +136,7 @@ dashboard:
   shareUrl: Публичный URL
   titleColumn: Название
   statusColumn: Статус
+  opened: Открыли
   responses: Ответы
   updated: Обновлено
   edit: Редактировать
@@ -412,6 +413,10 @@ publicRunner:
   continue: Далее
   submit: Отправить
 responses:
+  funnel:
+    opened: Открыли
+    started: Начали заполнять
+    submitted: Отправили
   submissionsCount: "{count} ответов"
   viewSubmissions: По ответам
   viewQuestions: По вопросам

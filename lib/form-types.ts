@@ -89,6 +89,7 @@ export type FormListItem = {
   closed: boolean;
   updatedAt: string;
   responseCount: number;
+  visitCount: number;
   workspace: WorkspaceReference;
 };
 

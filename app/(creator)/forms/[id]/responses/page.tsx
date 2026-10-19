@@ -17,6 +17,8 @@ import {
 } from "@/lib/blocks";
 import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
+import { getFunnelPercent } from "@/lib/form-funnel";
+import { countFormVisits } from "@/lib/form-visits";
 import { listResponsesForOwnedForm } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { resolveTitle, withTitle } from "@/lib/metadata";
@@ -68,6 +70,7 @@ export default async function ResponsesPage({
   const { locale, t } = await getRequestI18n();
   const { id } = await params;
   const { form, responses, questionSummaries } = await getResponsesData(id);
+  const visits = await countFormVisits(form.id);
   const { view } = await searchParams;
   const currentView = resolveView(view);
   const workspaceLabel =
@@ -77,6 +80,19 @@ export default async function ResponsesPage({
   const numberFormatter = new Intl.NumberFormat(locale, {
     maximumFractionDigits: 2,
   });
+  const funnelSteps = [
+    { key: "opened", count: visits.opened, percent: null },
+    {
+      key: "started",
+      count: visits.started,
+      percent: getFunnelPercent(visits.started, visits.opened),
+    },
+    {
+      key: "submitted",
+      count: responses.length,
+      percent: getFunnelPercent(responses.length, visits.opened),
+    },
+  ] as const;
   const questionsHref = `/forms/${form.id}/responses?view=questions`;
   const submissionsHref = `/forms/${form.id}/responses`;
 
@@ -114,6 +130,26 @@ export default async function ResponsesPage({
           </>
         }
       />
+
+      {/* Visits are counted per browser since tracking began, so the
+          shares are capped at 100% and absent when no visit was recorded. */}
+      <Card className="grid gap-4 p-5 sm:grid-cols-3">
+        {funnelSteps.map((step) => (
+          <div key={step.key}>
+            <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+              {t(`responses.funnel.${step.key}`)}
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-[var(--ink)]">
+              {step.count}
+              {step.key === "opened" ? null : (
+                <span className="ml-2 text-sm font-normal text-[var(--muted)]">
+                  {step.percent === null ? "—" : `${step.percent}%`}
+                </span>
+              )}
+            </p>
+          </div>
+        ))}
+      </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">

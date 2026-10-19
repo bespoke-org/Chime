@@ -46,6 +46,7 @@ import {
   type TextBlockConfig,
 } from "@/lib/blocks";
 import { resolveNextBlockId } from "@/lib/branching";
+import { sendFormVisitEvent } from "@/lib/form-visit-tracking";
 import type { AnswerValue, PublicForm, PublicBlock } from "@/lib/form-types";
 import { SUBMISSION_HONEYPOT_FIELD } from "@/lib/submission-guard";
 import {
@@ -484,6 +485,23 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+
+  // The funnel counts a visitor once on open and once on the first answer
+  // or step forward; both are fire-and-forget.
+  const hasSentStartRef = useRef(false);
+
+  useEffect(() => {
+    sendFormVisitEvent(form.slug, "open");
+  }, [form.slug]);
+
+  useEffect(() => {
+    if (!hasResolvedDraft || !hasDraftProgress || hasSentStartRef.current) {
+      return;
+    }
+
+    hasSentStartRef.current = true;
+    sendFormVisitEvent(form.slug, "start");
+  }, [form.slug, hasDraftProgress, hasResolvedDraft]);
 
   useEffect(() => {
     if (!hasResolvedDraft || isComplete) {

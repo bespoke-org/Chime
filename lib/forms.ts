@@ -411,6 +411,7 @@ export async function listFormsForWorkspace(
       _count: {
         select: {
           responses: true,
+          visits: true,
         },
       },
     },
@@ -430,6 +431,7 @@ export async function listFormsForWorkspace(
     closed: !getFormAvailability(form, form._count.responses, now).open,
     updatedAt: form.updatedAt.toISOString(),
     responseCount: form._count.responses,
+    visitCount: form._count.visits,
     workspace: toWorkspaceReference(form),
   }));
 }

@@ -196,7 +196,7 @@ export function DashboardFormBrowser({
                 </Link>
               </div>
 
-              <div className="mt-6 grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-3">
+              <div className="mt-6 grid gap-3 text-sm text-[var(--muted)] sm:grid-cols-4">
                 <div>
                   <p className="text-xs font-semibold uppercase text-[var(--accent)]">
                     {t("dashboard.shareUrl")}
@@ -215,6 +215,12 @@ export function DashboardFormBrowser({
                       /f/{form.slug}
                     </p>
                   )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                    {t("dashboard.opened")}
+                  </p>
+                  <p className="mt-2">{form.visitCount}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase text-[var(--accent)]">

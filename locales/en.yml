@@ -136,6 +136,7 @@ dashboard:
   shareUrl: Share URL
   titleColumn: Title
   statusColumn: Status
+  opened: Opened
   responses: Responses
   updated: Updated
   edit: Edit
@@ -412,6 +413,10 @@ publicRunner:
   continue: Continue
   submit: Submit
 responses:
+  funnel:
+    opened: Opened
+    started: Started
+    submitted: Submitted
   submissionsCount: "{count} submissions"
   viewSubmissions: By submissions
   viewQuestions: By questions

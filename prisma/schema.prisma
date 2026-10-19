@@ -138,6 +138,7 @@ model Form {
   responses           Response[]
   uploads             Upload[]
   subscriptions       FormNotificationSubscription[]
+  visits              FormVisit[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -159,6 +160,19 @@ model FormBlock {
   updatedAt   DateTime      @updatedAt
 
   @@index([formId, position(sort: Asc)])
+}
+
+// One row per browser per form: opening the public form records it, and
+// the first answer sets startedAt. Holds no personal data.
+model FormVisit {
+  id        String    @id @default(cuid())
+  formId    String
+  visitorId String
+  openedAt  DateTime  @default(now())
+  startedAt DateTime?
+  form      Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, visitorId])
 }
 
 model FormNotificationSubscription {
