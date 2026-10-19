@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { parseAvatarPath } from "@/lib/avatar-rules";
 import { blockTypeSchema } from "@/lib/blocks";
 import { supportedLocales } from "@/lib/i18n";
 import { isPublicWebhookUrl } from "@/lib/webhooks";
@@ -149,7 +150,7 @@ export const profileSettingsSchema = z
       });
     }
 
-    if (!value.image) {
+    if (!value.image || parseAvatarPath(value.image)) {
       return;
     }
 

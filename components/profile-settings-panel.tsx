@@ -1,7 +1,7 @@
 "use client";
 
-import { LoaderCircle, Save } from "lucide-react";
-import { useState } from "react";
+import { ImageUp, LoaderCircle, Save } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { updateProfileAction } from "@/app/(creator)/actions";
 import { useI18n } from "@/components/i18n-provider";
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AVATAR_CONTENT_TYPES, AVATAR_MAX_BYTES } from "@/lib/avatar-rules";
 import { supportedLocales } from "@/lib/i18n";
 import type { ProfileSettingsUserSummary } from "@/lib/form-types";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,66 @@ export function ProfileSettingsPanel({
   const router = useRouter();
   const [locale, setLocale] = useState(user.locale);
   const [isPending, setIsPending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Asks for a presigned URL, sends the file straight to object storage,
+  // then confirms so the server checks it and sets it as the avatar.
+  async function uploadAvatar(file: File) {
+    setUploadError(null);
+
+    if (
+      !(AVATAR_CONTENT_TYPES as readonly string[]).includes(file.type) ||
+      file.size > AVATAR_MAX_BYTES
+    ) {
+      setUploadError(t("settings.profile.uploadImageHelp"));
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const request = await fetch("/api/me/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: file.type, size: file.size }),
+      });
+      const upload = (await request.json()) as {
+        uploadId: string;
+        url: string;
+        headers: Record<string, string>;
+      };
+
+      if (!request.ok) {
+        throw new Error("upload request failed");
+      }
+
+      const put = await fetch(upload.url, {
+        method: "PUT",
+        headers: upload.headers,
+        body: file,
+      });
+
+      if (!put.ok) {
+        throw new Error("upload failed");
+      }
+
+      const confirm = await fetch(`/api/me/avatar/${upload.uploadId}`, {
+        method: "POST",
+      });
+
+      if (!confirm.ok) {
+        throw new Error("upload confirmation failed");
+      }
+
+      router.refresh();
+    } catch {
+      setUploadError(t("settings.profile.uploadImageError"));
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   async function submitProfile(formData: FormData) {
     setIsPending(true);
@@ -74,6 +135,45 @@ export function ProfileSettingsPanel({
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
               {t("settings.profile.profilePictureDescription")}
             </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={AVATAR_CONTENT_TYPES.join(",")}
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+
+                  if (file) {
+                    void uploadAvatar(file);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploading ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <ImageUp className="size-4" />
+                )}
+                {t("settings.profile.uploadImage")}
+              </Button>
+              <span
+                className={
+                  uploadError
+                    ? "text-xs text-[var(--danger)]"
+                    : "text-xs text-[var(--muted)]"
+                }
+              >
+                {uploadError ?? t("settings.profile.uploadImageHelp")}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -104,9 +204,14 @@ export function ProfileSettingsPanel({
           <span className="font-medium text-[var(--ink)]">
             {t("settings.profile.imageUrl")}
           </span>
+          {/* Text, not url: an uploaded avatar is an app path like
+              /api/avatars/..., which the url type would reject. Keyed so
+              a new upload replaces the value. */}
           <Input
+            key={user.image ?? ""}
             name="image"
-            type="url"
+            type="text"
+            inputMode="url"
             defaultValue={user.image ?? ""}
             placeholder="https://example.com/avatar.jpg"
           />

@@ -69,7 +69,10 @@ settings:
     title: Your profile
     description: Choose how your identity appears across creator surfaces, workspace member lists, and the navbar menu.
     profilePicture: Profile picture
-    profilePictureDescription: Paste a public image URL to set or replace your current avatar.
+    profilePictureDescription: Upload an image or paste a public image URL below.
+    uploadImage: Upload image
+    uploadImageHelp: JPEG, PNG or WebP up to 2 MB.
+    uploadImageError: Could not upload the image. Try again.
     firstName: First name
     secondName: Second name
     imageUrl: Profile image URL

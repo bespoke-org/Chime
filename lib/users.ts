@@ -1,3 +1,4 @@
+import { removeReplacedAvatar } from "@/lib/avatars";
 import { db } from "@/lib/db";
 import { normalizeLocale, type AppLocale } from "@/lib/i18n";
 import { AppError } from "@/lib/errors";
@@ -68,8 +69,12 @@ export async function updateProfileSettings(
 ) {
   const parsed = profileSettingsSchema.parse(payload);
   const name = getComposedName(parsed.firstName, parsed.secondName);
+  const previous = await db.user.findUnique({
+    where: { id: userId },
+    select: { image: true },
+  });
 
-  return db.user.update({
+  const user = await db.user.update({
     where: { id: userId },
     data: {
       name,
@@ -90,6 +95,9 @@ export async function updateProfileSettings(
       notificationEmail: true,
     },
   });
+
+  await removeReplacedAvatar(userId, previous?.image ?? null, user.image);
+  return user;
 }
 
 type AtprotoProfilePayload = {

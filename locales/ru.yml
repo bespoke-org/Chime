@@ -69,7 +69,10 @@ settings:
     title: Ваш профиль
     description: Выберите, как ваша идентичность отображается в интерфейсе создателя, списках участников пространства и меню в навбаре.
     profilePicture: Аватар
-    profilePictureDescription: Вставьте публичный URL изображения, чтобы установить или заменить текущий аватар.
+    profilePictureDescription: Загрузите изображение или вставьте публичную ссылку на него ниже.
+    uploadImage: Загрузить изображение
+    uploadImageHelp: JPEG, PNG или WebP до 2 МБ.
+    uploadImageError: Не удалось загрузить изображение. Попробуйте ещё раз.
     firstName: Имя
     secondName: Фамилия
     imageUrl: URL изображения профиля
