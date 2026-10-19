@@ -192,7 +192,7 @@ export function DashboardFormBrowser({
                   </div>
                 </div>
                 <Link href={`/forms/${form.id}/edit`}>
-                  <Button size="sm">{t("dashboard.open")}</Button>
+                  <Button size="sm">{t("dashboard.edit")}</Button>
                 </Link>
               </div>
 
@@ -201,9 +201,20 @@ export function DashboardFormBrowser({
                   <p className="text-xs font-semibold uppercase text-[var(--accent)]">
                     {t("dashboard.shareUrl")}
                   </p>
-                  <p className="mt-2 truncate font-mono text-[13px]">
-                    /{form.slug}
-                  </p>
+                  {form.status === "PUBLISHED" ? (
+                    <a
+                      href={`/f/${form.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 block truncate font-mono text-[13px] underline-offset-4 transition hover:text-[var(--accent)] hover:underline"
+                    >
+                      /f/{form.slug}
+                    </a>
+                  ) : (
+                    <p className="mt-2 truncate font-mono text-[13px]">
+                      /f/{form.slug}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase text-[var(--accent)]">

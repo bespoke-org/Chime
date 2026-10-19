@@ -133,7 +133,7 @@ dashboard:
   statusColumn: Status
   responses: Responses
   updated: Updated
-  open: Open
+  edit: Edit
 builder:
   settings: Settings
   responses: "Responses ({count})"

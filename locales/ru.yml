@@ -133,7 +133,7 @@ dashboard:
   statusColumn: Статус
   responses: Ответы
   updated: Обновлено
-  open: Открыть
+  edit: Редактировать
 builder:
   settings: Настройки
   responses: "Ответы ({count})"
