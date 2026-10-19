@@ -500,14 +500,23 @@ export function FormBuilder({
     }
   }
 
+  // The title changes at once and changes back on failure, so the old one
+  // does not flash while the request is in flight.
   async function renameForm(title: string) {
-    await withTask("rename", async () => {
+    const previous = form.title;
+    setForm((current) => ({ ...current, title }));
+
+    const saved = await withTask("rename", async () => {
       const payload = await patchMetadata({ ...metadataDraft, title });
 
       setForm(payload.form);
       setMetadataDraft((current) => ({ ...current, title }));
       showToast(t("builder.toasts.renamedForm"));
     });
+
+    if (!saved) {
+      setForm((current) => ({ ...current, title: previous }));
+    }
   }
 
   async function addBlockNow(type: BlockType) {
