@@ -37,9 +37,9 @@ export const blockTypeValues = [
 export const blockTypeSchema = z.enum(blockTypeValues);
 
 export const blockTypeLabels: Record<PrismaFormBlockType, string> = {
-  TEXT: "Text block",
-  SHORT_TEXT: "Short text",
-  LONG_TEXT: "Long text",
+  TEXT: "Info text",
+  SHORT_TEXT: "Short answer",
+  LONG_TEXT: "Long answer",
   SINGLE_CHOICE: "Single choice",
   MULTIPLE_CHOICE: "Multiple choice",
   NUMBER: "Number",

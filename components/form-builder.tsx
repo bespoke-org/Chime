@@ -43,6 +43,11 @@ import { useI18n } from "@/components/i18n-provider";
 import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ToastViewport } from "@/components/ui/toast";
 import {
   getBranchRules,
@@ -281,7 +286,6 @@ export function FormBuilder({
   const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] =
     useState<PendingNavigation | null>(null);
-  const blockMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedBlock = useMemo(
     () =>
@@ -426,21 +430,6 @@ export function FormBuilder({
   useEffect(() => {
     setIsDndReady(true);
   }, []);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!blockMenuRef.current?.contains(event.target as Node)) {
-        setIsBlockMenuOpen(false);
-      }
-    }
-
-    if (!isBlockMenuOpen) {
-      return;
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => window.removeEventListener("pointerdown", handlePointerDown);
-  }, [isBlockMenuOpen]);
 
   async function withTask(task: string, runner: () => Promise<void>) {
     setBusy(task);
@@ -1099,10 +1088,7 @@ export function FormBuilder({
                 <h2 className="font-display text-3xl text-[var(--ink)]">
                   {t("builder.blocks")}
                 </h2>
-                <div
-                  className="relative flex items-center gap-2"
-                  ref={blockMenuRef}
-                >
+                <div className="flex items-center gap-2">
                   <Button
                     size="icon"
                     variant="secondary"
@@ -1116,18 +1102,25 @@ export function FormBuilder({
                       strokeWidth={2.25}
                     />
                   </Button>
-                  <Button
-                    size="icon"
-                    onClick={() => setIsBlockMenuOpen((current) => !current)}
-                    aria-label={t("builder.newBlock")}
-                    title={t("builder.newBlock")}
-                    aria-expanded={isBlockMenuOpen}
-                    aria-haspopup="menu"
+                  {/* The menu renders in a portal, so the sidebar's overflow
+                      does not clip it. */}
+                  <Popover
+                    open={isBlockMenuOpen}
+                    onOpenChange={setIsBlockMenuOpen}
                   >
-                    <Plus size={18} color="var(--bg)" strokeWidth={2.5} />
-                  </Button>
-                  {isBlockMenuOpen ? (
-                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="icon"
+                        aria-label={t("builder.newBlock")}
+                        title={t("builder.newBlock")}
+                      >
+                        <Plus size={18} color="var(--bg)" strokeWidth={2.5} />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[18px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]"
+                    >
                       <div className="grid gap-1">
                         {blockCreationOrder.map((type) => {
                           const Icon = blockIcons[type];
@@ -1154,8 +1147,8 @@ export function FormBuilder({
                           );
                         })}
                       </div>
-                    </div>
-                  ) : null}
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 

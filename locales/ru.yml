@@ -334,9 +334,9 @@ builder:
     reorderError: Не удалось изменить порядок блоков.
 blocks:
   types:
-    TEXT: Текстовый блок
-    SHORT_TEXT: Короткий текст
-    LONG_TEXT: Длинный текст
+    TEXT: Пояснение
+    SHORT_TEXT: Короткий ответ
+    LONG_TEXT: Длинный ответ
     SINGLE_CHOICE: Один вариант
     MULTIPLE_CHOICE: Несколько вариантов
     NUMBER: Число
