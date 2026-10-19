@@ -22,12 +22,16 @@ function readString(value: string | undefined) {
 }
 
 // Plain S3 with path-style addressing, so Garage, MinIO, Ceph or AWS all
-// work. S3_PUBLIC_ENDPOINT is what the browser reaches for presigned URLs;
-// it defaults to the server-side endpoint.
+// work. S3_PUBLIC_ENDPOINT is what the browser reaches for presigned URLs.
+// In development it defaults to the server-side endpoint; in production it
+// is required, because the internal endpoint (a loopback or private address)
+// is unreachable from the browser and the upload would fail there instead of
+// the block answering "not available".
 export function getObjectStorageConfig(
   env: Record<string, string | undefined> = process.env,
 ): ObjectStorageConfig | null {
   const endpoint = readString(env.S3_ENDPOINT);
+  const publicEndpoint = readString(env.S3_PUBLIC_ENDPOINT);
   const bucket = readString(env.S3_BUCKET);
   const accessKeyId = readString(env.S3_ACCESS_KEY_ID);
   const secretAccessKey = readString(env.S3_SECRET_ACCESS_KEY);
@@ -36,12 +40,13 @@ export function getObjectStorageConfig(
     return null;
   }
 
+  if (!publicEndpoint && env.NODE_ENV === "production") {
+    return null;
+  }
+
   return {
     endpoint: endpoint.replace(/\/+$/, ""),
-    publicEndpoint: (readString(env.S3_PUBLIC_ENDPOINT) ?? endpoint).replace(
-      /\/+$/,
-      "",
-    ),
+    publicEndpoint: (publicEndpoint ?? endpoint).replace(/\/+$/, ""),
     region: readString(env.S3_REGION) ?? "garage",
     bucket,
     accessKeyId,

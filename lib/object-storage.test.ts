@@ -45,6 +45,23 @@ describe("getObjectStorageConfig", () => {
     expect(isObjectStorageConfigured({ ...env, S3_BUCKET: " " })).toBe(false);
     expect(isObjectStorageConfigured({})).toBe(false);
   });
+
+  test("production requires the public endpoint", () => {
+    const { S3_PUBLIC_ENDPOINT: _unused, ...rest } = env;
+    void _unused;
+    expect(isObjectStorageConfigured({ ...rest, NODE_ENV: "production" })).toBe(
+      false,
+    );
+    expect(getObjectStorageConfig({ ...rest, NODE_ENV: "production" })).toBe(
+      null,
+    );
+    expect(isObjectStorageConfigured({ ...env, NODE_ENV: "production" })).toBe(
+      true,
+    );
+    expect(
+      isObjectStorageConfigured({ ...rest, NODE_ENV: "development" }),
+    ).toBe(true);
+  });
 });
 
 describe("presigned URLs", () => {

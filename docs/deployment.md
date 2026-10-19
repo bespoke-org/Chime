@@ -161,32 +161,33 @@ Set `NEXTAUTH_URL` and `ATPROTO_PUBLIC_URL` to the same public base URL. If the 
 
 ## Production deployment checklist
 
-1. Provision a PostgreSQL database.
-2. Set the required environment variables.
-3. Configure the public ATProto client metadata and callback URLs for the production domain.
-4. Install dependencies:
+The stage server runs the containers with podman and podman-compose; docker is not installed there and must not be. `bun run deploy` (`scripts/deploy.sh`) does the steps below over ssh for `DEPLOY_HOST` (default `root@10.72.30.114`, directory `/opt/lively-forms`):
 
-   ```bash
-   bun install
-   ```
+1. Copies the tree without `.git`, `.env`, `.next` and `node_modules`, installs podman, podman-compose, node 22 and bun when they are missing.
+2. Creates `.env` with a generated `AUTH_SECRET` if there is none, pins `NEXTAUTH_URL` and the `ATPROTO_*` URLs to `PUBLIC_URL` (default `https://forms.alivetech.org`) and appends the optional keys as commented placeholders. Existing values are kept.
+3. Removes the stale `the-forms-postgres` container, starts `compose.yaml` (Postgres and Garage) and waits for Postgres.
+4. Sets up Garage with `scripts/garage-init.sh`: layout, bucket `lively-forms`, key `lively-forms`, CORS rule for `PUBLIC_URL`; writes `S3_ENDPOINT=http://127.0.0.1:3900`, `S3_REGION`, `S3_BUCKET`, the key pair (only when `.env` has none) and `S3_PUBLIC_ENDPOINT=STORAGE_PUBLIC_URL` (default `https://storage.forms.alivetech.org`, proxied by the gate to port 3900 on the server). In production `S3_PUBLIC_ENDPOINT` is required: without it the storage counts as not configured and the `FILE_UPLOAD` block answers that uploads are not available instead of handing the browser an unreachable URL.
+5. Runs `bunx prisma migrate deploy` and `bun run build`.
+6. Installs two systemd units: `lively-forms-compose.service` (oneshot, `podman-compose up -d` on boot, `down` on stop; podman does not restart containers after a reboot by itself) and `lively-forms.service` (`bun run start` on port 8000, `Requires=` and `After=` the compose unit). Both are enabled.
+7. Schedules `bun run uploads:cleanup` daily at 04:00 through `/etc/cron.d/lively-forms-cleanup` when `crond` is active, otherwise through `lively-forms-cleanup.timer`.
+8. Prints the state of both units and the status code of `http://127.0.0.1:8000/`.
 
-5. Run production database migrations:
+Flags, all passed as environment variables:
 
-   ```bash
-   bunx prisma migrate deploy
-   ```
+- `RESET_DB=1` runs `podman-compose down -v` before starting the containers: the database and the stored files are dropped and the migrations apply to an empty database. Default `0`.
+- `ENABLE_STORAGE=0` skips the Garage setup. Default `1`.
+- `SYNC_PROVIDER_ENV=1` copies the `OIDC_*`, `GITHUB_*` and `GOOGLE_*` lines of the local `.env` into the server `.env`, replacing the keys that exist there. Default `0`. The values travel through the ssh pipe and are not printed.
+- `STORAGE_PUBLIC_URL`, `PUBLIC_URL`, `DEPLOY_HOST`, `DEPLOY_DIR`, `PORT` override the defaults named above.
 
-6. Build the app:
+Example:
 
-   ```bash
-   bun run build
-   ```
+```bash
+RESET_DB=1 SYNC_PROVIDER_ENV=1 bun run deploy
+```
 
-7. Start the server with your process manager of choice:
+After a deployment with new providers, register the production callback URLs at each provider (`<public url>/api/auth/callback/oidc`, `/github`, `/google`), see the sections above.
 
-   ```bash
-   bun run start
-   ```
+Without the script, on any host: provision PostgreSQL and an S3-compatible bucket, set the variables, then `bun install`, `bunx prisma migrate deploy`, `bun run build` and `bun run start` under a process manager.
 
 ## Webhooks
 
@@ -271,7 +272,7 @@ Executable and HTML types (`application/x-msdownload`, `application/x-sh`, `appl
 Uploads that were requested but never attached to a response stay `PENDING`. Remove them, with their objects, from cron:
 
 ```cron
-0 * * * * cd /opt/lively-forms && set -a && . ./.env && set +a && bun run uploads:cleanup
+0 4 * * * root cd /opt/lively-forms && set -a && . ./.env && set +a && /root/.bun/bin/bun run uploads:cleanup
 ```
 
 The script deletes pending uploads older than 24 hours in batches of 1000. Deleting a form, a file block or an organization removes the objects of its uploads from storage after the rows are gone; a failed object delete is logged and does not fail the request. Responses cannot be deleted individually, so their files stay with the form.
@@ -281,3 +282,5 @@ The script deletes pending uploads older than 24 hours in batches of 1000. Delet
 - The build runs translation validation before Next.js production build.
 - Response exports are generated inside the app; no separate worker is required.
 - Editing a published form updates the live public form immediately.
+`scripts/deploy.sh` installs this line as `/etc/cron.d/lively-forms-cleanup`.
+
