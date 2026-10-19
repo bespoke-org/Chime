@@ -284,6 +284,9 @@ export function FormBuilder({
   const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
   const [isDeleteFormDialogOpen, setIsDeleteFormDialogOpen] = useState(false);
   const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
+  const [blockIdPendingDelete, setBlockIdPendingDelete] = useState<
+    string | null
+  >(null);
   const [pendingNavigation, setPendingNavigation] =
     useState<PendingNavigation | null>(null);
 
@@ -356,6 +359,47 @@ export function FormBuilder({
     lastPathname.current = pathname;
     setBuilderMode(pathname.endsWith("/graph") ? "graph" : "standard");
   }, [pathname]);
+
+  // Backspace or Delete asks to remove the selected block, unless the key
+  // is meant for a text field or a dialog is already open.
+  const blockIdForDeleteKey =
+    builderMode === "graph"
+      ? graphSelectedBlockId
+      : selection.kind === "block"
+        ? selection.blockId
+        : null;
+  const isAnyDialogOpen =
+    isDeleteFormDialogOpen ||
+    isUnpublishDialogOpen ||
+    pendingNavigation !== null ||
+    blockIdPendingDelete !== null;
+
+  useEffect(() => {
+    if (!blockIdForDeleteKey || isAnyDialogOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Backspace" && event.key !== "Delete") {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+
+      if (
+        target?.isContentEditable ||
+        target?.closest("input, textarea, select, [role='dialog']")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setBlockIdPendingDelete(blockIdForDeleteKey);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [blockIdForDeleteKey, isAnyDialogOpen]);
 
   useEffect(() => {
     if (builderMode !== "graph") {
@@ -776,6 +820,15 @@ export function FormBuilder({
     });
   }
 
+  async function confirmDeleteBlock() {
+    if (!blockIdPendingDelete) {
+      return;
+    }
+
+    await deleteBlock(blockIdPendingDelete);
+    setBlockIdPendingDelete(null);
+  }
+
   async function setPublished(published: boolean) {
     await withTask("publish", async () => {
       const payload = await fetchJson<{ form: BuilderForm }>(
@@ -891,6 +944,16 @@ export function FormBuilder({
         cancelLabel={t("ui.cancel")}
         pending={busy === "delete-form"}
         onConfirm={confirmDeleteForm}
+      />
+      <ConfirmDialog
+        open={blockIdPendingDelete !== null}
+        onClose={() => setBlockIdPendingDelete(null)}
+        title={t("builder.deleteBlockTitle")}
+        description={t("builder.deleteBlockDescription")}
+        confirmLabel={t("ui.delete")}
+        cancelLabel={t("ui.cancel")}
+        pending={busy === `delete-${blockIdPendingDelete}`}
+        onConfirm={confirmDeleteBlock}
       />
       <ConfirmDialog
         open={isUnpublishDialogOpen}

@@ -218,6 +218,8 @@ builder:
   deleteForm: Delete form
   deleteFormTitle: Delete form?
   deleteFormDescription: This will also delete all blocks and responses. This action cannot be undone.
+  deleteBlockTitle: Delete block?
+  deleteBlockDescription: The block and its settings will be removed. This action cannot be undone.
   unpublishTitle: Unpublish form?
   unpublishDescription: "The form has {count} responses. They stay available, but the public link stops accepting new ones until you publish again."
   saveFormSettings: Save form settings

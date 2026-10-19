@@ -1193,4 +1193,54 @@ describe("FormBuilder", () => {
     globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);
   });
+
+  test("asks to delete the selected block on Backspace outside text fields", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const secondBlock = createBlock({
+      id: "block-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+    });
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock, secondBlock]));
+
+    fireEvent.keyDown(view.getByDisplayValue("First question"), {
+      key: "Backspace",
+    });
+    expect(view.queryByText("builder.deleteBlockTitle")).toBe(null);
+
+    fireEvent.keyDown(document.body, { key: "Backspace" });
+
+    await waitFor(() => {
+      expect(view.getByText("builder.deleteBlockTitle") !== null).toBe(true);
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "ui.delete" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(1);
+    });
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/blocks/block-1");
+    expect(fetchCalls[0]?.init?.method).toBe("DELETE");
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
 });
