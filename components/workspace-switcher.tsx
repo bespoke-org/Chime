@@ -8,12 +8,16 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { useI18n } from "@/components/i18n-provider";
 import { cn } from "@/lib/utils";
 import type { CreatorWorkspaceOption } from "@/lib/form-types";
+
+// Not a workspace: picking it opens the settings section with the create form.
+const CREATE_WORKSPACE_VALUE = "create";
 
 export function WorkspaceSwitcher({
   options,
@@ -38,6 +42,11 @@ export function WorkspaceSwitcher({
       value={activeValue}
       disabled={isPending}
       onValueChange={(value) => {
+        if (value === CREATE_WORKSPACE_VALUE) {
+          router.push("/settings?section=organizations");
+          return;
+        }
+
         const formData = new FormData();
         formData.set("workspace", value);
 
@@ -64,6 +73,10 @@ export function WorkspaceSwitcher({
               : ""}
           </SelectItem>
         ))}
+        <SelectSeparator />
+        <SelectItem value={CREATE_WORKSPACE_VALUE}>
+          {t("workspace.create")}
+        </SelectItem>
       </SelectContent>
     </Select>
   );
