@@ -161,18 +161,44 @@ model FormBlock {
   @@index([formId, position(sort: Asc)])
 }
 
-// Each webhook receives every new response; position keeps the order the
-// creator added them in.
-model FormWebhook {
-  id        String   @id @default(cuid())
-  formId    String
-  url       String
-  secret    String?
-  position  Int
-  createdAt DateTime @default(now())
-  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+enum WebhookMode {
+  IMMEDIATE
+  DIGEST
+}
 
-  @@index([formId, position(sort: Asc)])
+enum DigestInterval {
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+// A webhook either receives every new response as it arrives or a periodic
+// batch of the responses stored since the previous batch. digestTime is a
+// local "HH:MM" in DIGEST_TIMEZONE; digestWeekday counts from Sunday = 0.
+// lastDigestAt is the end of the last period that was delivered or found
+// empty. A webhook belongs to exactly one form or one organization; the
+// FormWebhook_one_owner check in the migration enforces that. An
+// organization webhook covers every form of the organization.
+model FormWebhook {
+  id             String          @id @default(cuid())
+  formId         String?
+  organizationId String?
+  url            String
+  secret         String?
+  enabled        Boolean         @default(true)
+  mode           WebhookMode     @default(IMMEDIATE)
+  digestInterval DigestInterval?
+  digestTime     String?
+  digestWeekday  Int?
+  lastDigestAt   DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  form           Form?           @relation(fields: [formId], references: [id], onDelete: Cascade)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([organizationId])
+  @@index([mode, enabled])
 }
 
 // One row per browser per form: opening the public form records it, and
@@ -238,6 +264,7 @@ model Organization {
   memberships OrganizationMembership[]
   inviteLinks OrganizationInviteLink[]
   forms       Form[]
+  webhooks    FormWebhook[]
   createdAt   DateTime                 @default(now())
   updatedAt   DateTime                 @updatedAt
 

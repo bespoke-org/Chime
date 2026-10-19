@@ -2,12 +2,20 @@ import { describe, expect, test } from "bun:test";
 
 import type { WebhookDeliveryInput } from "@/lib/webhooks";
 
+type WebhookRecord = {
+  url: string;
+  secret: string | null;
+  enabled?: boolean;
+  mode?: "IMMEDIATE" | "DIGEST";
+};
+
 type FormRecord = {
   id: string;
   slug: string;
   title: string;
   status: "PUBLISHED";
-  webhooks: Array<{ url: string; secret: string | null }>;
+  webhooks: WebhookRecord[];
+  organization?: { webhooks: WebhookRecord[] } | null;
   closesAt: Date | null;
   maxResponses: number | null;
   closedManually: boolean;
@@ -27,10 +35,41 @@ const { mock } = (await import("bun:test")) as unknown as {
 // inside Next.js.
 mock.module("server-only", () => ({}));
 
+type WebhookWhere = { where: { enabled: boolean; mode: string } };
+
+function applyWebhookWhere(webhooks: WebhookRecord[], filter: WebhookWhere) {
+  return webhooks.filter(
+    (webhook) =>
+      (webhook.enabled ?? true) === filter.where.enabled &&
+      (webhook.mode ?? "IMMEDIATE") === filter.where.mode,
+  );
+}
+
 mock.module("@/lib/db", () => ({
   db: {
     form: {
-      findFirst: async () => currentForm,
+      // Applies the include filters on webhooks the way the database would.
+      findFirst: async (args: {
+        include: {
+          webhooks: WebhookWhere;
+          organization: { select: { webhooks: WebhookWhere } };
+        };
+      }) =>
+        currentForm && {
+          ...currentForm,
+          webhooks: applyWebhookWhere(
+            currentForm.webhooks,
+            args.include.webhooks,
+          ),
+          organization: currentForm.organization
+            ? {
+                webhooks: applyWebhookWhere(
+                  currentForm.organization.webhooks,
+                  args.include.organization.select.webhooks,
+                ),
+              }
+            : null,
+        },
     },
     response: {
       create: async (args: { data: Record<string, unknown> }) => {
@@ -208,6 +247,31 @@ describe("createAnonymousResponse webhook", () => {
     }
   });
 
+  test("skips disabled and digest webhooks", async () => {
+    resetTestState({
+      webhooks: [
+        { url: "https://off.example.com/hook", secret: null, enabled: false },
+        {
+          url: "https://digest.example.com/hook",
+          secret: null,
+          mode: "DIGEST",
+        },
+        { url: "https://now.example.com/hook", secret: null },
+      ],
+    });
+    const deliveries = captureDeliveries();
+
+    try {
+      await createAnonymousResponse("demo", { "q-1": "Ada" });
+
+      expect(deliveries.map((delivery) => delivery.url).join(",")).toBe(
+        "https://now.example.com/hook",
+      );
+    } finally {
+      setWebhookDeliverer(null);
+    }
+  });
+
   test("a failing webhook does not stop the others", async () => {
     resetTestState({
       webhooks: [
@@ -229,6 +293,89 @@ describe("createAnonymousResponse webhook", () => {
       expect(response.id).toBe("resp-1");
       expect(called.join(",")).toBe(
         "https://down.example.com/hook,https://up.example.com/hook",
+      );
+    } finally {
+      setWebhookDeliverer(null);
+    }
+  });
+
+  test("delivers to the organization's immediate webhooks after the form's", async () => {
+    resetTestState({
+      webhooks: [{ url: "https://form.example.com/hook", secret: "form" }],
+      organization: {
+        webhooks: [
+          { url: "https://org.example.com/hook", secret: "org" },
+          {
+            url: "https://org-digest.example.com/hook",
+            secret: null,
+            mode: "DIGEST",
+          },
+          {
+            url: "https://org-off.example.com/hook",
+            secret: null,
+            enabled: false,
+          },
+        ],
+      },
+    });
+    const deliveries = captureDeliveries();
+
+    try {
+      await createAnonymousResponse("demo", { "q-1": "Ada" });
+
+      expect(deliveries.map((delivery) => delivery.url).join(",")).toBe(
+        "https://form.example.com/hook,https://org.example.com/hook",
+      );
+      expect(deliveries[1].secret).toBe("org");
+      expect(deliveries[0].payload).toBe(deliveries[1].payload);
+    } finally {
+      setWebhookDeliverer(null);
+    }
+  });
+
+  test("an organization webhook with the form webhook's URL is sent once, with the form's secret", async () => {
+    resetTestState({
+      webhooks: [{ url: "https://hooks.example.com/lively", secret: "form" }],
+      organization: {
+        webhooks: [
+          { url: "HTTPS://Hooks.Example.com/lively/", secret: "org" },
+          { url: "https://hooks.example.com/lively?team=a", secret: "query" },
+        ],
+      },
+    });
+    const deliveries = captureDeliveries();
+
+    try {
+      await createAnonymousResponse("demo", { "q-1": "Ada" });
+
+      expect(deliveries.map((delivery) => delivery.secret).join(",")).toBe(
+        "form,query",
+      );
+    } finally {
+      setWebhookDeliverer(null);
+    }
+  });
+
+  test("a disabled or digest form webhook does not hold back the organization's", async () => {
+    resetTestState({
+      webhooks: [
+        { url: "https://hooks.example.com/a", secret: null, enabled: false },
+        { url: "https://hooks.example.com/b", secret: null, mode: "DIGEST" },
+      ],
+      organization: {
+        webhooks: [
+          { url: "https://hooks.example.com/a", secret: "org-a" },
+          { url: "https://hooks.example.com/b", secret: "org-b" },
+        ],
+      },
+    });
+    const deliveries = captureDeliveries();
+
+    try {
+      await createAnonymousResponse("demo", { "q-1": "Ada" });
+
+      expect(deliveries.map((delivery) => delivery.secret).join(",")).toBe(
+        "org-a,org-b",
       );
     } finally {
       setWebhookDeliverer(null);

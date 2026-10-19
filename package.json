@@ -31,6 +31,7 @@
     "db:reset": "bash scripts/compose.sh down -v && bash scripts/compose.sh up -d",
     "storage:init": "bash scripts/garage-init.sh",
     "uploads:cleanup": "bun run scripts/cleanup-uploads.ts",
+    "webhooks:digest": "bun run scripts/run-digests.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

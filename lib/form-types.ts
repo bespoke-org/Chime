@@ -40,10 +40,46 @@ export type CreatorWorkspaceOption =
 
 export const MAX_FORM_WEBHOOKS = 10;
 
-export type FormWebhookSettings = {
+export type WebhookMode = "IMMEDIATE" | "DIGEST";
+export type DigestInterval = "HOURLY" | "DAILY" | "WEEKLY";
+
+export type FormWebhookSummary = {
+  id: string;
   url: string;
   secret: string | null;
+  enabled: boolean;
+  mode: WebhookMode;
+  digestInterval: DigestInterval | null;
+  digestTime: string | null;
+  digestWeekday: number | null;
+  lastDigestAt: string | null;
+  createdAt: string;
 };
+
+// A webhook of another accessible form, offered as a starting point for a new
+// one; picking it copies these fields.
+export type ReusableWebhook = Pick<
+  FormWebhookSummary,
+  "url" | "secret" | "mode" | "digestInterval" | "digestTime" | "digestWeekday"
+> & { formTitle: string };
+
+// An organization webhook as form settings show it to members.
+export type OrganizationWebhookSummary = Pick<
+  FormWebhookSummary,
+  | "id"
+  | "url"
+  | "enabled"
+  | "mode"
+  | "digestInterval"
+  | "digestTime"
+  | "digestWeekday"
+>;
+
+// What the builder sends when creating or editing a webhook.
+export type FormWebhookInput = Omit<
+  FormWebhookSummary,
+  "id" | "lastDigestAt" | "createdAt"
+>;
 
 export type BuilderForm = {
   id: string;
@@ -56,7 +92,9 @@ export type BuilderForm = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
-  webhooks: FormWebhookSettings[];
+  webhooks: FormWebhookSummary[];
+  organizationWebhooks: OrganizationWebhookSummary[];
+  digestTimezone: string;
   closesAt: string | null;
   maxResponses: number | null;
   closedManually: boolean;
@@ -216,4 +254,6 @@ export type OrganizationSettingsSummary = {
   isOwner: boolean;
   members: OrganizationMemberSummary[];
   inviteLinks: OrganizationInviteLinkSummary[];
+  // Only the owner gets the list; members get an empty one.
+  webhooks: FormWebhookSummary[];
 };

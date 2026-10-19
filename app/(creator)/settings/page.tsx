@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SettingsShell } from "@/components/settings-shell";
 import { requireServerSessionUser } from "@/lib/auth";
+import { getDigestTimezone } from "@/lib/digest-schedule";
 import { listOrganizationsForUser } from "@/lib/organizations";
 import { getRequestI18n, resolveLocaleForUser } from "@/lib/i18n-server";
 import { withTitle } from "@/lib/metadata";
@@ -39,6 +40,7 @@ export default async function SettingsPage({
       profileUser={profileUser}
       initialOrganizationId={initialOrganizationId}
       initialSection={initialSection}
+      digestTimezone={getDigestTimezone()}
     />
   );
 }

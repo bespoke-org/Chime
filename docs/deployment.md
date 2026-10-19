@@ -32,6 +32,8 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # SUBMISSION_GLOBAL_RATE_LIMIT=30    # submissions per client IP per window, all forms
 # SUBMISSION_RATE_WINDOW_SECONDS=600
 # SUBMISSION_MIN_FILL_SECONDS=3      # faster submissions are dropped as bots
+# Optional zone for digest webhook schedules (IANA name), see Webhooks below
+# DIGEST_TIMEZONE="Europe/Saratov"
 # Optional email notifications to form owners; without these the setting has no effect
 # MAIL_FROM="Lively Forms <forms@example.com>"
 # SMTP_URL="smtp://user:password@smtp.example.com:587"
@@ -191,7 +193,9 @@ Without the script, on any host: provision PostgreSQL and an S3-compatible bucke
 
 ## Webhooks
 
-A form can name a webhook URL and an optional signing secret in its settings. After a response is stored, the app sends one `POST` with a JSON body to that URL:
+A form can have up to ten webhooks, managed in its settings. Each has a URL, an optional signing secret, an on/off switch and a delivery mode: `response.created` sends one request per response right after it is stored; `responses.batch` sends one request per period with every response stored in that period. Both are JSON `POST` bodies, and a batch item carries exactly the `responseId`, `submittedAt`, `identity` and `answers` fields of a single `response.created` body.
+
+A `response.created` body:
 
 ```json
 {
@@ -199,8 +203,13 @@ A form can name a webhook URL and an optional signing secret in its settings. Af
   "formId": "cmf...",
   "formSlug": "customer-survey",
   "formTitle": "Customer survey",
+  "formUrl": "https://forms.example.com/f/customer-survey",
   "responseId": "cmr...",
+  "responseUrl": "https://forms.example.com/forms/cmf.../responses/cmr...",
   "submittedAt": "2026-10-18T10:00:00.000Z",
+  "identity": [
+    { "key": "name", "blockId": "cmb...", "title": "Name", "value": "Ada" }
+  ],
   "answers": [
     {
       "blockId": "cmb...",
@@ -218,13 +227,56 @@ A form can name a webhook URL and an optional signing secret in its settings. Af
 }
 ```
 
-`answers` lists the question blocks the respondent reached, in form order; skipped branches and text blocks are left out. `value` is a string, or an array of strings for multiple choice.
+A `responses.batch` body with two responses:
+
+```json
+{
+  "event": "responses.batch",
+  "formId": "cmf...",
+  "formSlug": "customer-survey",
+  "formTitle": "Customer survey",
+  "periodStart": "2026-10-18T05:00:00.000Z",
+  "periodEnd": "2026-10-19T05:00:00.000Z",
+  "part": 1,
+  "parts": 1,
+  "responses": [
+    {
+      "responseId": "cmr...",
+      "submittedAt": "2026-10-18T10:00:00.000Z",
+      "identity": [],
+      "answers": [
+        {
+          "blockId": "cmb...",
+          "type": "SHORT_TEXT",
+          "title": "Name",
+          "value": "Ada"
+        }
+      ]
+    },
+    {
+      "responseId": "cmr...",
+      "submittedAt": "2026-10-19T01:30:00.000Z",
+      "identity": [],
+      "answers": [
+        {
+          "blockId": "cmb...",
+          "type": "SHORT_TEXT",
+          "title": "Name",
+          "value": "Bob"
+        }
+      ]
+    }
+  ]
+}
+```
+
+`answers` lists the question blocks the respondent reached, in form order; skipped branches and text blocks are left out. `value` is a string, or an array of strings for multiple choice; a file answer is the authenticated download URL. `responses` are ordered by `submittedAt` and the period is `(periodStart, periodEnd]`. A batch holds at most 200 responses; a longer period is sent as several requests in the same run with `part` counting up to `parts` and the same period bounds.
 
 Request headers:
 
 - `Content-Type: application/json`
 - `User-Agent: lively-forms-webhook/1`
-- `X-Lively-Forms-Event: response.created`
+- `X-Lively-Forms-Event: response.created` or `responses.batch`
 - `X-Lively-Forms-Timestamp`: Unix time in seconds when the request was signed
 - `X-Lively-Forms-Signature: sha256=<hex>`, only when a secret is set
 
@@ -237,9 +289,23 @@ ok = constant_time_equal("sha256=" + expected, signature_header)
 
 Reject requests whose timestamp is far from the current time to limit replays.
 
-Delivery waits up to 5 seconds for an answer. On a network error, a timeout, or a 5xx status the request is sent once more after 2 seconds; a 4xx status is not retried. Redirects are not followed. The response is stored and the respondent sees success regardless of the webhook outcome; failures are written to the server log with the form id and status.
+Delivery waits up to 5 seconds for an answer. On a network error, a timeout, or a 5xx status the request is sent once more after 2 seconds; a 4xx status is not retried. Redirects are not followed. For `response.created` the response is stored and the respondent sees success regardless of the webhook outcome; failures are written to the server log with the form id and status.
 
 Webhook URLs must use `http` or `https` without credentials and must not point at loopback, private, link-local, or unspecified addresses (`localhost`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `0.0.0.0`, `::1`, IPv4-mapped forms of these) or at `.local` and `.internal` hostnames. The check is made on the URL as written; it does not resolve DNS.
+
+### Workspace webhooks
+
+The owner of a shared workspace can add up to ten webhooks in the workspace settings. A workspace webhook covers every form of the workspace, including forms created later, and sends the same `response.created` and `responses.batch` bodies with its own secret. Form settings show the workspace webhooks to every member as a read-only list.
+
+When a form has its own enabled webhook with the same URL and the same mode as a workspace webhook, that form's events go only through the form webhook and its secret. URLs are compared after lowercasing the scheme and host and dropping a default port, trailing `/` and fragment; the query is kept. A form webhook and a workspace webhook in different modes both send.
+
+A digest workspace webhook keeps one schedule and one covered period for the whole workspace. When a slot passes, it sends one `responses.batch` series per form that has responses in the period, each with `periodStart` and `periodEnd` of the webhook. When any form fails, the whole period is retried on the next run, so forms already delivered in the failed run arrive again with the same `formId`, `periodStart` and `part`; receivers should treat that triple as the key of a batch part.
+
+### Digest schedule
+
+A digest webhook is hourly, daily at a time of day, or weekly on a weekday at a time of day. Times are read in `DIGEST_TIMEZONE` (an IANA name, default `Europe/Saratov`); the setting is app-wide and the builder shows it next to the time field. The schedule defines slots: every top of the hour, every day at the chosen time, or the chosen weekday at the chosen time. When a slot passes, the webhook receives the responses stored after the previous slot it covered (or after the webhook was created or its schedule changed) up to and including the slot. A period without responses sends nothing but still counts as covered. When the app was down over several slots, the next run sends one batch for the whole gap, not one per missed slot. A failed batch is retried on every run until it succeeds; after 24 hours of failures since the last covered slot the period is skipped and logged, so one dead endpoint cannot build an endless backlog.
+
+The scheduler runs inside the Next.js server process (`instrumentation.ts`) once a minute and assumes a single app instance; with several instances each would send its own batch. When the app is not kept running as a single long-lived process, do not rely on the built-in timer and run `bun run webhooks:digest` from cron instead, for example every minute; it sends everything that is due and exits.
 
 ## Email notifications
 
@@ -275,6 +341,8 @@ Uploads that were requested but never attached to a response stay `PENDING`. Rem
 0 4 * * * root cd /opt/lively-forms && set -a && . ./.env && set +a && /root/.bun/bin/bun run uploads:cleanup
 ```
 
+`scripts/deploy.sh` installs this line as `/etc/cron.d/lively-forms-cleanup`.
+
 The script deletes pending uploads older than 24 hours in batches of 1000. Deleting a form, a file block or an organization removes the objects of its uploads from storage after the rows are gone; a failed object delete is logged and does not fail the request. Responses cannot be deleted individually, so their files stay with the form.
 
 ## Notes
@@ -282,5 +350,3 @@ The script deletes pending uploads older than 24 hours in batches of 1000. Delet
 - The build runs translation validation before Next.js production build.
 - Response exports are generated inside the app; no separate worker is required.
 - Editing a published form updates the live public form immediately.
-`scripts/deploy.sh` installs this line as `/etc/cron.d/lively-forms-cleanup`.
-

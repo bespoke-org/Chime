@@ -70,7 +70,12 @@ import {
   type BranchRuleDraft,
   type ChoiceOptionDraft,
 } from "@/lib/form-builder-drafts";
-import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
+import type {
+  BuilderBlock,
+  BuilderForm,
+  FormWebhookInput,
+  FormWebhookSummary,
+} from "@/lib/form-types";
 import { cn } from "@/lib/utils";
 
 type BuilderMode = "standard" | "graph";
@@ -233,13 +238,6 @@ function StaticBlockRow({
   );
 }
 
-function toWebhookDrafts(webhooks: BuilderForm["webhooks"]) {
-  return webhooks.map((webhook) => ({
-    url: webhook.url,
-    secret: webhook.secret ?? "",
-  }));
-}
-
 export function FormBuilder({
   initialForm,
   initialMode = "standard",
@@ -276,7 +274,6 @@ export function FormBuilder({
     respondentLocale: initialForm.respondentLocale,
     showProgress: initialForm.showProgress,
     allowBackNavigation: initialForm.allowBackNavigation,
-    webhooks: toWebhookDrafts(initialForm.webhooks),
     closesAt: toDateTimeLocalValue(initialForm.closesAt),
     maxResponses:
       initialForm.maxResponses === null ? "" : String(initialForm.maxResponses),
@@ -415,7 +412,6 @@ export function FormBuilder({
       respondentLocale: form.respondentLocale,
       showProgress: form.showProgress,
       allowBackNavigation: form.allowBackNavigation,
-      webhooks: toWebhookDrafts(form.webhooks),
       closesAt: toDateTimeLocalValue(form.closesAt),
       maxResponses: form.maxResponses === null ? "" : String(form.maxResponses),
       closedManually: form.closedManually,
@@ -431,7 +427,6 @@ export function FormBuilder({
     form.respondentLocale,
     form.showProgress,
     form.allowBackNavigation,
-    form.webhooks,
     form.closesAt,
     form.maxResponses,
     form.closedManually,
@@ -529,6 +524,40 @@ export function FormBuilder({
     if (!saved) {
       setForm((current) => ({ ...current, notificationsEnabled: previous }));
     }
+  }
+
+  // Webhooks are saved one at a time through their own endpoints; every
+  // answer carries the form's whole list, which replaces the one shown.
+  async function saveWebhook(
+    webhookId: string | null,
+    input: FormWebhookInput,
+  ) {
+    return withTask("webhook", async () => {
+      const payload = await fetchJson<{ webhooks: FormWebhookSummary[] }>(
+        webhookId
+          ? `/api/forms/${form.id}/webhooks/${webhookId}`
+          : `/api/forms/${form.id}/webhooks`,
+        {
+          method: webhookId ? "PATCH" : "POST",
+          body: JSON.stringify(input),
+        },
+      );
+
+      setForm((current) => ({ ...current, webhooks: payload.webhooks }));
+      showToast(t("builder.toasts.savedWebhook"));
+    });
+  }
+
+  async function deleteWebhook(webhookId: string) {
+    return withTask("webhook", async () => {
+      const payload = await fetchJson<{ webhooks: FormWebhookSummary[] }>(
+        `/api/forms/${form.id}/webhooks/${webhookId}`,
+        { method: "DELETE" },
+      );
+
+      setForm((current) => ({ ...current, webhooks: payload.webhooks }));
+      showToast(t("builder.toasts.removedWebhook"));
+    });
   }
 
   // The title changes at once and changes back on failure, so the old one
@@ -1260,6 +1289,8 @@ export function FormBuilder({
                   deleteForm={deleteForm}
                   saveMetadata={saveMetadata}
                   setNotificationsEnabled={setNotificationsEnabled}
+                  saveWebhook={saveWebhook}
+                  deleteWebhook={deleteWebhook}
                   busy={busy}
                 />
               ) : blockDraft ? (

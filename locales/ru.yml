@@ -118,6 +118,7 @@ settings:
     noInviteLinks: Пока нет ссылок-приглашений.
     inviteCreated: "Создано {date}"
     revokeInvite: Отозвать
+    webhooksDescription: Отправлять ответы всех форм пространства на ваш сервер, в том числе форм, созданных позже. Если у формы есть свой вебхук с тем же URL и способом доставки, ответы этой формы уходят только через него.
     dangerZone: Опасная зона
     deleteOrgHelp: Удаление пространства также удалит его формы, ответы и ссылки-приглашения.
     deleteOrganization: Удалить пространство
@@ -190,14 +191,40 @@ builder:
   allowBackNavigation: Разрешить возврат к предыдущим шагам
   allowBackNavigationHelp: Разрешить респондентам возвращаться к уже пройденным шагам в публичном раннере формы.
   webhook: Вебхуки
-  webhookDescription: Отправлять POST-запрос на ваш сервер при каждом новом ответе.
+  webhookDescription: Отправлять новые ответы на ваш сервер, каждый сразу после сохранения или сводкой за период.
   webhookUrl: URL вебхука
   webhookUrlPlaceholder: https://example.com/hooks/lively-forms
   webhookUrlHelp: Публичный адрес сервера (https://). Мы отправляем POST с JSON, в котором есть форма, идентификатор ответа и ответы. Адреса в частных сетях отклоняются.
   webhookSecret: Секрет подписи
   webhookSecretHelp: Необязательно. Если задан, каждый запрос содержит заголовок X-Lively-Forms-Signature с HMAC-SHA256 от метки времени и тела, чтобы ваш сервер мог проверить отправителя.
   addWebhook: Добавить вебхук
+  editWebhook: Изменить вебхук
   removeWebhook: Удалить вебхук
+  saveWebhook: Сохранить вебхук
+  cancelWebhook: Отмена
+  webhookEnabled: Включён
+  webhookMode: Доставка
+  webhookModeImmediate: Каждый ответ отдельно
+  webhookModeImmediateHelp: Один запрос на каждый ответ сразу после его сохранения.
+  webhookModeDigest: Сводкой
+  webhookModeDigestHelp: Один запрос за период со всеми ответами, сохранёнными за это время. Периоды без ответов пропускаются.
+  webhookModeBadgeImmediate: Каждый ответ
+  webhookModeBadgeDigest: Сводка
+  webhookInterval: Как часто
+  webhookIntervalHourly: Каждый час
+  webhookIntervalDaily: Каждый день
+  webhookIntervalWeekly: Каждую неделю
+  webhookTime: Время
+  webhookTimeHelp: "Время по {zone}."
+  webhookWeekday: День недели
+  webhookScheduleHourly: Каждый час
+  webhookScheduleDaily: "Ежедневно в {time}"
+  webhookScheduleWeekly: "Еженедельно, {weekday} в {time}"
+  webhookDisabled: Выключен
+  webhookFromOrganization: Из пространства
+  webhookReuse: Взять из другой формы
+  webhookReuseHelp: Адрес, секрет и доставка подставятся в поля ниже. Вебхук другой формы не изменится.
+  organizationWebhooksDescription: Вебхуки пространства ниже тоже получают ответы этой формы. Изменить их может только владелец пространства.
   notifications: Уведомления
   notificationsDescription: Получайте письмо при каждом новом сохранённом ответе.
   notifyOnResponse: Присылать мне письма о новых ответах
@@ -333,6 +360,8 @@ builder:
   toasts:
     genericError: Что-то пошло не так.
     savedFormSettings: Настройки формы сохранены
+    savedWebhook: Вебхук сохранён
+    removedWebhook: Вебхук удалён
     renamedForm: Название сохранено
     addedBlock: "Добавлен блок: {type}"
     savedBlock: Блок сохранён

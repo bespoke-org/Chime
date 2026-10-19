@@ -14,6 +14,7 @@ import {
 import { buildUploadDownloadUrl } from "@/lib/uploads";
 
 export const WEBHOOK_EVENT_RESPONSE_CREATED = "response.created";
+export const WEBHOOK_EVENT_RESPONSES_BATCH = "responses.batch";
 export const WEBHOOK_USER_AGENT = "lively-forms-webhook/1";
 
 const PRIVATE_HOST_SUFFIXES = [".local", ".internal"];
@@ -188,6 +189,24 @@ export function signWebhookPayload(
     .digest("hex");
 }
 
+// One item per response, with the same fields as response.created.
+export type WebhookBatchResponse = Pick<
+  WebhookPayload,
+  "responseId" | "submittedAt" | "identity" | "answers"
+>;
+
+export type WebhookBatchPayload = {
+  event: typeof WEBHOOK_EVENT_RESPONSES_BATCH;
+  formId: string;
+  formSlug: string;
+  formTitle: string;
+  periodStart: string;
+  periodEnd: string;
+  part: number;
+  parts: number;
+  responses: WebhookBatchResponse[];
+};
+
 export type WebhookDeliveryResult = {
   ok: boolean;
   status?: number;
@@ -197,7 +216,7 @@ export type WebhookDeliveryResult = {
 export type WebhookDeliveryInput = {
   url: string;
   secret: string | null;
-  payload: WebhookPayload;
+  payload: WebhookPayload | WebhookBatchPayload;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   retryDelayMs?: number;

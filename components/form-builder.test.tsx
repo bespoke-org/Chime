@@ -58,6 +58,8 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
     showProgress: true,
     allowBackNavigation: true,
     webhooks: [],
+    organizationWebhooks: [],
+    digestTimezone: "Europe/Saratov",
     closesAt: null,
     maxResponses: null,
     closedManually: false,
@@ -379,7 +381,7 @@ describe("FormBuilder", () => {
     await cleanupAndRestore(restoreDom);
   });
 
-  test("shows a webhook card only after one is added and saves the list", async () => {
+  test("adds a digest webhook through its own endpoint and lists it", async () => {
     const restoreDom = installTestDom();
     const firstBlock = createBlock({
       id: "block-1",
@@ -389,23 +391,41 @@ describe("FormBuilder", () => {
     });
     const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
     const previousFetch = globalThis.fetch;
+    const savedWebhook = {
+      id: "wh-1",
+      url: "https://hooks.example.com/lively",
+      secret: null,
+      enabled: true,
+      mode: "DIGEST" as const,
+      digestInterval: "DAILY" as const,
+      digestTime: "09:00",
+      digestWeekday: null,
+      lastDigestAt: null,
+      createdAt: "2026-10-19T10:00:00.000Z",
+    };
 
     globalThis.fetch = (async (
       url: string | URL | Request,
       init?: RequestInit,
     ) => {
+      if (String(url).endsWith("/reusable")) {
+        return { ok: true, json: async () => ({ webhooks: [] }) } as Response;
+      }
+
       fetchCalls.push({ url: String(url), init });
 
       return {
         ok: true,
-        json: async () => ({
-          form: createForm([firstBlock]),
-        }),
+        json: async () => ({ webhooks: [savedWebhook] }),
       } as Response;
     }) as typeof fetch;
 
     const view = renderBuilder(createForm([firstBlock]), undefined, {
-      builder: { saveFormSettings: "Save form settings" },
+      builder: {
+        saveWebhook: "Save webhook",
+        webhookModeDigest: "Send a digest",
+        webhookScheduleDaily: "Daily at {time}",
+      },
     });
 
     fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
@@ -420,19 +440,155 @@ describe("FormBuilder", () => {
     const urlInput = await view.findByPlaceholderText(
       "builder.webhookUrlPlaceholder",
     );
+    const saveSettings = view.getByRole("button", {
+      name: "builder.saveFormSettings",
+    }) as HTMLButtonElement;
+    // The open webhook editor has its own Save.
+    expect(saveSettings.disabled).toBe(true);
     typeIntoInput(urlInput, "https://hooks.example.com/lively");
+    fireEvent.click(view.getByRole("radio", { name: /Send a digest/ }));
 
-    fireEvent.click(view.getByRole("button", { name: "Save form settings" }));
+    // The interval select is rendered once digest mode is chosen; the time
+    // input shows the zone the schedule is read in.
+    expect(view.getByLabelText("builder.webhookInterval") !== null).toBe(true);
+    expect(view.getByText("builder.webhookTimeHelp") !== null).toBe(true);
+
+    fireEvent.click(view.getByRole("button", { name: "Save webhook" }));
 
     await waitFor(() => {
       expect(fetchCalls.length).toBe(1);
     });
 
-    expect(String(fetchCalls[0]?.init?.body)).toContain(
-      '"webhooks":[{"url":"https://hooks.example.com/lively","secret":""}]',
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/webhooks");
+    expect(fetchCalls[0]?.init?.method).toBe("POST");
+    expect(String(fetchCalls[0]?.init?.body)).toBe(
+      JSON.stringify({
+        url: "https://hooks.example.com/lively",
+        secret: null,
+        enabled: true,
+        mode: "DIGEST",
+        digestInterval: "DAILY",
+        digestTime: "09:00",
+        digestWeekday: null,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(view.getByText("https://hooks.example.com/lively") !== null).toBe(
+        true,
+      );
+    });
+    expect(view.getByText("Daily at 09:00") !== null).toBe(true);
+    expect(view.queryByRole("button", { name: "Save webhook" })).toBe(null);
+    expect(saveSettings.disabled).toBe(false);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("copies a webhook of another form into a new one", async () => {
+    const restoreDom = installTestDom();
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+    const previousFetch = globalThis.fetch;
+    const reusable = {
+      url: "https://pechkin.example.com/hook",
+      secret: "s3cret",
+      mode: "DIGEST" as const,
+      digestInterval: "WEEKLY" as const,
+      digestTime: "18:00",
+      digestWeekday: 5,
+      formTitle: "Хакатон",
+    };
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      fetchCalls.push({ url: String(url), init });
+
+      return {
+        ok: true,
+        json: async () => ({
+          webhooks: String(url).endsWith("/reusable") ? [reusable] : [],
+        }),
+      } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([]), undefined, {
+      builder: { saveWebhook: "Save webhook" },
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+    await waitFor(() => {
+      expect(view.getByText("builder.settingsTitle") !== null).toBe(true);
+    });
+    fireEvent.click(view.getByRole("button", { name: "builder.addWebhook" }));
+
+    fireEvent.click(await view.findByRole("button", { name: /Хакатон/ }));
+    fireEvent.click(view.getByRole("button", { name: "Save webhook" }));
+
+    await waitFor(() => {
+      expect(fetchCalls.length).toBe(2);
+    });
+    expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/webhooks/reusable");
+    expect(fetchCalls[1]?.init?.method).toBe("POST");
+    expect(String(fetchCalls[1]?.init?.body)).toBe(
+      JSON.stringify({
+        url: "https://pechkin.example.com/hook",
+        secret: "s3cret",
+        enabled: true,
+        mode: "DIGEST",
+        digestInterval: "WEEKLY",
+        digestTime: "18:00",
+        digestWeekday: 5,
+      }),
     );
 
     globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("lists organization webhooks read-only in form settings", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const form = {
+      ...createForm([firstBlock]),
+      organizationWebhooks: [
+        {
+          id: "wh-org",
+          url: "https://org.example.com/hook",
+          enabled: true,
+          mode: "IMMEDIATE" as const,
+          digestInterval: null,
+          digestTime: null,
+          digestWeekday: null,
+        },
+      ],
+    };
+
+    const view = renderBuilder(form);
+
+    fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+
+    await waitFor(() => {
+      expect(view.getByText("https://org.example.com/hook") !== null).toBe(
+        true,
+      );
+    });
+    expect(view.getByText("builder.webhookFromOrganization") !== null).toBe(
+      true,
+    );
+    // The row has no switch, edit or remove action of its own.
+    expect(view.queryByRole("button", { name: "builder.editWebhook" })).toBe(
+      null,
+    );
+    expect(view.queryByLabelText("builder.webhookEnabled")).toBe(null);
+
     await cleanupAndRestore(restoreDom);
   });
 

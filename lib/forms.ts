@@ -4,6 +4,7 @@ import {
   type FormBlock,
   type FormBlockType as PrismaFormBlockType,
   type Prisma,
+  WebhookMode,
 } from "@prisma/client";
 
 import {
@@ -44,6 +45,12 @@ import {
   reorderBlocksSchema,
 } from "@/lib/validators";
 import { slugify } from "@/lib/utils";
+import { getDigestTimezone } from "@/lib/digest-schedule";
+import {
+  normalizeWebhookUrl,
+  toFormWebhookSummary,
+  toOrganizationWebhookSummary,
+} from "@/lib/form-webhooks";
 import { buildWebhookPayload, getWebhookDeliverer } from "@/lib/webhooks";
 import { notifyResponseSubscribers } from "@/lib/response-notifications";
 import {
@@ -94,6 +101,11 @@ const builderFormInclude = {
     select: {
       id: true,
       name: true,
+      webhooks: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
     },
   },
   blocks: {
@@ -103,7 +115,7 @@ const builderFormInclude = {
   },
   webhooks: {
     orderBy: {
-      position: "asc",
+      createdAt: "asc",
     },
   },
   _count: {
@@ -189,10 +201,11 @@ function toBuilderForm(
       : null,
     showProgress: form.showProgress,
     allowBackNavigation: form.allowBackNavigation,
-    webhooks: form.webhooks.map((webhook) => ({
-      url: webhook.url,
-      secret: webhook.secret,
-    })),
+    webhooks: form.webhooks.map(toFormWebhookSummary),
+    organizationWebhooks: (form.organization?.webhooks ?? []).map(
+      toOrganizationWebhookSummary,
+    ),
+    digestTimezone: getDigestTimezone(),
     closesAt: form.closesAt ? form.closesAt.toISOString() : null,
     maxResponses: form.maxResponses,
     closedManually: form.closedManually,
@@ -497,24 +510,13 @@ export async function updateOwnedFormMetadata(
   payload: unknown,
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
-  const { webhooks, ...parsed } = formMetadataSchema.parse(payload);
+  const parsed = formMetadataSchema.parse(payload);
   await assertAccessibleForm(userId, formId);
   await ensureUniqueSlug(parsed.slug, formId, locale);
 
-  // The saved list replaces the form's webhooks in the same update.
   const form = await db.form.update({
     where: { id: formId },
-    data: {
-      ...parsed,
-      webhooks: {
-        deleteMany: {},
-        create: webhooks.map((webhook, position) => ({
-          url: webhook.url,
-          secret: webhook.secret,
-          position,
-        })),
-      },
-    },
+    data: parsed,
     include: builderFormInclude,
   });
 
@@ -637,8 +639,7 @@ export async function updateOwnedBlock(
         typeof other.config === "object" &&
         other.config !== null &&
         (other.config as { identity?: unknown }).identity === true &&
-        (other.config as { identityKey?: unknown }).identityKey ===
-          identityKey,
+        (other.config as { identityKey?: unknown }).identityKey === identityKey,
     )
   ) {
     throw new AppError(
@@ -763,9 +764,17 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
           position: "asc",
         },
       },
+      // Digest webhooks are served by the scheduler, not per response.
       webhooks: {
-        orderBy: {
-          position: "asc",
+        where: { enabled: true, mode: WebhookMode.IMMEDIATE },
+        orderBy: { createdAt: "asc" },
+      },
+      organization: {
+        select: {
+          webhooks: {
+            where: { enabled: true, mode: WebhookMode.IMMEDIATE },
+            orderBy: { createdAt: "asc" },
+          },
         },
       },
     },
@@ -799,7 +808,20 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     ? await createResponseWithUploads(form.id, responseData, fileAnswers)
     : await db.response.create({ data: responseData });
 
-  if (form.webhooks.length) {
+  // An organization webhook with the same URL as one of the form's own is
+  // left out, so that endpoint gets the response once, with the form
+  // webhook's secret.
+  const formUrls = new Set(
+    form.webhooks.map((webhook) => normalizeWebhookUrl(webhook.url)),
+  );
+  const webhooks = [
+    ...form.webhooks,
+    ...(form.organization?.webhooks ?? []).filter(
+      (webhook) => !formUrls.has(normalizeWebhookUrl(webhook.url)),
+    ),
+  ];
+
+  if (webhooks.length) {
     const payload = buildWebhookPayload(
       form,
       {
@@ -813,7 +835,7 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     // Each delivery runs in the background and never throws, so the stored
     // response, the HTTP answer and the other webhooks do not depend on one
     // endpoint.
-    for (const webhook of form.webhooks) {
+    for (const webhook of webhooks) {
       void getWebhookDeliverer()({
         url: webhook.url,
         secret: webhook.secret,

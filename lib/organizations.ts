@@ -2,6 +2,7 @@ import { OrganizationMemberRole } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
+import { toFormWebhookSummary } from "@/lib/form-webhooks";
 import type {
   OrganizationInviteLinkSummary,
   OrganizationMemberSummary,
@@ -96,6 +97,11 @@ export async function listOrganizationsForUser(
               createdAt: "desc",
             },
           },
+          webhooks: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
       },
     },
@@ -106,13 +112,21 @@ export async function listOrganizationsForUser(
     },
   });
 
-  return memberships.map((membership) => ({
-    id: membership.organizationId,
-    name: membership.organization.name,
-    isOwner: membership.role === OrganizationMemberRole.OWNER,
-    members: membership.organization.memberships.map(toMemberSummary),
-    inviteLinks: membership.organization.inviteLinks.map(toInviteSummary),
-  }));
+  return memberships.map((membership) => {
+    const isOwner = membership.role === OrganizationMemberRole.OWNER;
+
+    return {
+      id: membership.organizationId,
+      name: membership.organization.name,
+      isOwner,
+      members: membership.organization.memberships.map(toMemberSummary),
+      inviteLinks: membership.organization.inviteLinks.map(toInviteSummary),
+      // Webhook secrets stay with the owner, who alone manages them.
+      webhooks: isOwner
+        ? membership.organization.webhooks.map(toFormWebhookSummary)
+        : [],
+    };
+  });
 }
 
 export async function createOrganization(

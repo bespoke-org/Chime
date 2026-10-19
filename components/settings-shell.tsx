@@ -40,11 +40,13 @@ export function SettingsShell({
   profileUser,
   initialOrganizationId,
   initialSection,
+  digestTimezone,
 }: {
   organizations: OrganizationSettingsSummary[];
   profileUser: ProfileSettingsUserSummary;
   initialOrganizationId: string | null;
   initialSection: string;
+  digestTimezone: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -125,6 +127,7 @@ export function SettingsShell({
             <OrganizationSettingsPanel
               organizations={organizations}
               initialOrganizationId={initialOrganizationId}
+              digestTimezone={digestTimezone}
             />
           ) : (
             <ThemeSettingsPanel />

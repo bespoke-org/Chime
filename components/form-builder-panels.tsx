@@ -40,6 +40,10 @@ import { BranchRulesEditor } from "@/components/builder/branch-rules-editor";
 import { InlineTitleEditor } from "@/components/builder/inline-title-editor";
 import { useI18n } from "@/components/i18n-provider";
 import { FormStatusBadge } from "@/components/form-status-badge";
+import {
+  OrganizationWebhooksList,
+  WebhooksSection,
+} from "@/components/webhooks-section";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -81,9 +85,9 @@ import {
   type ChoiceOptionDraft,
 } from "@/lib/form-builder-drafts";
 import {
-  MAX_FORM_WEBHOOKS,
   type BuilderBlock,
   type BuilderForm,
+  type FormWebhookInput,
 } from "@/lib/form-types";
 import { supportedLocales, type AppLocale } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
@@ -97,7 +101,6 @@ export type FormMetadataDraft = {
   respondentLocale: AppLocale | null;
   showProgress: boolean;
   allowBackNavigation: boolean;
-  webhooks: Array<{ url: string; secret: string }>;
   closesAt: string;
   maxResponses: string;
   closedManually: boolean;
@@ -291,6 +294,8 @@ export function FormSettingsPanel({
   deleteForm,
   saveMetadata,
   setNotificationsEnabled,
+  saveWebhook,
+  deleteWebhook,
   busy,
 }: {
   form: BuilderForm;
@@ -301,21 +306,17 @@ export function FormSettingsPanel({
   deleteForm: () => void;
   saveMetadata: () => void;
   setNotificationsEnabled: (enabled: boolean) => void;
+  saveWebhook: (
+    webhookId: string | null,
+    input: FormWebhookInput,
+  ) => Promise<boolean>;
+  deleteWebhook: (webhookId: string) => Promise<boolean>;
   busy: string | null;
 }) {
   const { t } = useI18n();
-
-  function updateWebhookDraft(
-    index: number,
-    patch: Partial<FormMetadataDraft["webhooks"][number]>,
-  ) {
-    setMetadataDraft((current) => ({
-      ...current,
-      webhooks: current.webhooks.map((webhook, webhookIndex) =>
-        webhookIndex === index ? { ...webhook, ...patch } : webhook,
-      ),
-    }));
-  }
+  // An open webhook editor is saved by its own button, so the settings Save
+  // waits until it is closed.
+  const [editingWebhook, setEditingWebhook] = React.useState(false);
 
   return (
     <div className="space-y-8">
@@ -670,96 +671,18 @@ export function FormSettingsPanel({
         </label>
       </div>
 
-      <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-              {t("builder.webhook")}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-              {t("builder.webhookDescription")}
-            </p>
-          </div>
-          <Button
-            size="icon"
-            variant="secondary"
-            aria-label={t("builder.addWebhook")}
-            title={t("builder.addWebhook")}
-            disabled={metadataDraft.webhooks.length >= MAX_FORM_WEBHOOKS}
-            onClick={() =>
-              setMetadataDraft((current) => ({
-                ...current,
-                webhooks: [...current.webhooks, { url: "", secret: "" }],
-              }))
-            }
-          >
-            <Plus className="size-4" />
-          </Button>
-        </div>
-
-        {/* Usually there is one webhook, so a card exists only once the
-            creator adds it; the field hints are shown on the first card. */}
-        {metadataDraft.webhooks.map((webhook, index) => (
-          <div
-            key={index}
-            className="grid gap-4 rounded-[18px] border border-[color:var(--line)] p-4"
-          >
-            <div className="flex items-start gap-2">
-              <label className="grid flex-1 gap-2 text-sm text-[var(--muted)]">
-                <span className="font-medium text-[var(--ink)]">
-                  {t("builder.webhookUrl")}
-                </span>
-                <Input
-                  value={webhook.url}
-                  placeholder={t("builder.webhookUrlPlaceholder")}
-                  onChange={(event) =>
-                    updateWebhookDraft(index, { url: event.target.value })
-                  }
-                />
-                {index === 0 ? (
-                  <span className="text-xs text-[var(--muted)]">
-                    {t("builder.webhookUrlHelp")}
-                  </span>
-                ) : null}
-              </label>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="mt-7"
-                aria-label={t("builder.removeWebhook")}
-                title={t("builder.removeWebhook")}
-                onClick={() =>
-                  setMetadataDraft((current) => ({
-                    ...current,
-                    webhooks: current.webhooks.filter(
-                      (_, webhookIndex) => webhookIndex !== index,
-                    ),
-                  }))
-                }
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-            <label className="grid gap-2 text-sm text-[var(--muted)]">
-              <span className="font-medium text-[var(--ink)]">
-                {t("builder.webhookSecret")}
-              </span>
-              <Input
-                value={webhook.secret}
-                autoComplete="off"
-                onChange={(event) =>
-                  updateWebhookDraft(index, { secret: event.target.value })
-                }
-              />
-              {index === 0 ? (
-                <span className="text-xs text-[var(--muted)]">
-                  {t("builder.webhookSecretHelp")}
-                </span>
-              ) : null}
-            </label>
-          </div>
-        ))}
-      </div>
+      <WebhooksSection
+        webhooks={form.webhooks}
+        reusableWebhooksUrl={`/api/forms/${form.id}/webhooks/reusable`}
+        digestTimezone={form.digestTimezone}
+        description={t("builder.webhookDescription")}
+        saveWebhook={saveWebhook}
+        deleteWebhook={deleteWebhook}
+        busy={busy === "webhook"}
+        onEditingChange={setEditingWebhook}
+      >
+        <OrganizationWebhooksList webhooks={form.organizationWebhooks} />
+      </WebhooksSection>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-6">
         <Button variant="danger" onClick={deleteForm}>
@@ -770,7 +693,7 @@ export function FormSettingsPanel({
           )}
           {t("builder.deleteForm")}
         </Button>
-        <Button onClick={saveMetadata}>
+        <Button onClick={saveMetadata} disabled={editingWebhook}>
           {busy === "metadata" ? (
             <LoaderCircle className="size-4 animate-spin" />
           ) : (

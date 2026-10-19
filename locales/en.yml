@@ -118,6 +118,7 @@ settings:
     noInviteLinks: No invite links yet.
     inviteCreated: "Created {date}"
     revokeInvite: Revoke
+    webhooksDescription: Send responses of every form in this workspace to your server, including forms created later. When a form has its own webhook with the same URL and delivery, that form's responses go through the form webhook only.
     dangerZone: Danger zone
     deleteOrgHelp: Deleting a workspace also deletes its forms, responses, and invite links.
     deleteOrganization: Delete workspace
@@ -190,14 +191,40 @@ builder:
   allowBackNavigation: Allow going back to previous steps
   allowBackNavigationHelp: Let respondents return to earlier visited steps in the public form runner.
   webhook: Webhooks
-  webhookDescription: Send a POST request to your server for each new response.
+  webhookDescription: Send new responses to your server, each one as it arrives or as a periodic digest.
   webhookUrl: Webhook URL
   webhookUrlPlaceholder: https://example.com/hooks/lively-forms
   webhookUrlHelp: A public https:// address. We POST a JSON body with the form, response id, and answers. Addresses on private networks are rejected.
   webhookSecret: Signing secret
   webhookSecretHelp: Optional. When set, each request carries an X-Lively-Forms-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
   addWebhook: Add webhook
+  editWebhook: Edit webhook
   removeWebhook: Remove webhook
+  saveWebhook: Save webhook
+  cancelWebhook: Cancel
+  webhookEnabled: Enabled
+  webhookMode: Delivery
+  webhookModeImmediate: Send each response
+  webhookModeImmediateHelp: One request per response, right after it is stored.
+  webhookModeDigest: Send a digest
+  webhookModeDigestHelp: One request per period with every response stored in it. Periods with no responses are skipped.
+  webhookModeBadgeImmediate: Each response
+  webhookModeBadgeDigest: Digest
+  webhookInterval: How often
+  webhookIntervalHourly: Every hour
+  webhookIntervalDaily: Every day
+  webhookIntervalWeekly: Every week
+  webhookTime: Time
+  webhookTimeHelp: "Time in {zone}."
+  webhookWeekday: Weekday
+  webhookScheduleHourly: Every hour
+  webhookScheduleDaily: "Daily at {time}"
+  webhookScheduleWeekly: "Weekly on {weekday} at {time}"
+  webhookDisabled: Off
+  webhookFromOrganization: From workspace
+  webhookReuse: Copy from another form
+  webhookReuseHelp: The URL, secret and delivery fill the fields below. The other form's webhook stays as it is.
+  organizationWebhooksDescription: The workspace webhooks below also receive this form's responses. Only the workspace owner can change them.
   notifications: Notifications
   notificationsDescription: Get an email each time a new response is stored.
   notifyOnResponse: Email me about new responses
@@ -333,6 +360,8 @@ builder:
   toasts:
     genericError: Something went wrong.
     savedFormSettings: Saved form settings
+    savedWebhook: Webhook saved
+    removedWebhook: Webhook removed
     renamedForm: Title updated
     addedBlock: "Added {type}"
     savedBlock: Saved block

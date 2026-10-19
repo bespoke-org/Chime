@@ -13,6 +13,7 @@ import {
 } from "@/app/(creator)/actions";
 import { DeleteOrganizationButton } from "@/components/delete-organization-button";
 import { useLocalToasts } from "@/components/use-local-toasts";
+import { ManagedWebhooksSection } from "@/components/webhooks-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -34,9 +35,11 @@ import { formatDate } from "@/lib/utils";
 export function OrganizationSettingsPanel({
   organizations,
   initialOrganizationId,
+  digestTimezone,
 }: {
   organizations: OrganizationSettingsSummary[];
   initialOrganizationId: string | null;
+  digestTimezone: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -345,6 +348,19 @@ export function OrganizationSettingsPanel({
                       })}
                     </div>
                   </div>
+
+                  {selectedOrganization.isOwner ? (
+                    <ManagedWebhooksSection
+                      key={selectedOrganization.id}
+                      apiBasePath={`/api/organizations/${selectedOrganization.id}/webhooks`}
+                      initialWebhooks={selectedOrganization.webhooks}
+                      digestTimezone={digestTimezone}
+                      description={t(
+                        "settings.organizations.webhooksDescription",
+                      )}
+                      showToast={showToast}
+                    />
+                  ) : null}
 
                   {selectedOrganization.isOwner ? (
                     <div className="border-t border-[color:var(--line)] pt-8">
