@@ -76,7 +76,7 @@ settings:
     firstName: First name
     secondName: Second name
     imageUrl: Profile image URL
-    imageUrlHelp: ATProto can populate this initially from your profile avatar. You can replace it with any public image URL.
+    imageUrlHelp: Filled from your sign-in provider at first login. You can replace it with any public image URL.
     locale: Language
     localeHelp: Choose the language used across the app for your account.
     notificationEmail: Notification email
