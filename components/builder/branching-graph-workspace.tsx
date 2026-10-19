@@ -749,14 +749,19 @@ export function BranchingGraphWorkspace({
       if (container) {
         const extraPanX = viewportPadding + inspectorPanAllowance;
         const extraPanY = viewportPadding;
-        const minX = Math.min(
-          0,
-          container.clientWidth - scaledWidth - extraPanX,
-        );
-        const minY = Math.min(
-          0,
-          container.clientHeight - scaledHeight - extraPanY,
-        );
+        // A graph smaller than the view may also pan up and left as far as
+        // it pans down and right from the centered position.
+        const minX =
+          scaledWidth <= container.clientWidth
+            ? Math.min(0, (container.clientWidth - scaledWidth) / 2 - extraPanX)
+            : container.clientWidth - scaledWidth - extraPanX;
+        const minY =
+          scaledHeight <= container.clientHeight
+            ? Math.min(
+                0,
+                (container.clientHeight - scaledHeight) / 2 - extraPanY,
+              )
+            : container.clientHeight - scaledHeight - extraPanY;
         const maxX =
           scaledWidth <= container.clientWidth
             ? (container.clientWidth - scaledWidth) / 2 + extraPanX
