@@ -45,6 +45,6 @@ export default async function GraphFormPage({
   const form = await getEditableForm(id);
 
   return (
-    <FormBuilder initialForm={form} initialMode="graph" immersiveGraphPage />
+    <FormBuilder initialForm={form} initialMode="graph" />
   );
 }

@@ -24,7 +24,7 @@ import {
   Plus,
   GitBranch,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   blockCreationOrder,
@@ -43,7 +43,6 @@ import { useI18n } from "@/components/i18n-provider";
 import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { PageHeader } from "@/components/ui/page-header";
 import { ToastViewport } from "@/components/ui/toast";
 import {
   getBranchRules,
@@ -233,14 +232,14 @@ function StaticBlockRow({
 export function FormBuilder({
   initialForm,
   initialMode = "standard",
-  immersiveGraphPage = false,
 }: {
   initialForm: BuilderForm;
   initialMode?: BuilderMode;
-  immersiveGraphPage?: boolean;
 }) {
   const { t } = useI18n();
   const router = useRouter();
+  const pathname = usePathname();
+  const lastPathname = useRef(pathname);
   const [form, setForm] = useState(initialForm);
   const [builderMode, setBuilderMode] = useState<BuilderMode>(initialMode);
   const [selection, setSelection] = useState<Selection>(() =>
@@ -343,19 +342,26 @@ export function FormBuilder({
     [form.blocks],
   );
 
+  // Back and forward between /edit and /graph change only the URL, since
+  // switchBuilderMode moves between them without a server navigation.
   useEffect(() => {
-    setBuilderMode(initialMode);
-  }, [initialMode]);
+    if (pathname === lastPathname.current) {
+      return;
+    }
+
+    lastPathname.current = pathname;
+    setBuilderMode(pathname.endsWith("/graph") ? "graph" : "standard");
+  }, [pathname]);
 
   useEffect(() => {
-    if (!immersiveGraphPage || builderMode !== "graph") {
+    if (builderMode !== "graph") {
       return;
     }
 
     if (graphSelectedBlockId) {
       setIsImmersiveSidebarOpen(true);
     }
-  }, [builderMode, graphSelectedBlockId, immersiveGraphPage]);
+  }, [builderMode, graphSelectedBlockId]);
 
   useEffect(() => {
     setMetadataDraft({
@@ -638,7 +644,7 @@ export function FormBuilder({
 
   async function executePendingNavigation(navigation: PendingNavigation) {
     if (navigation.nextBuilderMode) {
-      setBuilderMode(navigation.nextBuilderMode);
+      switchBuilderMode(navigation.nextBuilderMode);
     }
 
     switch (navigation.kind) {
@@ -689,19 +695,28 @@ export function FormBuilder({
     void executePendingNavigation(navigation);
   }
 
+  // Both modes render from the same data, so switching keeps the builder
+  // mounted and only updates the URL; a reload lands on the matching page.
+  function switchBuilderMode(mode: BuilderMode) {
+    setBuilderMode(mode);
+    const path = `/forms/${form.id}/${mode === "graph" ? "graph" : "edit"}`;
+
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, "", path);
+    }
+  }
+
   function openGraphMode() {
     setIsBlockMenuOpen(false);
-    setBuilderMode("graph");
+    switchBuilderMode("graph");
     setHasExplicitGraphSelection(false);
     setSelectedGraphEdgeId(null);
-    router.push(`/forms/${form.id}/graph`);
   }
 
   function exitGraphMode() {
-    setBuilderMode("standard");
+    switchBuilderMode("standard");
     setHasExplicitGraphSelection(false);
     setSelectedGraphEdgeId(null);
-    router.push(`/forms/${form.id}/edit`);
   }
 
   function openSettings() {
@@ -873,11 +888,7 @@ export function FormBuilder({
   }
 
   const shareHref = `/f/${form.slug}`;
-  const workspaceLabel =
-    form.workspace.kind === "personal"
-      ? t("workspace.personal")
-      : form.workspace.label;
-  const isImmersiveGraphPage = immersiveGraphPage && builderMode === "graph";
+  const isImmersiveGraphPage = builderMode === "graph";
 
   return (
     <>
@@ -950,20 +961,7 @@ export function FormBuilder({
             "relative left-1/2 right-1/2 -mt-8 -mb-8 h-[calc(100dvh-5.5rem)] w-screen -translate-x-1/2 overflow-hidden space-y-0",
         )}
       >
-        {builderMode === "graph" ? (
-          isImmersiveGraphPage ? null : (
-            <PageHeader
-              title={form.title}
-              metadata={workspaceLabel}
-              actions={
-                <Button variant="secondary" onClick={exitGraphMode}>
-                  <ArrowLeft className="size-4" />
-                  {t("builder.exitGraphMode")}
-                </Button>
-              }
-            />
-          )
-        ) : (
+        {isImmersiveGraphPage ? null : (
           <BuilderHeader
             form={form}
             settingsSelected={selection.kind === "form"}

@@ -22,6 +22,7 @@ const { mock } = (await import("bun:test")) as unknown as {
 
 mock.module("next/navigation", () => ({
   useRouter: () => router,
+  usePathname: () => window.location.pathname,
 }));
 
 const { FormBuilder } = await import("@/components/form-builder");
@@ -661,13 +662,12 @@ describe("FormBuilder", () => {
     );
 
     await waitFor(() => {
-      expect(view.getByText("Form title") !== null).toBe(true);
       expect(
         view.getByRole("button", { name: "builder.exitGraphMode" }) !== null,
       ).toBe(true);
     });
     expect(view.queryByText("builder.blocks")).toBe(null);
-    expect(routerPushCalls.at(-1)).toBe("/forms/form-1/graph");
+    expect(window.location.pathname).toBe("/forms/form-1/graph");
 
     await cleanupAndRestore(restoreDom);
   });
@@ -722,7 +722,7 @@ describe("FormBuilder", () => {
     await waitFor(() => {
       expect(view.getByText("builder.blocks") !== null).toBe(true);
     });
-    expect(routerPushCalls.at(-1)).toBe("/forms/form-1/edit");
+    expect(window.location.pathname).toBe("/forms/form-1/edit");
 
     await cleanupAndRestore(restoreDom);
   });
