@@ -2,6 +2,7 @@ import type { FormStatus, OrganizationMemberRole } from "@prisma/client";
 
 import type { SerializedBlock } from "@/lib/blocks";
 import type { AppLocale } from "@/lib/i18n";
+import type { ResponseIdentityEntry } from "@/lib/response-identity";
 
 export type BuilderBlock = SerializedBlock;
 export type PublicBlock = SerializedBlock;
@@ -104,6 +105,7 @@ export type ResponseListItem = {
   submittedAt: string;
   answerCount: number;
   submissionNumber: number;
+  identity: ResponseIdentityEntry[];
 };
 
 export type ResponseDetailRouteBlock = {
@@ -124,6 +126,7 @@ export type ResponseDetail = {
   submissionNumber: number;
   formTitle: string;
   workspace: WorkspaceReference;
+  identity: ResponseIdentityEntry[];
   answers: Record<string, AnswerValue>;
   uploads: Record<string, ResponseDetailUpload>;
   blocks: SerializedBlock[];

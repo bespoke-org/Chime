@@ -1093,6 +1093,49 @@ export function BlockEditorPanel({
           </>
         )}
 
+        {blockDraft.type === "SHORT_TEXT" ? (
+          <div className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+            <label className="flex items-center gap-3 text-[var(--ink)]">
+              <Checkbox
+                checked={(blockDraft.config as ShortTextBlockConfig).identity}
+                onChange={(event) =>
+                  updateConfig({ identity: event.target.checked })
+                }
+              />
+              {t("builder.identity")}
+            </label>
+            <p className="text-xs">{t("builder.identityHelp")}</p>
+
+            {(blockDraft.config as ShortTextBlockConfig).identity ? (
+              // The webhook key is for integrators, so it stays folded away
+              // until someone opens it or a key is already set.
+              <details
+                open={
+                  (blockDraft.config as ShortTextBlockConfig).identityKey !==
+                  null
+                }
+              >
+                <summary className="cursor-pointer text-xs">
+                  {t("builder.identityKey")}
+                </summary>
+                <div className="mt-2 grid gap-2">
+                  <Input
+                    value={
+                      (blockDraft.config as ShortTextBlockConfig).identityKey ??
+                      ""
+                    }
+                    placeholder="telegram"
+                    onChange={(event) =>
+                      updateConfig({ identityKey: event.target.value })
+                    }
+                  />
+                  <p className="text-xs">{t("builder.identityKeyHelp")}</p>
+                </div>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
+
         {blockDraft.type === "NUMBER" ? (
           <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
             <label className="grid gap-2">

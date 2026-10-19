@@ -255,6 +255,10 @@ builder:
   regexValidation: Validate with regex
   regexPattern: Regex pattern
   regexHelp: Use a custom regex to constrain accepted answers for this text question.
+  identity: Identifies the respondent
+  identityHelp: The answer is shown instead of the response number and sent in the identity field of the webhook.
+  identityKey: Webhook key
+  identityKeyHelp: Lowercase letters, digits, and underscores, starting with a letter.
   markdownHelp: Supports basic Markdown
   checkboxLabel: Checkbox label
   choiceOptions: Choice options

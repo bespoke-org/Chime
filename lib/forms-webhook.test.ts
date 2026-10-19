@@ -48,7 +48,13 @@ mock.module("@/lib/db", () => ({
 const { createAnonymousResponse } = await import("@/lib/forms");
 const { setWebhookDeliverer } = await import("@/lib/webhooks");
 
-function block(id: string, type: string, title: string, position: number) {
+function block(
+  id: string,
+  type: string,
+  title: string,
+  position: number,
+  config: Record<string, unknown> = {},
+) {
   const now = new Date("2026-10-18T09:00:00.000Z");
   return {
     id,
@@ -58,7 +64,7 @@ function block(id: string, type: string, title: string, position: number) {
     description: "",
     required: false,
     position,
-    config: {},
+    config,
     createdAt: now,
     updatedAt: now,
   };
@@ -111,8 +117,17 @@ describe("createAnonymousResponse webhook", () => {
   test("delivers the stored response to the configured URL", async () => {
     resetTestState({
       webhooks: [{ url: "https://example.com/hook", secret: "s3cret" }],
+      blocks: [
+        block("intro", "TEXT", "Welcome", 0),
+        block("q-1", "SHORT_TEXT", "Name", 1, {
+          identity: true,
+          identityKey: "name",
+        }),
+      ],
     });
     const deliveries = captureDeliveries();
+    const previousBaseUrl = process.env.NEXTAUTH_URL;
+    process.env.NEXTAUTH_URL = "https://forms.example.com";
 
     try {
       await createAnonymousResponse("demo", { "q-1": " Ada " });
@@ -126,14 +141,25 @@ describe("createAnonymousResponse webhook", () => {
           formId: "form-1",
           formSlug: "demo",
           formTitle: "Demo",
+          formUrl: "https://forms.example.com/f/demo",
           responseId: "resp-1",
+          responseUrl:
+            "https://forms.example.com/forms/form-1/responses/resp-1",
           submittedAt: "2026-10-18T10:00:00.000Z",
+          identity: [
+            { key: "name", blockId: "q-1", title: "Name", value: "Ada" },
+          ],
           answers: [
             { blockId: "q-1", type: "SHORT_TEXT", title: "Name", value: "Ada" },
           ],
         }),
       );
     } finally {
+      if (previousBaseUrl === undefined) {
+        delete process.env.NEXTAUTH_URL;
+      } else {
+        process.env.NEXTAUTH_URL = previousBaseUrl;
+      }
       setWebhookDeliverer(null);
     }
   });

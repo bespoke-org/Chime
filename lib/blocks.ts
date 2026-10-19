@@ -129,6 +129,20 @@ const regexPatternSchema = z
     }
   });
 
+// A key the creator may give an identity field, so webhook consumers can
+// address it by name instead of by block id.
+export const IDENTITY_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
+
+const identityKeySchema = z
+  .unknown()
+  .transform((value) =>
+    typeof value === "string" ? value.trim() || null : null,
+  )
+  .refine((value) => value === null || IDENTITY_KEY_PATTERN.test(value), {
+    message:
+      "Use a webhook key of lowercase letters, digits, and underscores that starts with a letter.",
+  });
+
 const numericLimitSchema = z
   .unknown()
   .transform((value) => {
@@ -216,6 +230,8 @@ const shortTextConfigSchema = z.object({
     .max(120)
     .default(defaultBlockCopyByLocale.en.shortPlaceholder),
   validationRegex: regexPatternSchema.default(null),
+  identity: z.boolean().default(false),
+  identityKey: identityKeySchema.default(null),
   branchRules: branchRulesSchema,
   defaultNextBlockId: defaultNextBlockIdSchema,
   endForm: endFormSchema,

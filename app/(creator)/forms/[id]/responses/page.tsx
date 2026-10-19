@@ -21,6 +21,7 @@ import { getFunnelPercent } from "@/lib/form-funnel";
 import { countFormVisits } from "@/lib/form-visits";
 import { listResponsesForOwnedForm } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { formatResponseIdentity } from "@/lib/response-identity";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 import type { QuestionSummary } from "@/lib/form-types";
 import { cn, formatCalendarDate, formatDate } from "@/lib/utils";
@@ -220,13 +221,17 @@ export default async function ResponsesPage({
               {responses.map((response) => (
                 <div
                   key={response.id}
-                  className="grid gap-3 px-5 py-4 sm:grid-cols-[140px_190px_120px_1fr] sm:items-center sm:gap-y-4 sm:gap-x-3"
+                  className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(140px,260px)_190px_120px_1fr] sm:items-center sm:gap-y-4 sm:gap-x-3"
                 >
                   <div className="min-w-0 sm:justify-self-start">
-                    <h2 className="text-base font-semibold text-[var(--ink)] sm:text-left">
-                      {t("meta.response", {
-                        number: response.submissionNumber,
-                      })}
+                    {/* Identity fields name the respondent; without them
+                        the submission number stands in. */}
+                    <h2 className="truncate text-base font-semibold text-[var(--ink)] sm:text-left">
+                      {response.identity.length
+                        ? formatResponseIdentity(response.identity)
+                        : t("meta.response", {
+                            number: response.submissionNumber,
+                          })}
                     </h2>
                   </div>
                   <p className="min-w-0 text-sm text-[var(--muted)] sm:justify-self-start sm:text-left">

@@ -131,16 +131,22 @@ export function hasBuilderBlockDraftChanges(args: {
     return false;
   }
 
-  return (
-    JSON.stringify(createComparableBuilderBlock(savedBlock)) !==
-    JSON.stringify(
-      normalizeBuilderBlockDraft({
-        blockDraft,
-        choiceOptionsDraft,
-        branchRulesDraft,
-      }),
-    )
-  );
+  try {
+    return (
+      JSON.stringify(createComparableBuilderBlock(savedBlock)) !==
+      JSON.stringify(
+        normalizeBuilderBlockDraft({
+          blockDraft,
+          choiceOptionsDraft,
+          branchRulesDraft,
+        }),
+      )
+    );
+  } catch {
+    // A half-typed regex or webhook key fails the schema; it is still an
+    // unsaved change, and saving reports the error.
+    return true;
+  }
 }
 
 function padTwo(value: number) {

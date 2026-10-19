@@ -104,6 +104,26 @@ describe("form builder draft helpers", () => {
     ).toBe(true);
   });
 
+  test("counts a draft that fails the block schema as changed", () => {
+    const savedBlock = createBlock({
+      id: "name",
+      type: "SHORT_TEXT",
+      position: 0,
+    });
+
+    expect(
+      hasBuilderBlockDraftChanges({
+        savedBlock,
+        blockDraft: {
+          ...savedBlock,
+          config: { ...savedBlock.config, validationRegex: "(" },
+        } as BuilderBlock,
+        choiceOptionsDraft: [],
+        branchRulesDraft: [],
+      }),
+    ).toBe(true);
+  });
+
   test("detects branching edits from serialized rule content instead of draft ids", () => {
     const savedBlock = createBlock({
       id: "question-1",

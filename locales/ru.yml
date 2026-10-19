@@ -255,6 +255,10 @@ builder:
   regexValidation: Проверять регулярным выражением
   regexPattern: Regex-шаблон
   regexHelp: Используйте собственный regex, чтобы ограничить формат ответа в этом текстовом вопросе.
+  identity: Идентифицирует респондента
+  identityHelp: Ответ показывается вместо номера ответа и передаётся в поле identity вебхука.
+  identityKey: Ключ в вебхуке
+  identityKeyHelp: Строчные латинские буквы, цифры и подчёркивания, начиная с буквы.
   markdownHelp: Поддерживается базовый Markdown
   checkboxLabel: Текст галочки
   choiceOptions: Варианты ответа

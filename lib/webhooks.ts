@@ -7,6 +7,10 @@ import type {
   SubmissionSnapshotBlock,
 } from "@/lib/form-submission";
 import type { AnswerValue } from "@/lib/form-types";
+import {
+  collectResponseIdentity,
+  type ResponseIdentityEntry,
+} from "@/lib/response-identity";
 import { buildUploadDownloadUrl } from "@/lib/uploads";
 
 export const WEBHOOK_EVENT_RESPONSE_CREATED = "response.created";
@@ -118,8 +122,11 @@ export type WebhookPayload = {
   formId: string;
   formSlug: string;
   formTitle: string;
+  formUrl: string;
   responseId: string;
+  responseUrl: string;
   submittedAt: string;
+  identity: ResponseIdentityEntry[];
   answers: WebhookAnswer[];
 };
 
@@ -154,13 +161,19 @@ export function buildWebhookPayload(
     });
   }
 
+  const origin = baseUrl.replace(/\/+$/, "");
+
   return {
     event: WEBHOOK_EVENT_RESPONSE_CREATED,
     formId: form.id,
     formSlug: form.slug,
     formTitle: form.title,
+    formUrl: `${origin}/f/${form.slug}`,
     responseId: response.id,
+    // Opens only for members of the form's workspace.
+    responseUrl: `${origin}/forms/${form.id}/responses/${response.id}`,
     submittedAt: response.submittedAt.toISOString(),
+    identity: collectResponseIdentity(snapshot, response.answers),
     answers,
   };
 }

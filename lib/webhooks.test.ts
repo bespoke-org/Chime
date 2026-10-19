@@ -177,8 +177,11 @@ function payload(): WebhookPayload {
     formId: "form-1",
     formSlug: "demo",
     formTitle: "Demo",
+    formUrl: "https://forms.example.com/f/demo",
     responseId: "resp-1",
+    responseUrl: "https://forms.example.com/forms/form-1/responses/resp-1",
     submittedAt: "2026-10-18T10:00:00.000Z",
+    identity: [],
     answers: [
       { blockId: "q-1", type: "SHORT_TEXT", title: "Name", value: "Ada" },
     ],

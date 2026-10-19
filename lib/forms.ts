@@ -610,7 +610,7 @@ export async function updateOwnedBlock(
   payload: unknown,
 ) {
   const parsed = blockUpdateSchema.parse(payload);
-  await assertAccessibleForm(userId, formId);
+  const form = await assertAccessibleForm(userId, formId);
 
   const block = await db.formBlock.findFirst({
     where: {
@@ -624,6 +624,28 @@ export async function updateOwnedBlock(
   }
 
   const config = normalizeBlockConfig(block.type, parsed.config);
+  const identityKey =
+    "identityKey" in config && config.identity ? config.identityKey : null;
+
+  // Webhook consumers address identity fields by key, so a key is unique
+  // within the form.
+  if (
+    identityKey &&
+    form.blocks.some(
+      (other) =>
+        other.id !== blockId &&
+        typeof other.config === "object" &&
+        other.config !== null &&
+        (other.config as { identity?: unknown }).identity === true &&
+        (other.config as { identityKey?: unknown }).identityKey ===
+          identityKey,
+    )
+  ) {
+    throw new AppError(
+      "Another identity field in this form already uses this webhook key.",
+      409,
+    );
+  }
   const updated = await db.formBlock.update({
     where: { id: blockId },
     data: {

@@ -279,6 +279,96 @@ describe("buildResponseDetailData", () => {
   });
 });
 
+describe("response identity", () => {
+  const nameBlock = createBlock({
+    id: "name",
+    type: "SHORT_TEXT",
+    title: "Name",
+    position: 0,
+    config: {
+      placeholder: "",
+      validationRegex: null,
+      identity: true,
+      identityKey: null,
+      branchRules: [],
+      defaultNextBlockId: null,
+    },
+  });
+  const handleBlock = createBlock({
+    id: "handle",
+    type: "SHORT_TEXT",
+    title: "Telegram",
+    position: 1,
+    config: {
+      placeholder: "",
+      validationRegex: null,
+      identity: true,
+      identityKey: "telegram",
+      branchRules: [],
+      defaultNextBlockId: null,
+    },
+  });
+  const noteBlock = createBlock({ id: "note", type: "SHORT_TEXT", position: 2 });
+
+  test("lists answered identity fields in block order on the response row", () => {
+    const data = buildResponseReviewData({
+      form: {
+        id: "form-1",
+        title: "Survey",
+        slug: "survey",
+        status: "PUBLISHED",
+        workspace: { kind: "personal", label: "Personal workspace" },
+        blocks: [nameBlock, handleBlock, noteBlock],
+      },
+      responses: [
+        {
+          id: "response-1",
+          submittedAt: new Date("2026-04-14T10:00:00.000Z"),
+          answersJson: { handle: "@ada", name: "Ada Lovelace", note: "hi" },
+          formSnapshotJson: null,
+        },
+        {
+          id: "response-2",
+          submittedAt: new Date("2026-04-14T11:00:00.000Z"),
+          answersJson: { note: "anonymous" },
+          formSnapshotJson: null,
+        },
+      ],
+    });
+
+    expect(JSON.stringify(data.responses.map((row) => row.identity))).toBe(
+      JSON.stringify([
+        [],
+        [
+          { key: null, blockId: "name", title: "Name", value: "Ada Lovelace" },
+          {
+            key: "telegram",
+            blockId: "handle",
+            title: "Telegram",
+            value: "@ada",
+          },
+        ],
+      ]),
+    );
+  });
+
+  test("reads identity from the response detail", () => {
+    const detail = buildResponseDetailData({
+      responseId: "response-1",
+      formId: "form-1",
+      submittedAt: new Date("2026-04-14T10:00:00.000Z"),
+      submissionNumber: 1,
+      formTitle: "Survey",
+      workspace: { kind: "personal", label: "Personal workspace" },
+      answersJson: { handle: "@ada" },
+      formSnapshotJson: null,
+      currentBlocks: [nameBlock, handleBlock, noteBlock],
+    });
+
+    expect(detail.identity.map((entry) => entry.value).join()).toBe("@ada");
+  });
+});
+
 describe("rating question summaries", () => {
   const ratingConfig = {
     min: 0,

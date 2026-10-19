@@ -12,6 +12,7 @@ import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { formatResponseIdentity } from "@/lib/response-identity";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 import { formatSizeMb } from "@/lib/uploads";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
@@ -58,16 +59,25 @@ export default async function ResponseDetailPage({
       ? t("workspace.personal")
       : response.workspace.label;
   const blockTypeLabel = (type: string) => t(`blocks.types.${type}`);
+  const submissionLabel = t("responseDetail.title", {
+    number: response.submissionNumber,
+    date: formatDate(response.submittedAt, locale),
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("responseDetail.title", {
-          number: response.submissionNumber,
-          date: formatDate(response.submittedAt, locale),
-        })}
+        title={
+          response.identity.length
+            ? formatResponseIdentity(response.identity)
+            : submissionLabel
+        }
         metadata={workspaceLabel}
-        description={t("responseDetail.description")}
+        description={
+          response.identity.length
+            ? submissionLabel
+            : t("responseDetail.description")
+        }
         actions={
           <Link href={`/forms/${id}/responses`}>
             <Button variant="secondary">

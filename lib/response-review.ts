@@ -11,6 +11,7 @@ import {
   type SerializedBlock,
 } from "@/lib/blocks";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
+import { collectResponseIdentity } from "@/lib/response-identity";
 import type {
   QuestionSummary,
   QuestionSummaryAnswer,
@@ -241,14 +242,28 @@ function aggregateQuestionSummaries(
 
 export function buildResponseListItems(
   responses: StoredResponseLike[],
+  form: { id: string; blocks: SerializedBlock[] },
 ): ResponseListItem[] {
   return responses
-    .map((response, index) => ({
-      id: response.id,
-      submittedAt: response.submittedAt.toISOString(),
-      answerCount: Object.keys(parseStoredAnswers(response.answersJson)).length,
-      submissionNumber: index + 1,
-    }))
+    .map((response, index) => {
+      const answers = parseStoredAnswers(response.answersJson);
+
+      return {
+        id: response.id,
+        submittedAt: response.submittedAt.toISOString(),
+        answerCount: Object.keys(answers).length,
+        submissionNumber: index + 1,
+        identity: collectResponseIdentity(
+          restoreVisitedBlocksFromSnapshot(
+            response.formSnapshotJson,
+            form.blocks,
+            form.id,
+            response.submittedAt,
+          ),
+          answers,
+        ),
+      };
+    })
     .reverse();
 }
 
@@ -266,7 +281,7 @@ export function buildResponseReviewData(input: {
       status: form.status,
       workspace: form.workspace,
     },
-    responses: buildResponseListItems(responses),
+    responses: buildResponseListItems(responses, form),
     questionSummaries: aggregateQuestionSummaries(form.blocks, responses),
   };
 }
@@ -290,6 +305,7 @@ export function buildResponseDetailData(input: {
     input.submittedAt,
   );
   const visitedBlockIds = new Set(visitedBlocks.map((block) => block.id));
+  const answers = parseStoredAnswers(input.answersJson);
 
   return {
     id: input.responseId,
@@ -297,7 +313,8 @@ export function buildResponseDetailData(input: {
     submissionNumber: input.submissionNumber,
     formTitle: input.formTitle,
     workspace: input.workspace,
-    answers: parseStoredAnswers(input.answersJson),
+    identity: collectResponseIdentity(visitedBlocks, answers),
+    answers,
     uploads: Object.fromEntries(
       (input.uploads ?? []).map((upload) => [upload.id, upload]),
     ),

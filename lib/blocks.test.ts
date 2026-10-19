@@ -103,6 +103,31 @@ describe("number block limits", () => {
   });
 });
 
+describe("short text identity key", () => {
+  function keyOf(value: unknown) {
+    const config = parseBlockConfig("SHORT_TEXT", {
+      identity: true,
+      identityKey: value,
+    });
+    return "identityKey" in config ? config.identityKey : undefined;
+  }
+
+  test("keeps a trimmed snake_case key", () => {
+    expect(keyOf(" telegram_handle ")).toBe("telegram_handle");
+  });
+
+  test("stores an empty or non-string key as null", () => {
+    expect(keyOf("  ")).toBe(null);
+    expect(keyOf(7)).toBe(null);
+  });
+
+  test("rejects a key that is not lowercase snake_case", () => {
+    expect(throws(() => keyOf("Telegram"))).toBe(true);
+    expect(throws(() => keyOf("1st"))).toBe(true);
+    expect(throws(() => keyOf("vk-id"))).toBe(true);
+  });
+});
+
 describe("text block regex pattern", () => {
   function regexOf(value: unknown) {
     const config = parseBlockConfig("SHORT_TEXT", { validationRegex: value });
@@ -283,6 +308,8 @@ describe("parseBlockConfig with stored data", () => {
       json({
         placeholder: "Name",
         validationRegex: null,
+        identity: false,
+        identityKey: null,
         branchRules: [],
         defaultNextBlockId: null,
         endForm: false,
