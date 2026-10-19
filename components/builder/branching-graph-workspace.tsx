@@ -183,6 +183,8 @@ const GRAPH_INSPECTOR_WIDTH_STORAGE_KEY_PREFIX =
   "lively-forms:branching-graph-inspector-width:";
 const GRAPH_CANVAS_PADDING = 720;
 const DEFAULT_IMMERSIVE_INSPECTOR_WIDTH = 560;
+// Matches the panel's left-4 inset.
+const IMMERSIVE_INSPECTOR_OFFSET = 16;
 const MIN_IMMERSIVE_INSPECTOR_WIDTH = 420;
 const MAX_IMMERSIVE_INSPECTOR_WIDTH = 960;
 
@@ -357,6 +359,7 @@ export function BranchingGraphWorkspace({
   immersiveInspectorOpen = false,
   immersiveFormTitle,
   onCloseImmersiveInspector,
+  onClearSelection,
   overlay,
 }: {
   formId: string;
@@ -381,6 +384,7 @@ export function BranchingGraphWorkspace({
   immersiveInspectorOpen?: boolean;
   immersiveFormTitle?: string;
   onCloseImmersiveInspector?: () => void;
+  onClearSelection?: () => void;
   overlay?: ReactNode;
 }) {
   const { t } = useI18n();
@@ -432,6 +436,11 @@ export function BranchingGraphWorkspace({
   });
   const graph = useMemo(() => buildBranchingGraph(allBlocks), [allBlocks]);
   const viewportPadding = immersive ? GRAPH_CANVAS_PADDING : 0;
+  // While the panel is open, the graph may pan right far enough to clear it.
+  const inspectorPanAllowance =
+    immersive && immersiveInspectorOpen
+      ? IMMERSIVE_INSPECTOR_OFFSET + immersiveInspectorWidth
+      : 0;
 
   useEffect(() => {
     const persistedOverrides = readPersistedGraphLayout(formId);
@@ -738,7 +747,7 @@ export function BranchingGraphWorkspace({
       let y = nextCamera.y;
 
       if (container) {
-        const extraPanX = viewportPadding;
+        const extraPanX = viewportPadding + inspectorPanAllowance;
         const extraPanY = viewportPadding;
         const minX = Math.min(
           0,
@@ -776,12 +785,53 @@ export function BranchingGraphWorkspace({
       syncGraphViewport(camera);
     },
     [
+      inspectorPanAllowance,
       renderedGraphHeight,
       renderedGraphWidth,
       syncGraphViewport,
       viewportPadding,
     ],
   );
+
+  // When the panel opens over the block that was just selected, pan the
+  // graph right so the block stays visible beside the panel.
+  const revealedBlockIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!immersive || !immersiveInspectorOpen || !selectedBlockId) {
+      revealedBlockIdRef.current = null;
+      return;
+    }
+
+    if (revealedBlockIdRef.current === selectedBlockId) {
+      return;
+    }
+
+    revealedBlockIdRef.current = selectedBlockId;
+    const container = graphScrollRef.current;
+    const node = nodesById.get(selectedBlockId);
+
+    if (!container || !node) {
+      return;
+    }
+
+    const camera = graphCameraRef.current;
+    const nodeLeft =
+      container.getBoundingClientRect().left + camera.x + node.x * camera.zoom;
+    const panelRight =
+      IMMERSIVE_INSPECTOR_OFFSET + immersiveInspectorWidth + 24;
+
+    if (nodeLeft < panelRight) {
+      applyGraphCamera({ ...camera, x: camera.x + panelRight - nodeLeft });
+    }
+  }, [
+    applyGraphCamera,
+    immersive,
+    immersiveInspectorOpen,
+    immersiveInspectorWidth,
+    nodesById,
+    selectedBlockId,
+  ]);
 
   const updateGraphZoomAtPoint = useCallback(
     (nextZoom: number, clientX: number, clientY: number) => {
@@ -1074,6 +1124,11 @@ export function BranchingGraphWorkspace({
         : selectedIds,
     );
     setSelectionRect(null);
+
+    // A click or marquee on empty canvas deselects the block.
+    if (!activeSelectionRect.additive && selectedIds.length === 0) {
+      onClearSelection?.();
+    }
   }
 
   function handleGraphNodePointerDown(

@@ -20,7 +20,6 @@ import {
   ArrowLeft,
   GripVertical,
   LoaderCircle,
-  PanelRight,
   Plus,
   GitBranch,
 } from "lucide-react";
@@ -260,7 +259,6 @@ export function FormBuilder({
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [busy, setBusy] = useState<string | null>(null);
   const [isDndReady, setIsDndReady] = useState(false);
-  const [isImmersiveSidebarOpen, setIsImmersiveSidebarOpen] = useState(false);
 
   const [metadataDraft, setMetadataDraft] = useState<FormMetadataDraft>({
     title: initialForm.title,
@@ -400,16 +398,6 @@ export function FormBuilder({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [blockIdForDeleteKey, isAnyDialogOpen]);
-
-  useEffect(() => {
-    if (builderMode !== "graph") {
-      return;
-    }
-
-    if (graphSelectedBlockId) {
-      setIsImmersiveSidebarOpen(true);
-    }
-  }, [builderMode, graphSelectedBlockId]);
 
   useEffect(() => {
     setMetadataDraft({
@@ -757,6 +745,17 @@ export function FormBuilder({
       kind: "form",
       nextBuilderMode: builderMode === "graph" ? "standard" : undefined,
     });
+  }
+
+  // The graph panel is open exactly while a block is selected. Unsaved edits
+  // keep the selection, so clicking the canvas does not discard them.
+  function clearGraphSelection() {
+    if (hasUnsavedBlockChanges) {
+      return;
+    }
+
+    setHasExplicitGraphSelection(false);
+    setSelectedGraphEdgeId(null);
   }
 
   function selectGraphBlock(blockId: string) {
@@ -1113,35 +1112,17 @@ export function FormBuilder({
             }
             immersive={isImmersiveGraphPage}
             hideInspector={false}
-            immersiveInspectorOpen={
-              isImmersiveGraphPage && isImmersiveSidebarOpen
-            }
+            immersiveInspectorOpen={graphSelectedBlockId !== null}
             immersiveFormTitle={form.title}
-            onCloseImmersiveInspector={() => setIsImmersiveSidebarOpen(false)}
+            onCloseImmersiveInspector={clearGraphSelection}
+            onClearSelection={clearGraphSelection}
             overlay={
-              isImmersiveGraphPage ? (
-                <>
-                  <div className="fixed left-4 top-4 z-30 sm:left-4 sm:top-4">
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      aria-label="Toggle block settings"
-                      title="Toggle block settings"
-                      onClick={() =>
-                        setIsImmersiveSidebarOpen((current) => !current)
-                      }
-                    >
-                      <PanelRight className="size-4" />
-                    </Button>
-                  </div>
-                  <div className="fixed z-30 sm:right-4 sm:top-4">
-                    <Button variant="secondary" onClick={exitGraphMode}>
-                      <ArrowLeft className="size-4" />
-                      {t("builder.exitGraphMode")}
-                    </Button>
-                  </div>
-                </>
-              ) : undefined
+              <div className="fixed z-30 sm:right-4 sm:top-4">
+                <Button variant="secondary" onClick={exitGraphMode}>
+                  <ArrowLeft className="size-4" />
+                  {t("builder.exitGraphMode")}
+                </Button>
+              </div>
             }
           />
         ) : (

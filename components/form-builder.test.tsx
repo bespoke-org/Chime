@@ -1243,4 +1243,53 @@ describe("FormBuilder", () => {
     globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);
   });
+
+  test("closes the graph panel when the empty canvas is clicked", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+
+    const view = renderBuilder(createForm([firstBlock]), "graph");
+    const graphNode = await view.findByRole("button", {
+      name: "blocks.types.SHORT_TEXT First question",
+    });
+
+    fireEvent.click(graphNode);
+
+    await waitFor(() => {
+      expect(view.getByText("Form title") !== null).toBe(true);
+    });
+
+    const canvas = view.container.querySelector<HTMLElement>(
+      ".overscroll-x-none",
+    );
+    if (!canvas) {
+      throw new Error("Graph canvas not found");
+    }
+    canvas.setPointerCapture = () => {};
+    canvas.hasPointerCapture = () => false;
+    canvas.releasePointerCapture = () => {};
+
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      pointerId: 2,
+      clientX: 900,
+      clientY: 900,
+    });
+    fireEvent.pointerUp(canvas, {
+      pointerId: 2,
+      clientX: 900,
+      clientY: 900,
+    });
+
+    await waitFor(() => {
+      expect(view.queryByText("Form title")).toBe(null);
+    });
+
+    await cleanupAndRestore(restoreDom);
+  });
 });
