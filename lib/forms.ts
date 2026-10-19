@@ -307,7 +307,7 @@ const defaultFormCopyByLocale: Record<
       },
     ],
     newBlockTitles: {
-      TEXT: "Текстовый блок",
+      TEXT: "Пояснение",
       SHORT_TEXT: "Вопрос с коротким ответом",
       LONG_TEXT: "Вопрос с длинным ответом",
       SINGLE_CHOICE: "Вопрос с одним выбором",
