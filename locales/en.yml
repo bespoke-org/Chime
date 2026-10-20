@@ -484,7 +484,6 @@ responseDetail:
   title: "Submission #{number} · {date}"
   description: Review submitted answers in form order.
   backToResponses: Back to responses
-  contextBlock: Context block
   contextTitle: Context
   required: Required
   noAnswer: No answer provided.

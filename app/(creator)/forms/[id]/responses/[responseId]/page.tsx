@@ -93,12 +93,8 @@ export default async function ResponseDetailPage({
 
           if (block.type === "TEXT") {
             return (
-              <Card
-                key={block.id}
-                className="border-dashed bg-[var(--bg-strong)] p-6"
-              >
-                <Badge>{t("responseDetail.contextBlock")}</Badge>
-                <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">
+              <section key={block.id} className="px-2 pt-6">
+                <h2 className="font-display text-2xl text-[var(--muted)]">
                   {block.title || t("responseDetail.contextTitle")}
                 </h2>
                 {block.description ? (
@@ -110,10 +106,10 @@ export default async function ResponseDetailPage({
                 {"body" in block.config ? (
                   <AuthoredMarkdown
                     content={block.config.body}
-                    className="mt-4 text-base leading-8 text-[var(--ink)]/85"
+                    className="mt-4 text-base leading-8 text-[var(--muted)]"
                   />
                 ) : null}
-              </Card>
+              </section>
             );
           }
 
@@ -136,7 +132,7 @@ export default async function ResponseDetailPage({
                   className="mt-3 text-sm leading-7 text-[var(--muted)]"
                 />
               ) : null}
-              <div className="mt-6 border-l-2 border-[var(--accent)] pl-4 text-[var(--ink)]">
+              <div className="mt-6 border-l-2 border-[var(--accent)] pl-4 text-[var(--ink)]/80">
                 {Array.isArray(answer) ? (
                   <div className="flex flex-wrap gap-2">
                     {answer.map((value) => (

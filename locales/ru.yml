@@ -484,7 +484,6 @@ responseDetail:
   title: "Ответ №{number} · {date}"
   description: Просматривайте ответы в порядке формы.
   backToResponses: Назад к ответам
-  contextBlock: Контекстный блок
   contextTitle: Контекст
   required: Обязательно
   noAnswer: Ответ не был предоставлен.
