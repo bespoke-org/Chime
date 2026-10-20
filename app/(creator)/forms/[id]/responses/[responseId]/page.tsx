@@ -136,7 +136,7 @@ export default async function ResponseDetailPage({
                   className="mt-3 text-sm leading-7 text-[var(--muted)]"
                 />
               ) : null}
-              <div className="mt-6 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-5 py-4 text-[var(--ink)]">
+              <div className="mt-6 border-l-2 border-[var(--accent)] pl-4 text-[var(--ink)]">
                 {Array.isArray(answer) ? (
                   <div className="flex flex-wrap gap-2">
                     {answer.map((value) => (
