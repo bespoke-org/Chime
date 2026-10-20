@@ -28,7 +28,7 @@ Block settings are stored in `FormBlock.config` and parsed per type by zod schem
 `formUrl` is the public form URL and `responseUrl` is the response page, both built from the app base URL. The response page opens only for members of the form's workspace.
 
 ### 4. Identity in the review pages
-`buildResponseListItems` and `buildResponseDetailData` collect identity from the restored snapshot. A response with identity shows its values joined by ` · ` as the row heading and the page title; the response page shows "Response #N · date" under it.
+`buildResponseListItems` and `buildResponseDetailData` collect identity from the current form blocks, so marking a field as identity also names responses sent before. A response with identity shows its values joined by ` · ` as the row heading and the page title; the response page shows "Response #N · date" under it.
 
 ### 5. The key stays folded
 The panel shows the identity checkbox with a hint; the key input sits in a collapsed `<details>` that is open only when a key is set.

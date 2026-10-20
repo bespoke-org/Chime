@@ -253,15 +253,7 @@ export function buildResponseListItems(
         submittedAt: response.submittedAt.toISOString(),
         answerCount: Object.keys(answers).length,
         submissionNumber: index + 1,
-        identity: collectResponseIdentity(
-          restoreVisitedBlocksFromSnapshot(
-            response.formSnapshotJson,
-            form.blocks,
-            form.id,
-            response.submittedAt,
-          ),
-          answers,
-        ),
+        identity: collectResponseIdentity(form.blocks, answers),
       };
     })
     .reverse();
@@ -312,7 +304,7 @@ export function buildResponseDetailData(input: {
     submissionNumber: input.submissionNumber,
     formTitle: input.formTitle,
     workspace: input.workspace,
-    identity: collectResponseIdentity(visitedBlocks, answers),
+    identity: collectResponseIdentity(input.currentBlocks, answers),
     answers,
     uploads: Object.fromEntries(
       (input.uploads ?? []).map((upload) => [upload.id, upload]),

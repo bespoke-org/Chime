@@ -350,6 +350,34 @@ describe("response identity", () => {
 
     expect(detail.identity.map((entry) => entry.value).join()).toBe("@ada");
   });
+
+  test("reads identity flags from the current blocks, not the snapshot", () => {
+    const detail = buildResponseDetailData({
+      responseId: "response-1",
+      formId: "form-1",
+      submittedAt: new Date("2026-04-14T10:00:00.000Z"),
+      submissionNumber: 1,
+      formTitle: "Survey",
+      workspace: { kind: "personal", label: "Personal workspace" },
+      answersJson: { name: "Ada Lovelace" },
+      formSnapshotJson: [
+        {
+          id: "name",
+          type: "SHORT_TEXT",
+          title: "Name",
+          description: "",
+          required: false,
+          position: 0,
+          config: { identity: false },
+        },
+      ],
+      currentBlocks: [nameBlock],
+    });
+
+    expect(detail.identity.map((entry) => entry.value).join()).toBe(
+      "Ada Lovelace",
+    );
+  });
 });
 
 describe("rating question summaries", () => {
