@@ -484,10 +484,6 @@ responseDetail:
   title: "Submission #{number} · {date}"
   description: Review submitted answers in form order.
   backToResponses: Back to responses
-  routeContext: Route context
-  visitedPath: Visited path
-  skippedPath: Skipped sections
-  nothingSkipped: No sections were skipped in this submission.
   contextBlock: Context block
   contextTitle: Context
   required: Required

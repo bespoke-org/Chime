@@ -146,11 +146,6 @@ export type ResponseListItem = {
   identity: ResponseIdentityEntry[];
 };
 
-export type ResponseDetailRouteBlock = {
-  block: SerializedBlock;
-  status: "visited" | "skipped";
-};
-
 export type ResponseDetailUpload = {
   id: string;
   filename: string;
@@ -168,7 +163,6 @@ export type ResponseDetail = {
   answers: Record<string, AnswerValue>;
   uploads: Record<string, ResponseDetailUpload>;
   blocks: SerializedBlock[];
-  routeBlocks: ResponseDetailRouteBlock[];
 };
 
 export type ResponseReviewFormSummary = {

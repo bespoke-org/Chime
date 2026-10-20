@@ -484,10 +484,6 @@ responseDetail:
   title: "Ответ №{number} · {date}"
   description: Просматривайте ответы в порядке формы.
   backToResponses: Назад к ответам
-  routeContext: Контекст маршрута
-  visitedPath: Пройденный путь
-  skippedPath: Пропущенные секции
-  nothingSkipped: В этой отправке не было пропущенных секций.
   contextBlock: Контекстный блок
   contextTitle: Контекст
   required: Обязательно

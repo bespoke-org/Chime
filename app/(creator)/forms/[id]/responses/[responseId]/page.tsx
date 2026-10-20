@@ -87,56 +87,6 @@ export default async function ResponseDetailPage({
         }
       />
 
-      <Card className="p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge>{t("responseDetail.routeContext")}</Badge>
-        </div>
-        <div className="mt-5 grid gap-6 lg:grid-cols-2">
-          <div>
-            <h2 className="font-display text-2xl text-[var(--ink)]">
-              {t("responseDetail.visitedPath")}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {response.routeBlocks
-                .filter((entry) => entry.status === "visited")
-                .map((entry) => (
-                  <Badge
-                    key={entry.block.id}
-                    className="bg-[var(--accent-soft)] text-[var(--accent-ink)]"
-                  >
-                    {entry.block.title || blockTypeLabel(entry.block.type)}
-                  </Badge>
-                ))}
-            </div>
-          </div>
-          <div>
-            <h2 className="font-display text-2xl text-[var(--ink)]">
-              {t("responseDetail.skippedPath")}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {response.routeBlocks.filter(
-                (entry) => entry.status === "skipped",
-              ).length ? (
-                response.routeBlocks
-                  .filter((entry) => entry.status === "skipped")
-                  .map((entry) => (
-                    <Badge
-                      key={entry.block.id}
-                      className="bg-[var(--surface-strong)] text-[var(--muted)]"
-                    >
-                      {entry.block.title || blockTypeLabel(entry.block.type)}
-                    </Badge>
-                  ))
-              ) : (
-                <p className="text-sm text-[var(--muted)]">
-                  {t("responseDetail.nothingSkipped")}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
-
       <div className="space-y-4">
         {response.blocks.map((block) => {
           const answer = response.answers[block.id];

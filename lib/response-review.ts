@@ -304,7 +304,6 @@ export function buildResponseDetailData(input: {
     input.formId,
     input.submittedAt,
   );
-  const visitedBlockIds = new Set(visitedBlocks.map((block) => block.id));
   const answers = parseStoredAnswers(input.answersJson);
 
   return {
@@ -319,9 +318,5 @@ export function buildResponseDetailData(input: {
       (input.uploads ?? []).map((upload) => [upload.id, upload]),
     ),
     blocks: visitedBlocks,
-    routeBlocks: input.currentBlocks.map((block) => ({
-      block,
-      status: visitedBlockIds.has(block.id) ? "visited" : "skipped",
-    })),
   };
 }

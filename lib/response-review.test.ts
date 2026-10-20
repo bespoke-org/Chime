@@ -194,7 +194,7 @@ describe("buildResponseReviewData", () => {
 });
 
 describe("buildResponseDetailData", () => {
-  test("marks current route blocks as visited or skipped while showing visited snapshot blocks", () => {
+  test("shows visited blocks as they were at submit time", () => {
     const currentBlocks = [
       createBlock({ id: "path", type: "SINGLE_CHOICE", position: 0 }),
       createBlock({ id: "follow-up", type: "SHORT_TEXT", position: 1 }),
@@ -236,20 +236,6 @@ describe("buildResponseDetailData", () => {
       JSON.stringify(["path", "score"]),
     );
     expect(detail.blocks[0]?.title).toBe("Path at submit time");
-    expect(
-      JSON.stringify(
-        detail.routeBlocks.map((entry) => ({
-          id: entry.block.id,
-          status: entry.status,
-        })),
-      ),
-    ).toBe(
-      JSON.stringify([
-        { id: "path", status: "visited" },
-        { id: "follow-up", status: "skipped" },
-        { id: "score", status: "visited" },
-      ]),
-    );
   });
 
   test("falls back to current blocks when snapshot data is malformed", () => {
@@ -273,9 +259,6 @@ describe("buildResponseDetailData", () => {
     expect(JSON.stringify(detail.blocks.map((block) => block.id))).toBe(
       JSON.stringify(["first", "second"]),
     );
-    expect(
-      detail.routeBlocks.every((entry) => entry.status === "visited"),
-    ).toBe(true);
   });
 });
 
