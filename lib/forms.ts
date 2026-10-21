@@ -22,7 +22,6 @@ import {
   getFormAvailability,
   type FormAvailability,
 } from "@/lib/form-availability";
-import { getLocalizedCompletionDefaults } from "@/lib/form-defaults";
 import {
   assertReorderMatchesForm,
   buildSubmission,
@@ -262,16 +261,12 @@ const defaultFormCopyByLocale: Record<
   AppLocale,
   {
     untitledForm: string;
-    completionTitle: string;
-    completionMessage: string;
     initialBlocks: Prisma.FormBlockCreateWithoutFormInput[];
     newBlockTitles: Record<PrismaFormBlockType, string>;
   }
 > = {
   en: {
     untitledForm: "Untitled form",
-    completionTitle: getLocalizedCompletionDefaults("en").title,
-    completionMessage: getLocalizedCompletionDefaults("en").message,
     initialBlocks: [
       {
         type: FORM_BLOCK_TYPES.TEXT,
@@ -306,8 +301,6 @@ const defaultFormCopyByLocale: Record<
   },
   ru: {
     untitledForm: "Форма без названия",
-    completionTitle: getLocalizedCompletionDefaults("ru").title,
-    completionMessage: getLocalizedCompletionDefaults("ru").message,
     initialBlocks: [
       {
         type: FORM_BLOCK_TYPES.TEXT,
@@ -478,8 +471,8 @@ export async function createDraftForm(
         workspace.kind === "organization" ? workspace.organizationId : null,
       title: copy.untitledForm,
       description: "",
-      completionTitle: copy.completionTitle,
-      completionMessage: copy.completionMessage,
+      completionTitle: "",
+      completionMessage: "",
       showProgress: true,
       allowBackNavigation: true,
       slug,

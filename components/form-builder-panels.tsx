@@ -389,6 +389,7 @@ export function FormSettingsPanel({
             </span>
             <Input
               value={metadataDraft.completionTitle}
+              placeholder={t("publicRunner.defaultCompletionTitle")}
               onChange={(event) =>
                 setMetadataDraft((current) => ({
                   ...current,
@@ -403,6 +404,7 @@ export function FormSettingsPanel({
             </span>
             <Textarea
               value={metadataDraft.completionMessage}
+              placeholder={t("publicRunner.defaultCompletionMessage")}
               onChange={(event) =>
                 setMetadataDraft((current) => ({
                   ...current,

@@ -1,44 +1,23 @@
-import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
+// Completion texts stored by earlier versions in place of an empty value.
+// A form carrying one of them shows the public form's localized default.
+const storedDefaultCompletionTitles = new Set([
+  "Thanks for taking the time.",
+  "Спасибо, что уделили время.",
+]);
 
-export const legacyCompletionDefaults = {
-  title: "Thanks for taking the time.",
-  message:
-    "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.",
-} as const;
-
-export const completionDefaultsByLocale: Record<
-  AppLocale,
-  { title: string; message: string }
-> = {
-  en: {
-    title: "Thank you",
-    message:
-      "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.",
-  },
-  ru: {
-    title: "Спасибо",
-    message:
-      "Ваш ответ был отправлен анонимно. Создатель формы может просмотреть ответы, но они не связаны с вашим аккаунтом или входом в систему.",
-  },
-};
-
-export function getLocalizedCompletionDefaults(
-  locale: AppLocale = DEFAULT_LOCALE,
-) {
-  return (
-    completionDefaultsByLocale[locale] ??
-    completionDefaultsByLocale[DEFAULT_LOCALE]
-  );
-}
+const storedDefaultCompletionMessages = new Set([
+  "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.",
+  "Ваш ответ был отправлен анонимно. Создатель формы может просмотреть ответы, но они не связаны с вашим аккаунтом или входом в систему.",
+]);
 
 export function isLegacyDefaultCompletionTitle(
   value: string | null | undefined,
 ) {
-  return (value ?? "").trim() === legacyCompletionDefaults.title;
+  return storedDefaultCompletionTitles.has((value ?? "").trim());
 }
 
 export function isLegacyDefaultCompletionMessage(
   value: string | null | undefined,
 ) {
-  return (value ?? "").trim() === legacyCompletionDefaults.message;
+  return storedDefaultCompletionMessages.has((value ?? "").trim());
 }
