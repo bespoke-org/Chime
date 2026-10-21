@@ -46,10 +46,10 @@ export default async function DashboardPage() {
         description={t("dashboard.description")}
         descriptionClassName="max-w-2xl"
         titleClassName="leading-tight"
-        className="pb-6"
+        className="border-b-0 pb-0"
         actions={
           <form action={createFormAction}>
-            <Button size="lg" type="submit">
+            <Button type="submit">
               <Plus className="size-4" />
               {t("dashboard.newForm")}
             </Button>
