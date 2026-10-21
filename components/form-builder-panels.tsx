@@ -338,7 +338,7 @@ export function FormSettingsPanel({
             {t("builder.shareSlug")}
           </span>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-within:border-[color:var(--line-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+            <div className="flex h-10 min-w-0 flex-1 items-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-within:border-[color:var(--line-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
               <span className="shrink-0 border-r border-[color:var(--line)] px-4 font-mono text-[13px] text-[var(--muted)]">
                 /f/
               </span>
@@ -597,7 +597,7 @@ export function FormSettingsPanel({
               }))
             }
           >
-            <SelectTrigger className="h-11 px-4 text-sm font-medium">
+            <SelectTrigger className="h-10 px-3.5 text-sm font-medium">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1127,7 +1127,7 @@ export function BlockEditorPanel({
                 >
                   <SelectTrigger
                     aria-label={t("builder.ratingMin")}
-                    className="h-11 px-4 text-sm font-medium"
+                    className="h-10 px-3.5 text-sm font-medium"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -1152,7 +1152,7 @@ export function BlockEditorPanel({
                 >
                   <SelectTrigger
                     aria-label={t("builder.ratingMax")}
-                    className="h-11 px-4 text-sm font-medium"
+                    className="h-10 px-3.5 text-sm font-medium"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -1212,7 +1212,7 @@ export function BlockEditorPanel({
                 >
                   <SelectTrigger
                     aria-label={t("builder.fileUploadAccept")}
-                    className="h-11 px-4 text-sm font-medium"
+                    className="h-10 px-3.5 text-sm font-medium"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -1241,7 +1241,7 @@ export function BlockEditorPanel({
                 >
                   <SelectTrigger
                     aria-label={t("builder.fileUploadMaxSize")}
-                    className="h-11 px-4 text-sm font-medium"
+                    className="h-10 px-3.5 text-sm font-medium"
                   >
                     <SelectValue />
                   </SelectTrigger>

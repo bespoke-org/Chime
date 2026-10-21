@@ -242,7 +242,7 @@ export function ProfileSettingsPanel({
             value={locale}
             onValueChange={(value) => setLocale(value as typeof user.locale)}
           >
-            <SelectTrigger className="h-11 px-4 text-sm font-medium">
+            <SelectTrigger className="h-10 px-3.5 text-sm font-medium">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

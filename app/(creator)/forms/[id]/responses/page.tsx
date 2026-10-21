@@ -152,7 +152,7 @@ export default async function ResponsesPage({
       </dl>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
+        <div className="inline-flex h-10 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
           <Link
             href={questionsHref}
             className={cn(

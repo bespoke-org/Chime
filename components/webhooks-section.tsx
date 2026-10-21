@@ -262,7 +262,7 @@ function WebhookEditor({
               }
             >
               <SelectTrigger
-                className="h-11 px-4 text-sm font-medium"
+                className="h-10 px-3.5 text-sm font-medium"
                 aria-label={t("builder.webhookInterval")}
               >
                 <SelectValue />
@@ -295,7 +295,7 @@ function WebhookEditor({
                 }
               >
                 <SelectTrigger
-                  className="h-11 px-4 text-sm font-medium"
+                  className="h-10 px-3.5 text-sm font-medium"
                   aria-label={t("builder.webhookWeekday")}
                 >
                   <SelectValue />
