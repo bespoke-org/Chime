@@ -2,9 +2,6 @@ app:
   name: Живые формы
   description: Живые формы — это конструктор диалоговых форм для создания, публикации и просмотра форм.
   goToDashboardAria: Перейти в дашборд
-home:
-  welcomeBack: С возвращением
-  openDashboard: Открыть дашборд
 footer:
   poweredBy: Сделано с помощью
   licensedUnder: Лицензия

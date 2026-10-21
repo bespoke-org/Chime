@@ -2,9 +2,6 @@ app:
   name: Lively Forms
   description: Lively Forms is a conversational form builder for creating, publishing, and reviewing forms.
   goToDashboardAria: Go to dashboard
-home:
-  welcomeBack: Welcome back
-  openDashboard: Open dashboard
 footer:
   poweredBy: Built with
   licensedUnder: Licensed under

@@ -1,10 +1,9 @@
-import Link from "next/link";
-import { ArrowRight, Sprout } from "lucide-react";
+import { Sprout } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { AuthErrorAlert } from "@/components/auth/auth-error-alert";
 import { AtprotoSignInForm } from "@/components/auth/atproto-sign-in-form";
 import { ProviderSignInButtons } from "@/components/auth/provider-sign-in-buttons";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getServerAuthSession } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
@@ -28,6 +27,11 @@ export default async function HomePage({
   searchParams?: Promise<{ authError?: string; error?: string }>;
 }) {
   const session = await getServerAuthSession();
+
+  if (session?.user) {
+    redirect("/dashboard");
+  }
+
   const { t } = await getRequestI18n();
   const params = await searchParams;
   const authErrorKey = getAuthErrorKey(params?.authError, params?.error);
@@ -49,26 +53,15 @@ export default async function HomePage({
 
           <div className="mt-9">
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
-              {session?.user ? t("home.welcomeBack") : t("auth.title")}
+              {t("auth.title")}
             </h1>
 
-            <div className="mt-7">
-              {session?.user ? (
-                <Link href="/dashboard">
-                  <Button size="lg" className="w-full">
-                    {t("home.openDashboard")}
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </Link>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {authErrorKey ? (
-                    <AuthErrorAlert message={t(authErrorKey)} />
-                  ) : null}
-                  <ProviderSignInButtons providers={providers} />
-                  <AtprotoSignInForm />
-                </div>
-              )}
+            <div className="mt-7 flex flex-col gap-4">
+              {authErrorKey ? (
+                <AuthErrorAlert message={t(authErrorKey)} />
+              ) : null}
+              <ProviderSignInButtons providers={providers} />
+              <AtprotoSignInForm />
             </div>
           </div>
         </Card>
