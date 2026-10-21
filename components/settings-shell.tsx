@@ -62,8 +62,8 @@ export function SettingsShell({
     <div className="space-y-6">
       <PageHeader title={t("settings.shell.title")} />
 
-      <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
-        <div className="space-y-2 border-b border-[color:var(--line)] pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">
+      <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+        <div className="space-y-1 border-b border-[color:var(--line)] pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">
           {(Object.keys(sectionMeta) as SettingsSection[]).map((section) => {
             const meta = sectionMeta[section];
             const Icon = meta.icon;
@@ -84,30 +84,15 @@ export function SettingsShell({
                   });
                 }}
                 className={cn(
-                  "group flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left transition",
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition",
                   selected
-                    ? "bg-[var(--surface-strong)] text-[var(--ink)]"
+                    ? "bg-[var(--accent-soft)] font-medium text-[var(--accent-ink)]"
                     : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]",
                 )}
+                aria-current={selected ? "page" : undefined}
               >
-                <div
-                  className={cn(
-                    "rounded-full p-1.5",
-                    selected
-                      ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
-                      : "bg-[var(--bg-strong)] text-[var(--muted)]",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">
-                    {t(`settings.sections.${meta.key}.title`)}
-                  </p>
-                  <p className="mt-1 truncate text-xs opacity-80">
-                    {t(`settings.sections.${meta.key}.description`)}
-                  </p>
-                </div>
+                <Icon className="size-4 shrink-0" />
+                {t(`settings.sections.${meta.key}.title`)}
               </button>
             );
           })}

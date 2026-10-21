@@ -54,13 +54,10 @@ settings:
   sections:
     profile:
       title: Профиль
-      description: Имя, аватар и идентичность аккаунта.
     organizations:
       title: Пространства
-      description: Участники, приглашения и управление владельца.
     appearance:
       title: Внешний вид
-      description: Тема и визуальные настройки.
   profile:
     title: Ваш профиль
     profilePicture: Аватар

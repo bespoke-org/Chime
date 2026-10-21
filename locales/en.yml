@@ -54,13 +54,10 @@ settings:
   sections:
     profile:
       title: Profile
-      description: Name, avatar, and account identity.
     organizations:
       title: Workspaces
-      description: Members, invites, and owner controls.
     appearance:
       title: Appearance
-      description: Theme and visual preferences.
   profile:
     title: Your profile
     profilePicture: Profile picture

@@ -37,7 +37,11 @@ export function ThemeSettingsPanel() {
         className="border-b-0 pb-0"
       />
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
+      <div
+        role="group"
+        aria-label={t("settings.appearance.title")}
+        className="mt-8 inline-flex rounded-xl border border-[color:var(--line)] p-1"
+      >
         {options.map((option) => {
           const Icon = option.icon;
           const selected = preference === option.value;
@@ -48,28 +52,15 @@ export function ThemeSettingsPanel() {
               type="button"
               onClick={() => setPreference(option.value)}
               className={cn(
-                "rounded-[18px] border p-5 text-left transition",
+                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition",
                 selected
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-accent)]"
-                  : "border-[color:var(--line)] bg-[var(--surface-strong)] hover:bg-[var(--surface)]",
+                  ? "bg-[var(--accent-soft)] font-medium text-[var(--accent-ink)]"
+                  : "text-[var(--muted)] hover:text-[var(--ink)]",
               )}
               aria-pressed={selected}
             >
-              <div className="flex items-center gap-3">
-                <span className="inline-flex size-10 items-center justify-center text-[var(--ink)]">
-                  <Icon className="size-5" />
-                </span>
-                <div>
-                  <p className="font-semibold text-[var(--ink)]">
-                    {t(`settings.appearance.options.${option.value}.title`)}
-                  </p>
-                  <p className="mt-1 text-sm text-[var(--muted)]">
-                    {t(
-                      `settings.appearance.options.${option.value}.description`,
-                    )}
-                  </p>
-                </div>
-              </div>
+              <Icon className="size-4" />
+              {t(`settings.appearance.options.${option.value}.title`)}
             </button>
           );
         })}
