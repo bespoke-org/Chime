@@ -1162,7 +1162,7 @@ export function FormBuilder({
           <div className="grid gap-8 lg:min-h-[calc(100vh-14rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
             <aside className="border-b border-[color:var(--line)] pb-6 lg:sticky lg:top-8 lg:flex lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:flex-col lg:overflow-hidden lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-3xl text-[var(--ink)]">
+                <h2 className="text-xl font-semibold text-[var(--ink)]">
                   {t("builder.blocks")}
                 </h2>
                 <div className="flex items-center gap-2">

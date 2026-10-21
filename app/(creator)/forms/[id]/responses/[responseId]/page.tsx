@@ -90,7 +90,7 @@ export default async function ResponseDetailPage({
           if (block.type === "TEXT") {
             return (
               <section key={block.id} className="px-2 pt-6">
-                <h2 className="font-display text-2xl text-[var(--muted)]">
+                <h2 className="text-lg font-semibold text-[var(--muted)]">
                   {block.title || t("responseDetail.contextTitle")}
                 </h2>
                 {block.description ? (
@@ -119,7 +119,7 @@ export default async function ResponseDetailPage({
                   </Badge>
                 ) : null}
               </div>
-              <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">
+              <h2 className="mt-4 text-xl font-semibold text-[var(--ink)]">
                 {block.title}
               </h2>
               {block.description ? (

@@ -1334,7 +1334,7 @@ export function BranchingGraphWorkspace({
   const inspectorContent =
     !selectedBlockId || !blockDraft ? (
       <div>
-        <h3 className="font-display text-3xl text-[var(--ink)]">
+        <h3 className="text-xl font-semibold text-[var(--ink)]">
           {t("builder.graphSelectionTitle")}
         </h3>
       </div>
@@ -1650,7 +1650,7 @@ export function BranchingGraphWorkspace({
         ) : (
           <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
             <div>
-              <h3 className="font-display text-3xl text-[var(--ink)]">
+              <h3 className="text-xl font-semibold text-[var(--ink)]">
                 {t("builder.graphEmptyTitle")}
               </h3>
               <p className="mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">
@@ -1802,7 +1802,7 @@ export function BranchingGraphWorkspace({
                   </Button>
                   <div className="min-w-0 flex-1">
                     {immersiveFormTitle ? (
-                      <p className="truncate font-display text-2xl text-[var(--ink)]">
+                      <p className="truncate text-base font-medium text-[var(--ink)]">
                         {immersiveFormTitle}
                       </p>
                     ) : null}

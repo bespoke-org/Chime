@@ -319,7 +319,7 @@ export function FormSettingsPanel({
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="font-display text-4xl text-[var(--ink)]">
+        <h2 className="text-2xl font-semibold text-[var(--ink)]">
           {t("builder.settingsTitle")}
         </h2>
       </div>
@@ -855,7 +855,7 @@ export function BlockEditorPanel({
           {SelectedBlockIcon ? (
             <SelectedBlockIcon className="size-6 text-[var(--ink)]" />
           ) : null}
-          <h2 className="font-display text-2xl text-[var(--ink)]">
+          <h2 className="text-xl font-semibold text-[var(--ink)]">
             {t(blockTypeTranslationKeys[blockDraft.type])}
           </h2>
         </div>
@@ -1372,7 +1372,7 @@ export function EmptyEditorState({
   return (
     <div className="flex min-h-[420px] items-center justify-center border-t border-dashed border-[color:var(--line)] p-10 text-center">
       <div>
-        <h2 className="font-display text-4xl text-[var(--ink)]">
+        <h2 className="text-2xl font-semibold text-[var(--ink)]">
           {t("builder.nothingSelectedTitle")}
         </h2>
         <div className="mt-6 flex justify-center">

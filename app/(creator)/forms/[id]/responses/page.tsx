@@ -262,7 +262,7 @@ export default async function ResponsesPage({
                 ) : null}
               </div>
 
-              <h2 className="mt-4 font-display text-3xl text-[var(--ink)]">
+              <h2 className="mt-4 text-xl font-semibold text-[var(--ink)]">
                 {summary.block.title}
               </h2>
               {summary.block.description ? (

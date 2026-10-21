@@ -13,7 +13,7 @@ export function EmptyState({
 }) {
   return (
     <Card className="px-8 py-8">
-      <h3 className="font-display text-2xl text-[var(--ink)]">{title}</h3>
+      <h3 className="text-lg font-semibold text-[var(--ink)]">{title}</h3>
       <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">
         {description}
       </p>

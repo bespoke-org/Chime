@@ -157,7 +157,7 @@ export function OrganizationSettingsPanel({
               <div className="border-t border-[color:var(--line)] pt-8">
                 <div className="border-b border-[color:var(--line)] pb-5">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="font-display text-3xl text-[var(--ink)]">
+                    <h2 className="text-xl font-semibold text-[var(--ink)]">
                       {selectedOrganization.name}
                     </h2>
                     <Badge className="rounded-full">
