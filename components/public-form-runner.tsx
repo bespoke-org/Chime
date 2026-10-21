@@ -1031,7 +1031,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                     className="h-full rounded-full bg-[var(--accent)]"
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
-                    transition={{ type: "spring", stiffness: 130, damping: 20 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
                   />
                 </div>
               </div>
@@ -1226,7 +1226,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 className={cn(
                                   "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                   selected
-                                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
+                                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                                 )}
                                 onPointerDown={preventPointerFocusSteal}
@@ -1278,7 +1278,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 className={cn(
                                   "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                   selected
-                                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
+                                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                                 )}
                                 onPointerDown={preventPointerFocusSteal}
@@ -1339,7 +1339,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                       className={cn(
                                         "flex h-12 min-w-12 items-center justify-center rounded-[14px] border px-3 text-base font-semibold transition",
                                         selected
-                                          ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
+                                          ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                           : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                                       )}
                                       onPointerDown={preventPointerFocusSteal}
@@ -1475,7 +1475,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               className={cn(
                                 "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
                                 selected
-                                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)] shadow-[var(--shadow-accent)]"
+                                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                   : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
                               )}
                               onPointerDown={preventPointerFocusSteal}

@@ -51,7 +51,7 @@ export function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.28)] px-6 py-8 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.28)] px-6 py-8"
       onClick={() => {
         if (!pending) {
           onClose();

@@ -1544,8 +1544,8 @@ export function BranchingGraphWorkspace({
                             ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] ring-1 ring-[color:color-mix(in_srgb,var(--accent)_28%,transparent)]"
                             : "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-elevated)]"
                           : immersive
-                            ? "border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-surface)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
-                            : "border-[color:var(--line)] bg-[var(--bg-start)] hover:border-[var(--line-strong)] hover:bg-[var(--bg)]",
+                            ? "border-[color:var(--line)] bg-[var(--surface-strong)] hover:border-[var(--line-strong)] hover:bg-[var(--surface)]"
+                            : "border-[color:var(--line)] bg-[var(--surface)] hover:border-[var(--line-strong)] hover:bg-[var(--bg)]",
                       )}
                       style={{
                         left: `${node.x}px`,
@@ -1681,7 +1681,7 @@ export function BranchingGraphWorkspace({
               immersive ? "bottom-4 sm:bottom-4" : "bottom-4",
             )}
           >
-            <div className="overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)] shadow-[var(--shadow-surface)]">
+            <div className="overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)]">
               <svg
                 aria-hidden="true"
                 width={minimapWidth}
