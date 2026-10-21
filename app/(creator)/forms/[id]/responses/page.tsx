@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import { ResponseExportActions } from "@/components/response-export-actions";
@@ -25,7 +26,8 @@ import { resolveTitle, withTitle } from "@/lib/metadata";
 import type { QuestionSummary } from "@/lib/form-types";
 import { cn, formatCalendarDate, formatDate } from "@/lib/utils";
 
-async function getResponsesData(id: string) {
+// Shared by generateMetadata and the page so the responses are loaded once.
+const getResponsesData = cache(async (id: string) => {
   const user = await requireServerSessionUser();
 
   try {
@@ -37,7 +39,7 @@ async function getResponsesData(id: string) {
 
     throw error;
   }
-}
+});
 
 type ResponseReviewView = "submissions" | "questions";
 
@@ -69,8 +71,10 @@ export default async function ResponsesPage({
 }) {
   const { locale, t } = await getRequestI18n();
   const { id } = await params;
-  const { form, responses, questionSummaries } = await getResponsesData(id);
-  const visits = await countFormVisits(form.id);
+  const [{ form, responses, questionSummaries }, visits] = await Promise.all([
+    getResponsesData(id),
+    countFormVisits(id),
+  ]);
   const { view } = await searchParams;
   const currentView = resolveView(view);
   const workspaceLabel =
