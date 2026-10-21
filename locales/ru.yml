@@ -117,7 +117,7 @@ settings:
     copyInviteError: Не удалось скопировать ссылку-приглашение.
 dashboard:
   newForm: Новая форма
-  noFormsTitle: "Создайте первую форму в пространстве {workspace}"
+  noFormsTitle: "В пространстве {workspace} пока нет форм"
   noFormsDescription: Новые формы создаются как черновики, чтобы вы могли отредактировать их перед публикацией.
   shareUrl: Публичный URL
   titleColumn: Название
@@ -329,7 +329,7 @@ builder:
   saveBlockChanges: Сохранить
   cancelBlockChanges: Сбросить
   backFromUnsavedBlockChanges: Назад
-  nothingSelectedTitle: Выберите блок или откройте настройки формы.
+  nothingSelectedTitle: Ничего не выбрано
   addShortTextQuestion: Добавить вопрос с коротким ответом
   toasts:
     genericError: Что-то пошло не так.
@@ -375,11 +375,11 @@ branching:
     partial-choice-coverage: 'Часть ответов в "{blockLabel}" уходит по маршруту по умолчанию. Проверьте, что это сделано намеренно.'
 publicRunner:
   responseReceived: Ответ получен
-  defaultCompletionTitle: Спасибо, что уделили время.
+  defaultCompletionTitle: Спасибо
   defaultCompletionMessage: Ваш ответ был отправлен анонимно. Создатель формы может просмотреть ответы, но они не связаны с вашим аккаунтом или входом в систему.
   step: "Шаг {current} из {total}"
   context: Контекст
-  defaultTextTitle: Сделайте паузу перед следующим шагом.
+  defaultTextTitle: Пояснение
   required: Обязательно
   answerRequired: Пожалуйста, ответьте перед продолжением.
   singleChoiceRequired: Выберите один вариант перед продолжением.
@@ -428,12 +428,12 @@ responses:
   viewSubmissions: По ответам
   viewQuestions: По вопросам
   backToBuilder: Назад к редактору
-  noSubmissionsTitle: Опубликуйте форму, чтобы начать собирать ответы.
+  noSubmissionsTitle: Ответов пока нет
   noSubmissionsDescription: Только опубликованные формы доступны по публичному URL, и каждый респондент остаётся анонимным при ответе.
-  waitingForSubmissionsTitle: Поделитесь ссылкой, чтобы начать собирать ответы.
+  waitingForSubmissionsTitle: Ответов пока нет
   waitingForSubmissionsDescription: "Форма доступна по адресу {path}. Ответы появятся здесь сразу после отправки."
   openPublicForm: Открыть публичную форму
-  noQuestionBlocksTitle: В этой форме пока нет вопросов, которые можно суммировать.
+  noQuestionBlocksTitle: Нет вопросов для сводки
   noQuestionBlocksDescription: Добавьте хотя бы один блок с ответом, чтобы просматривать ответы по вопросам.
   noAnswersYet: На этот вопрос пока нет ответов.
   openBuilder: Открыть редактор

@@ -117,7 +117,7 @@ settings:
     copyInviteError: Could not copy invite link.
 dashboard:
   newForm: New form
-  noFormsTitle: "Create the first form in {workspace}"
+  noFormsTitle: "No forms in {workspace} yet"
   noFormsDescription: New forms start as drafts so you can edit before publishing.
   shareUrl: Share URL
   titleColumn: Title
@@ -234,9 +234,9 @@ builder:
   saveFormSettings: Save form settings
   dragBlockAria: "Drag {label}"
   prompt: Prompt
-  headingField: Header
+  headingField: Heading
   supportText: Support text
-  bodyCopy: Body copy
+  bodyCopy: Body
   placeholder: Placeholder
   allowFloats: Allow decimal values
   minimumValue: Minimum value
@@ -329,7 +329,7 @@ builder:
   saveBlockChanges: Save
   cancelBlockChanges: Reset
   backFromUnsavedBlockChanges: Back
-  nothingSelectedTitle: Select a block or open form settings.
+  nothingSelectedTitle: Nothing selected
   addShortTextQuestion: Add a short text question
   toasts:
     genericError: Something went wrong.
@@ -349,7 +349,7 @@ builder:
     reorderError: Could not reorder blocks.
 blocks:
   types:
-    TEXT: Info text
+    TEXT: Text
     SHORT_TEXT: Short answer
     LONG_TEXT: Long answer
     SINGLE_CHOICE: Single choice
@@ -375,11 +375,11 @@ branching:
     partial-choice-coverage: 'Some answers on "{blockLabel}" fall through to the default route. Double-check that this is intentional.'
 publicRunner:
   responseReceived: Response received
-  defaultCompletionTitle: Thanks for taking the time.
+  defaultCompletionTitle: Thank you
   defaultCompletionMessage: Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.
   step: "Step {current} of {total}"
   context: Context
-  defaultTextTitle: Take a breath before the next step.
+  defaultTextTitle: Note
   required: Required
   answerRequired: Please answer before continuing.
   singleChoiceRequired: Choose one option before continuing.
@@ -428,12 +428,12 @@ responses:
   viewSubmissions: By submissions
   viewQuestions: By questions
   backToBuilder: Back to builder
-  noSubmissionsTitle: Publish the form to start collecting responses.
+  noSubmissionsTitle: No responses yet
   noSubmissionsDescription: Only published forms are available on the public route, and every respondent stays anonymous on submission.
-  waitingForSubmissionsTitle: Share the link to start collecting responses.
+  waitingForSubmissionsTitle: No responses yet
   waitingForSubmissionsDescription: "The form is live at {path}. Responses show up here as soon as they arrive."
   openPublicForm: Open public form
-  noQuestionBlocksTitle: This form has no questions to summarize yet.
+  noQuestionBlocksTitle: No questions to summarize
   noQuestionBlocksDescription: Add at least one answerable block to review responses by question.
   noAnswersYet: No answers yet for this question.
   openBuilder: Open builder

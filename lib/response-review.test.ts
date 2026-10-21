@@ -291,7 +291,11 @@ describe("response identity", () => {
       defaultNextBlockId: null,
     },
   });
-  const noteBlock = createBlock({ id: "note", type: "SHORT_TEXT", position: 2 });
+  const noteBlock = createBlock({
+    id: "note",
+    type: "SHORT_TEXT",
+    position: 2,
+  });
 
   test("lists answered identity fields in block order on the response row", () => {
     const data = buildResponseReviewData({

@@ -77,7 +77,7 @@ const defaultBlockCopyByLocale: Record<
   }
 > = {
   en: {
-    textBody: "Introduce the next part of your form.",
+    textBody: "",
     shortPlaceholder: "Type your answer here…",
     longPlaceholder: "Tell us a little more…",
     numberPlaceholder: "42",
@@ -86,7 +86,7 @@ const defaultBlockCopyByLocale: Record<
     options: ["Option 1", "Option 2"],
   },
   ru: {
-    textBody: "Подготовьте человека к следующей части формы.",
+    textBody: "",
     shortPlaceholder: "Введите ответ…",
     longPlaceholder: "Расскажите немного подробнее…",
     numberPlaceholder: "42",

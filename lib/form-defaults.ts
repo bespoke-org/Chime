@@ -11,12 +11,12 @@ export const completionDefaultsByLocale: Record<
   { title: string; message: string }
 > = {
   en: {
-    title: "Thanks for taking the time.",
+    title: "Thank you",
     message:
       "Your response was submitted anonymously. The creator can review your answers, but they are not linked to a login or account.",
   },
   ru: {
-    title: "Спасибо, что уделили время.",
+    title: "Спасибо",
     message:
       "Ваш ответ был отправлен анонимно. Создатель формы может просмотреть ответы, но они не связаны с вашим аккаунтом или входом в систему.",
   },
