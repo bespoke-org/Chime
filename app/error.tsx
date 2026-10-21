@@ -4,7 +4,6 @@ import { useEffect } from "react";
 
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { DEFAULT_LOCALE, normalizeLocale, type AppLocale } from "@/lib/i18n";
 
 const errorMessages: Record<
@@ -76,17 +75,17 @@ export default function GlobalError({
       <body>
         <div className="flex min-h-screen flex-col">
           <main className="mx-auto flex max-w-3xl flex-1 items-center px-6 py-16">
-            <Card className="w-full px-8 py-10 text-center">
+            <div className="w-full">
               <h1 className="font-display text-4xl text-[var(--ink)]">
                 {copy.title}
               </h1>
-              <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-[var(--muted)]">
+              <p className="mt-3 max-w-lg text-sm leading-7 text-[var(--muted)]">
                 {copy.description}
               </p>
-              <div className="mt-6 flex justify-center">
+              <div className="mt-6">
                 <Button onClick={() => reset()}>{copy.tryAgain}</Button>
               </div>
-            </Card>
+            </div>
           </main>
           <SiteFooter copy={copy.footer} />
         </div>

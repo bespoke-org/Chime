@@ -29,7 +29,7 @@ export default async function CreatorLayout({
           <Link
             href="/dashboard"
             aria-label={t("app.goToDashboardAria")}
-            className="shrink-0 transition-transform hover:scale-[1.02]"
+            className="shrink-0"
           >
             <BrandMark className="size-6 text-[var(--accent)]" />
           </Link>
