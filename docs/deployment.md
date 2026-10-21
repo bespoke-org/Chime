@@ -165,7 +165,7 @@ Set `NEXTAUTH_URL` and `ATPROTO_PUBLIC_URL` to the same public base URL. If the 
 
 The stage server runs the containers with podman and podman-compose; docker is not installed there and must not be. `bun run deploy` (`scripts/deploy.sh`) does the steps below over ssh for `DEPLOY_HOST` (default `root@10.72.30.114`, directory `/opt/lively-forms`):
 
-1. Copies the tree without `.git`, `.env`, `.next` and `node_modules`, installs podman, podman-compose, node 22 and bun when they are missing.
+1. Clears the server tree except `.env`, `.next` and `node_modules`, copies the local tree without `.git`, `.env`, `.next` and `node_modules`, installs podman, podman-compose, node 22 and bun when they are missing.
 2. Creates `.env` with a generated `AUTH_SECRET` if there is none, pins `NEXTAUTH_URL` and the `ATPROTO_*` URLs to `PUBLIC_URL` (default `https://forms.alivetech.org`) and appends the optional keys as commented placeholders. Existing values are kept.
 3. Removes the stale `the-forms-postgres` container, starts `compose.yaml` (Postgres and Garage) and waits for Postgres.
 4. Sets up Garage with `scripts/garage-init.sh`: layout, bucket `lively-forms`, key `lively-forms`, CORS rule for `PUBLIC_URL`; writes `S3_ENDPOINT=http://127.0.0.1:3900`, `S3_REGION`, `S3_BUCKET`, the key pair (only when `.env` has none) and `S3_PUBLIC_ENDPOINT=STORAGE_PUBLIC_URL` (default `https://storage.forms.alivetech.org`, proxied by the gate to port 3900 on the server). In production `S3_PUBLIC_ENDPOINT` is required: without it the storage counts as not configured and the `FILE_UPLOAD` block answers that uploads are not available instead of handing the browser an unreachable URL.

@@ -29,9 +29,10 @@ if [ "${ENABLE_STORAGE}" = "1" ]; then
   echo "Storage public URL: ${STORAGE_PUBLIC_URL} (browsers upload there)"
 fi
 
-# The archive only adds files, so the migration history is replaced wholesale:
-# directories removed locally would otherwise linger and be applied.
-ssh "${DEPLOY_HOST}" "mkdir -p '${DEPLOY_DIR}' && rm -rf '${DEPLOY_DIR}/prisma/migrations'"
+# The archive only adds files, so the tree is cleared first: a file removed
+# locally would otherwise linger on the server and end up in the build. The
+# server .env, the previous build and the installed packages are kept.
+ssh "${DEPLOY_HOST}" "mkdir -p '${DEPLOY_DIR}' && find '${DEPLOY_DIR}' -mindepth 1 -maxdepth 1 ! -name .env ! -name .next ! -name node_modules -exec rm -rf {} +"
 
 COPYFILE_DISABLE=1 tar \
   --no-xattrs \
