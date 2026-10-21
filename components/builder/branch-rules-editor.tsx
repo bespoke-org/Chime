@@ -108,12 +108,12 @@ function SortableBranchRuleRow({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)] p-3"
+      className="grid gap-3 rounded-[10px] border border-[color:var(--line)] bg-[var(--surface)] p-3"
     >
       <div className="flex items-start gap-2">
         <button
           type="button"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
           aria-label={t("builder.dragBranchRuleAria", { number: index + 1 })}
           {...attributes}
           {...listeners}
@@ -219,7 +219,7 @@ function SortableBranchRuleRow({
               <span className="font-medium text-[var(--ink)]">
                 {t("builder.branchWhenAnswer")}
               </span>
-              <div className="flex h-10 items-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] px-3 text-sm text-[var(--muted)]">
+              <div className="flex h-10 items-center rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] px-3 text-sm text-[var(--muted)]">
                 {t("builder.branchNoValueNeeded")}
               </div>
             </div>
@@ -255,7 +255,7 @@ function SortableBranchRuleRow({
         </div>
         <button
           type="button"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--muted)] transition hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)] hover:border-[var(--danger-hover)]"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--muted)] transition hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)] hover:border-[var(--danger-hover)]"
           aria-label={t("builder.removeBranchRuleAria", { number: index + 1 })}
           onClick={() => onRemove(rule.id)}
         >
@@ -472,7 +472,7 @@ export function BranchRulesEditor({
       </label>
 
       {blockBranchBlockers.length ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-[var(--ink)]">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-[var(--ink)]">
           <p className="font-medium">
             {t("builder.branchingBlockersForBlockTitle")}
           </p>
@@ -490,7 +490,7 @@ export function BranchRulesEditor({
       ) : null}
 
       {blockBranchWarnings.length ? (
-        <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-3 text-sm text-[var(--ink)]">
+        <div className="rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-3 text-sm text-[var(--ink)]">
           <p className="font-medium">
             {t("builder.branchingWarningsForBlockTitle")}
           </p>

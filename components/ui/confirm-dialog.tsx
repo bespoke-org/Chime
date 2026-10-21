@@ -59,7 +59,7 @@ export function ConfirmDialog({
       }}
     >
       <div
-        className="w-full max-w-md rounded-[24px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-6 shadow-[var(--shadow-elevated)]"
+        className="w-full max-w-md rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-6 shadow-[var(--shadow-elevated)]"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-[var(--ink)]">{title}</h2>

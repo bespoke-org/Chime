@@ -40,7 +40,7 @@ export function ThemeSettingsPanel() {
       <div
         role="group"
         aria-label={t("settings.appearance.title")}
-        className="mt-8 inline-flex rounded-xl border border-[color:var(--line)] p-1"
+        className="mt-8 inline-flex rounded-md border border-[color:var(--line)] p-1"
       >
         {options.map((option) => {
           const Icon = option.icon;
@@ -52,7 +52,7 @@ export function ThemeSettingsPanel() {
               type="button"
               onClick={() => setPreference(option.value)}
               className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition",
+                "inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm transition",
                 selected
                   ? "bg-[var(--accent-soft)] font-medium text-[var(--accent-ink)]"
                   : "text-[var(--muted)] hover:text-[var(--ink)]",

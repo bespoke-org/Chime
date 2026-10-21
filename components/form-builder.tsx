@@ -175,7 +175,7 @@ function SortableBlockRow({
         transition,
       }}
       className={cn(
-        "group flex cursor-pointer items-center gap-2 rounded-[14px] px-2.5 py-2",
+        "group flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2",
         selected
           ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
           : "hover:bg-[var(--surface)]",
@@ -217,7 +217,7 @@ function StaticBlockRow({
   return (
     <div
       className={cn(
-        "group flex cursor-pointer items-center gap-2 rounded-[14px] px-2.5 py-2",
+        "group flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2",
         selected
           ? "bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)]"
           : "hover:bg-[var(--surface)]",
@@ -1060,7 +1060,7 @@ export function FormBuilder({
         )}
 
         {!isImmersiveGraphPage && branchingAnalysis.blockers.length ? (
-          <div className="rounded-[18px] border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-[var(--ink)]">
+          <div className="rounded-[10px] border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-[var(--ink)]">
             <p className="font-medium">
               {t("builder.branchingBlockersTitle", {
                 count: branchingAnalysis.blockers.length,
@@ -1088,7 +1088,7 @@ export function FormBuilder({
         ) : null}
 
         {!isImmersiveGraphPage && branchingAnalysis.warnings.length ? (
-          <div className="rounded-[18px] border border-sky-500/30 bg-sky-500/10 px-4 py-4 text-sm text-[var(--ink)]">
+          <div className="rounded-[10px] border border-sky-500/30 bg-sky-500/10 px-4 py-4 text-sm text-[var(--ink)]">
             <p className="font-medium">
               {t("builder.branchingWarningsTitle", {
                 count: branchingAnalysis.warnings.length,
@@ -1196,7 +1196,7 @@ export function FormBuilder({
                     </PopoverTrigger>
                     <PopoverContent
                       align="end"
-                      className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[18px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
+                      className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[10px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
                     >
                       <div className="grid gap-1">
                         {blockCreationOrder.map((type) => {
@@ -1206,7 +1206,7 @@ export function FormBuilder({
                             <button
                               key={type}
                               type="button"
-                              className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+                              className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
                               onClick={() =>
                                 requestPendingNavigation({
                                   kind: "add-block",

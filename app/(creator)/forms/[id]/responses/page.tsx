@@ -152,11 +152,11 @@ export default async function ResponsesPage({
       </dl>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex h-10 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
+        <div className="inline-flex h-10 items-center gap-1 rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
           <Link
             href={questionsHref}
             className={cn(
-              "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
+              "inline-flex h-full items-center gap-2 rounded-md px-3 text-sm font-medium transition",
               currentView === "questions"
                 ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
                 : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
@@ -168,7 +168,7 @@ export default async function ResponsesPage({
           <Link
             href={submissionsHref}
             className={cn(
-              "inline-flex h-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition",
+              "inline-flex h-full items-center gap-2 rounded-md px-3 text-sm font-medium transition",
               currentView === "submissions"
                 ? "bg-[var(--accent-soft)] text-[var(--accent-ink)]"
                 : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
@@ -284,7 +284,7 @@ export default async function ResponsesPage({
               </p>
 
               {summary.kind === "choice" ? (
-                <div className="mt-6 divide-y divide-[color:var(--line)] rounded-[16px] border border-[color:var(--line)]">
+                <div className="mt-6 divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)]">
                   {summary.optionCounts.map((option) => (
                     <div
                       key={option.value}
@@ -302,7 +302,7 @@ export default async function ResponsesPage({
               ) : null}
 
               {summary.kind === "number" ? (
-                <div className="mt-6 divide-y divide-[color:var(--line)] rounded-[16px] border border-[color:var(--line)]">
+                <div className="mt-6 divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)]">
                   {[
                     {
                       label: t("responses.minLabel"),
@@ -340,7 +340,7 @@ export default async function ResponsesPage({
               ) : null}
 
               {summary.kind === "number" && summary.distribution ? (
-                <div className="mt-3 divide-y divide-[color:var(--line)] rounded-[16px] border border-[color:var(--line)]">
+                <div className="mt-3 divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)]">
                   {summary.distribution.map((entry) => (
                     <div
                       key={entry.value}
@@ -361,7 +361,7 @@ export default async function ResponsesPage({
                     {t("responses.noAnswersYet")}
                   </p>
                 ) : (
-                  <ScrollHintPanel className="mt-6 max-h-80 divide-y divide-[color:var(--line)] overflow-y-auto rounded-[16px] border border-[color:var(--line)] sm:max-h-96">
+                  <ScrollHintPanel className="mt-6 max-h-80 divide-y divide-[color:var(--line)] overflow-y-auto rounded-[10px] border border-[color:var(--line)] sm:max-h-96">
                     {summary.answers.map((answer, index) => (
                       <div
                         key={`${answer.responseId}-${answer.submissionNumber}-${index}`}

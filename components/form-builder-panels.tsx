@@ -207,7 +207,7 @@ export function BuilderHeader({
               <div className="grid gap-1">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
                   onClick={() => {
                     setIsPublicationMenuOpen(false);
                     onCopyShareLink();
@@ -219,7 +219,7 @@ export function BuilderHeader({
                 <Link
                   href={shareHref}
                   target="_blank"
-                  className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
                   onClick={() => setIsPublicationMenuOpen(false)}
                 >
                   <ExternalLink className="size-4" />
@@ -228,7 +228,7 @@ export function BuilderHeader({
                 <div className="my-1 h-px bg-[color:var(--line)]" />
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:text-[var(--muted)] disabled:hover:bg-transparent"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:text-[var(--muted)] disabled:hover:bg-transparent"
                   disabled={isPublishBusy}
                   onClick={() => {
                     setIsPublicationMenuOpen(false);
@@ -276,7 +276,7 @@ function FormClosedStatusLine({ form }: { form: BuilderForm }) {
   return (
     <p
       role="status"
-      className="rounded-[12px] border border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-4 py-3 text-sm leading-6 text-[var(--ink)]"
+      className="rounded-md border border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-4 py-3 text-sm leading-6 text-[var(--ink)]"
     >
       {message}
     </p>
@@ -338,7 +338,7 @@ export function FormSettingsPanel({
             {t("builder.shareSlug")}
           </span>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="flex h-10 min-w-0 flex-1 items-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] focus-within:border-[color:var(--line-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
+            <div className="flex h-10 min-w-0 flex-1 items-center rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] focus-within:border-[color:var(--line-strong)] focus-within:ring-2 focus-within:ring-[var(--accent-soft)]">
               <span className="shrink-0 border-r border-[color:var(--line)] px-4 font-mono text-[13px] text-[var(--muted)]">
                 /f/
               </span>
@@ -710,11 +710,11 @@ function SortableChoiceOptionRow({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className="flex items-center gap-2 rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)] p-3"
+      className="flex items-center gap-2 rounded-[10px] border border-[color:var(--line)] bg-[var(--surface)] p-3"
     >
       <button
         type="button"
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--line)] text-[var(--muted)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
         aria-label={t("builder.dragOptionAria", { number: index + 1 })}
         {...attributes}
         {...listeners}
@@ -728,7 +728,7 @@ function SortableChoiceOptionRow({
       />
       <button
         type="button"
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--muted)] transition hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)] hover:border-[var(--danger-hover)] disabled:opacity-100 disabled:text-[var(--line-strong)]"
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--muted)] transition hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)] hover:border-[var(--danger-hover)] disabled:opacity-100 disabled:text-[var(--line-strong)]"
         aria-label={t("builder.removeOptionAria", { number: index + 1 })}
         disabled={optionCount <= 2}
         onClick={() => onRemove(option.id)}
@@ -952,7 +952,7 @@ export function BlockEditorPanel({
               />
             </label>
 
-            <div className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+            <div className="grid gap-3 rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
               <label className="flex items-center gap-3 text-[var(--ink)]">
                 <Checkbox
                   checked={
@@ -997,7 +997,7 @@ export function BlockEditorPanel({
         )}
 
         {blockDraft.type === "SHORT_TEXT" ? (
-          <div className="grid gap-3 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+          <div className="grid gap-3 rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
             <label className="flex items-center gap-3 text-[var(--ink)]">
               <Checkbox
                 checked={(blockDraft.config as ShortTextBlockConfig).identity}
@@ -1040,7 +1040,7 @@ export function BlockEditorPanel({
         ) : null}
 
         {blockDraft.type === "NUMBER" ? (
-          <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+          <div className="grid gap-5 rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
             <label className="grid gap-2">
               <span className="font-medium text-[var(--ink)]">
                 {t("builder.placeholder")}
@@ -1113,7 +1113,7 @@ export function BlockEditorPanel({
         ) : null}
 
         {blockDraft.type === "RATING" ? (
-          <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+          <div className="grid gap-5 rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="grid gap-2">
                 <span className="font-medium text-[var(--ink)]">
@@ -1200,7 +1200,7 @@ export function BlockEditorPanel({
         ) : null}
 
         {blockDraft.type === "FILE_UPLOAD" ? (
-          <div className="grid gap-5 rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
+          <div className="grid gap-5 rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] px-4 py-4 text-sm text-[var(--muted)]">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="grid gap-2">
                 <span className="font-medium text-[var(--ink)]">

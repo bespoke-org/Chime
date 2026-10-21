@@ -49,8 +49,8 @@ export function AccountMenu({ user }: { user: UserIdentityLike }) {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 min-w-[240px] overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]">
-          <div className="flex items-center gap-3 rounded-[12px] px-3 py-3">
+        <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 min-w-[240px] overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]">
+          <div className="flex items-center gap-3 rounded-md px-3 py-3">
             <UserAvatar
               user={user}
               className="size-10"
@@ -70,7 +70,7 @@ export function AccountMenu({ user }: { user: UserIdentityLike }) {
           <div className="mt-1 grid gap-1">
             <Link
               href="/settings?section=profile"
-              className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
               onClick={() => setIsOpen(false)}
             >
               <Settings className="size-4" />
@@ -78,7 +78,7 @@ export function AccountMenu({ user }: { user: UserIdentityLike }) {
             </Link>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--accent-soft)]"
               onClick={() =>
                 startTransition(() => {
                   setIsOpen(false);

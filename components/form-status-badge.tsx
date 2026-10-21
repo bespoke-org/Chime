@@ -19,7 +19,6 @@ export function FormStatusBadge({
   return (
     <Badge
       className={cn(
-        "rounded-full",
         status === "PUBLISHED" &&
           !isClosed &&
           "bg-[var(--accent-soft)] text-[var(--accent-ink)]",

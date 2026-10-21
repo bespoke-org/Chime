@@ -33,7 +33,7 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-9 w-full items-center justify-between gap-2 rounded-xl bg-[var(--surface-strong)] pl-3 pr-2 text-left text-xs font-semibold text-[var(--ink)] ring-1 ring-[color:var(--line)] outline-none transition focus:ring-2 focus:ring-[var(--ink)] focus:ring-offset-2 focus:ring-offset-[var(--bg)] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:flex-1 [&>span]:line-clamp-1 [&>span]:text-left",
+        "flex h-9 w-full items-center justify-between gap-2 rounded-md bg-[var(--surface-strong)] pl-3 pr-2 text-left text-xs font-semibold text-[var(--ink)] ring-1 ring-[color:var(--line)] outline-none transition focus:ring-2 focus:ring-[var(--ink)] focus:ring-offset-2 focus:ring-offset-[var(--bg)] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:flex-1 [&>span]:line-clamp-1 [&>span]:text-left",
         className,
       )}
       {...props}
@@ -57,7 +57,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl border border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--ink)] shadow-[var(--shadow-elevated)]",
+          "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--ink)] shadow-[var(--shadow-elevated)]",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className,
@@ -106,7 +106,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex w-full cursor-default items-center gap-2 rounded-lg py-2 pl-3 pr-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-[var(--accent-soft)] data-[highlighted]:text-[var(--ink)]",
+        "relative flex w-full cursor-default items-center gap-2 rounded-md py-2 pl-3 pr-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-[var(--accent-soft)] data-[highlighted]:text-[var(--ink)]",
         className,
       )}
       {...props}

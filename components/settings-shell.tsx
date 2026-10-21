@@ -84,7 +84,7 @@ export function SettingsShell({
                   });
                 }}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition",
+                  "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition",
                   selected
                     ? "bg-[var(--accent-soft)] font-medium text-[var(--accent-ink)]"
                     : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]",

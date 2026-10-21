@@ -84,7 +84,7 @@ export const DatePickerInput = forwardRef<
             size="icon"
             type="button"
             aria-label={openCalendarLabel}
-            className="absolute top-1.5 right-1.5 size-9 rounded-lg border border-[color:var(--line)] bg-[var(--surface)] text-[var(--muted)] shadow-none hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
+            className="absolute top-1.5 right-1.5 size-9 rounded-md border border-[color:var(--line)] bg-[var(--surface)] text-[var(--muted)] shadow-none hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
           >
             <CalendarIcon className="size-4" />
           </Button>

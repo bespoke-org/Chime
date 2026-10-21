@@ -39,7 +39,7 @@ export function AtprotoSignInForm() {
           placeholder={t("auth.atprotoIdentifierPlaceholder")}
           autoComplete="username"
           spellCheck={false}
-          className="h-12 rounded-xl border border-[var(--line-strong)] bg-[var(--surface)] px-4 text-base font-normal text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 hover:border-[var(--muted)]/40 focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--accent)]/15"
+          className="h-12 rounded-md border border-[var(--line-strong)] bg-[var(--surface)] px-4 text-base font-normal text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)]/60 hover:border-[var(--muted)]/40 focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--accent)]/15"
           required
         />
       </label>

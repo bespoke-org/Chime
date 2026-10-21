@@ -120,11 +120,11 @@ export function ResponseExportActions({ formId }: { formId: string }) {
           <ChevronDown className="size-4 text-[var(--muted)]" />
         </Button>
         {isMenuOpen ? (
-          <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[180px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]">
+          <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[180px] rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]">
             <div className="grid gap-1">
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)] disabled:opacity-60"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)] disabled:opacity-60"
                 onClick={() => exportResponses("csv")}
                 disabled={busyFormat !== null}
               >
@@ -137,7 +137,7 @@ export function ResponseExportActions({ formId }: { formId: string }) {
               </button>
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)] disabled:opacity-60"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)] disabled:opacity-60"
                 onClick={() => exportResponses("xlsx")}
                 disabled={busyFormat !== null}
               >

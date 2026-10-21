@@ -39,7 +39,7 @@ export default async function HomePage({
       <section className="w-full max-w-lg">
         <Card className="w-full bg-[var(--surface-strong)] p-6 sm:p-10">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+            <span className="flex size-10 items-center justify-center rounded-md bg-[var(--accent-soft)] text-[var(--accent-ink)]">
               <Sprout className="size-5" aria-hidden="true" />
             </span>
             <span className="font-display text-2xl text-[var(--ink)]">

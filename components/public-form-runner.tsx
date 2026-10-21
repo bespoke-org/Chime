@@ -1224,7 +1224,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 aria-pressed={selected}
                                 aria-keyshortcuts={shortcut ?? undefined}
                                 className={cn(
-                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
+                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
                                   selected
                                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -1276,7 +1276,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 aria-pressed={selected}
                                 aria-keyshortcuts={shortcut ?? undefined}
                                 className={cn(
-                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
+                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
                                   selected
                                     ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                     : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -1293,7 +1293,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 onKeyDown={handleChoiceControlKeyDown}
                               >
                                 <div className="flex items-center gap-3">
-                                  <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
+                                  <span className="inline-flex size-5 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)]">
                                     {selected ? (
                                       <Check className="size-3.5 text-[var(--accent)]" />
                                     ) : (
@@ -1337,7 +1337,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                       aria-pressed={selected}
                                       aria-keyshortcuts={shortcut ?? undefined}
                                       className={cn(
-                                        "flex h-12 min-w-12 items-center justify-center rounded-[14px] border px-3 text-base font-semibold transition",
+                                        "flex h-12 min-w-12 items-center justify-center rounded-md border px-3 text-base font-semibold transition",
                                         selected
                                           ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                           : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -1383,7 +1383,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                           return (
                             <div className="grid gap-3 px-2">
                               {attached ? (
-                                <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--ink)]">
+                                <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--ink)]">
                                   <div className="flex min-w-0 items-center gap-3">
                                     <Paperclip className="size-4 shrink-0 text-[var(--accent)]" />
                                     <span className="truncate text-base">
@@ -1407,7 +1407,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                                 <label
                                   htmlFor={inputId}
                                   className={cn(
-                                    "flex cursor-pointer items-center gap-3 rounded-[16px] border border-dashed border-[color:var(--line)] bg-[var(--surface-strong)] px-4 py-4 text-base text-[var(--ink)] transition hover:bg-[var(--surface)]",
+                                    "flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-[color:var(--line)] bg-[var(--surface-strong)] px-4 py-4 text-base text-[var(--ink)] transition hover:bg-[var(--surface)]",
                                     isUploading &&
                                       "pointer-events-none opacity-70",
                                   )}
@@ -1473,7 +1473,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               aria-pressed={selected}
                               aria-keyshortcuts="1"
                               className={cn(
-                                "flex w-full max-w-full items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-left transition",
+                                "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
                                 selected
                                   ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                                   : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
@@ -1485,7 +1485,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                               onKeyDown={handleChoiceControlKeyDown}
                             >
                               <div className="flex items-center gap-3">
-                                <span className="inline-flex size-5 items-center justify-center rounded-[6px] border border-[color:var(--line)] bg-[var(--surface)]">
+                                <span className="inline-flex size-5 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)]">
                                   {selected ? (
                                     <Check className="size-3.5 text-[var(--accent)]" />
                                   ) : (

@@ -1496,7 +1496,7 @@ export function BranchingGraphWorkspace({
                   <div
                     key={`${edge.id}-label`}
                     className={cn(
-                      "pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-xs font-medium shadow-[var(--shadow-elevated)]",
+                      "pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-3 py-1 text-xs font-medium shadow-[var(--shadow-elevated)]",
                       isActiveFromBlock
                         ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                         : "border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--muted)]",
@@ -1538,7 +1538,7 @@ export function BranchingGraphWorkspace({
                       type="button"
                       data-graph-node-id={node.blockId}
                       className={cn(
-                        "absolute flex items-start justify-start rounded-[24px] border p-4 text-left transition",
+                        "absolute flex items-start justify-start rounded-[10px] border p-4 text-left transition",
                         isSelected
                           ? immersive
                             ? "border-[var(--accent)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] ring-1 ring-[color:color-mix(in_srgb,var(--accent)_28%,transparent)]"
@@ -1615,7 +1615,7 @@ export function BranchingGraphWorkspace({
                       <div
                         ref={addMenuRef}
                         data-graph-add-menu
-                        className="absolute z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
+                        className="absolute z-20 min-w-[220px] rounded-[10px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
                         style={{
                           left: `${node.x + node.width + 44}px`,
                           top: `${node.y}px`,
@@ -1629,7 +1629,7 @@ export function BranchingGraphWorkspace({
                               <button
                                 key={type}
                                 type="button"
-                                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+                                className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
                                 onClick={() =>
                                   chooseBlockTypeAfter(node.blockId, type)
                                 }
@@ -1681,7 +1681,7 @@ export function BranchingGraphWorkspace({
               immersive ? "bottom-4 sm:bottom-4" : "bottom-4",
             )}
           >
-            <div className="overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--surface)]">
+            <div className="overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[var(--surface)]">
               <svg
                 aria-hidden="true"
                 width={minimapWidth}
@@ -1775,7 +1775,7 @@ export function BranchingGraphWorkspace({
       {hideInspector ? null : immersive ? (
         immersiveInspectorOpen ? (
           <aside
-            className="fixed bottom-4 left-4 top-4 z-20 overflow-hidden rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] sm:bottom-4 sm:left-4 sm:top-4"
+            className="fixed bottom-4 left-4 top-4 z-20 overflow-hidden rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] shadow-[var(--shadow-elevated)] sm:bottom-4 sm:left-4 sm:top-4"
             style={{ width: `${immersiveInspectorWidth}px` }}
           >
             <div

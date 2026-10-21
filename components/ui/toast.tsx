@@ -43,7 +43,7 @@ function ToastItem({
       exit={{ opacity: 0, x: 24, y: 8, scale: 0.98 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
       className={cn(
-        "pointer-events-auto flex items-start gap-3 rounded-xl border bg-[var(--bg-strong)] px-4 py-3 shadow-[var(--shadow-toast)]",
+        "pointer-events-auto flex items-start gap-3 rounded-md border bg-[var(--bg-strong)] px-4 py-3 shadow-[var(--shadow-toast)]",
         toast.variant === "error"
           ? "border-[color:var(--danger-line)] text-[var(--danger-ink)]"
           : "border-[color:var(--accent)] text-[var(--accent-ink)]",

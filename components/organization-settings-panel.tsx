@@ -160,7 +160,7 @@ export function OrganizationSettingsPanel({
                     <h2 className="text-xl font-semibold text-[var(--ink)]">
                       {selectedOrganization.name}
                     </h2>
-                    <Badge className="rounded-full">
+                    <Badge>
                       {selectedOrganization.isOwner
                         ? t("settings.organizations.owner")
                         : t("settings.organizations.member")}
@@ -222,7 +222,7 @@ export function OrganizationSettingsPanel({
                                   {member.email}
                                 </p>
                               ) : null}
-                              <Badge className="rounded-full">
+                              <Badge>
                                 {member.role === "OWNER"
                                   ? t("settings.organizations.owner")
                                   : t("settings.organizations.member")}

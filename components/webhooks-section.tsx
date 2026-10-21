@@ -160,7 +160,7 @@ function WebhookEditor({
   const needsWeekday = digest && draft.digestInterval === "WEEKLY";
 
   return (
-    <div className="grid gap-4 rounded-[18px] border border-[color:var(--line)] p-4">
+    <div className="grid gap-4 rounded-[10px] border border-[color:var(--line)] p-4">
       {reusable.length > 0 ? (
         <div className="grid gap-2 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--ink)]">
@@ -171,7 +171,7 @@ function WebhookEditor({
               <button
                 key={index}
                 type="button"
-                className="grid gap-1 rounded-xl border border-[color:var(--line)] px-3 py-2 text-left transition hover:border-[var(--muted)]/40"
+                className="grid gap-1 rounded-md border border-[color:var(--line)] px-3 py-2 text-left transition hover:border-[var(--muted)]/40"
                 onClick={() => setDraft(toWebhookDraft(webhook))}
               >
                 <span className="truncate font-medium text-[var(--ink)]">
@@ -446,7 +446,7 @@ export function WebhooksSection({
         ) : (
           <div
             key={webhook.id}
-            className="flex items-start gap-3 rounded-[18px] border border-[color:var(--line)] p-4"
+            className="flex items-start gap-3 rounded-[10px] border border-[color:var(--line)] p-4"
           >
             <Checkbox
               checked={webhook.enabled}
@@ -616,7 +616,7 @@ export function OrganizationWebhooksList({
       {webhooks.map((webhook) => (
         <div
           key={webhook.id}
-          className="grid gap-1 rounded-[18px] border border-dashed border-[color:var(--line)] p-4"
+          className="grid gap-1 rounded-[10px] border border-dashed border-[color:var(--line)] p-4"
         >
           <span className="truncate text-sm font-medium text-[var(--ink)]">
             {webhook.url}

@@ -35,12 +35,12 @@ export function Calendar({
         ),
         button_previous: cn(
           buttonVariants({ variant: "ghost", size: "icon" }),
-          "size-9 rounded-xl border border-[color:var(--line)] bg-[var(--surface)] text-[var(--muted)] shadow-none hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+          "size-9 rounded-md border border-[color:var(--line)] bg-[var(--surface)] text-[var(--muted)] shadow-none hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
           defaultClassNames.button_previous,
         ),
         button_next: cn(
           buttonVariants({ variant: "ghost", size: "icon" }),
-          "size-9 rounded-xl border border-[color:var(--line)] bg-[var(--surface)] text-[var(--muted)] shadow-none hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
+          "size-9 rounded-md border border-[color:var(--line)] bg-[var(--surface)] text-[var(--muted)] shadow-none hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
           defaultClassNames.button_next,
         ),
         month_caption: cn(
@@ -52,7 +52,7 @@ export function Calendar({
           defaultClassNames.dropdowns,
         ),
         dropdown_root: cn(
-          "relative rounded-xl border border-[color:var(--line)] bg-[var(--surface)]",
+          "relative rounded-md border border-[color:var(--line)] bg-[var(--surface)]",
           defaultClassNames.dropdown_root,
         ),
         dropdown: cn("absolute inset-0 opacity-0", defaultClassNames.dropdown),
@@ -63,13 +63,13 @@ export function Calendar({
         table: "w-full border-collapse",
         weekdays: cn("flex gap-1", defaultClassNames.weekdays),
         weekday: cn(
-          "flex-1 rounded-xl py-2 text-center text-xs font-medium text-[var(--muted)]",
+          "flex-1 rounded-md py-2 text-center text-xs font-medium text-[var(--muted)]",
           defaultClassNames.weekday,
         ),
         week: cn("mt-1 flex w-full gap-1", defaultClassNames.week),
         day: cn("relative h-10 w-10 p-0 text-center", defaultClassNames.day),
         today: cn(
-          "rounded-xl ring-1 ring-[color:var(--line-strong)]",
+          "rounded-md ring-1 ring-[color:var(--line-strong)]",
           defaultClassNames.today,
         ),
         outside: cn("text-[var(--muted)]/45", defaultClassNames.outside),
@@ -136,7 +136,7 @@ function CalendarDayButton({
       size="icon"
       data-day={day.date.toLocaleDateString()}
       className={cn(
-        "size-10 rounded-xl text-sm font-medium shadow-none focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0",
+        "size-10 rounded-md text-sm font-medium shadow-none focus-visible:ring-[var(--accent)] focus-visible:ring-offset-0",
         modifiers.selected
           ? "bg-[var(--accent)] text-white hover:bg-[var(--accent)] hover:text-white"
           : "bg-transparent text-[var(--ink)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]",
