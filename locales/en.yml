@@ -219,7 +219,7 @@ builder:
     deadline: "This form closed at {closesAt}. Respondents see the closed message."
     cap: "This form reached its limit of {max} responses. Respondents see the closed message."
   copyLink: Copy link
-  openRunner: Open runner
+  openRunner: Open public form
   shareDraftHint: Publish the form to get a public link.
   deleteForm: Delete form
   deleteFormTitle: Delete form?
