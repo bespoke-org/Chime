@@ -1017,18 +1017,16 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
             {form.showProgress ? (
               <div className="w-full max-w-xs shrink-0">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
+                <div className="flex items-center justify-between gap-3 text-sm text-[var(--muted)]">
+                  <span>
                     {t("publicRunner.step", {
                       current: cursor + 1,
                       total: visibleTotal,
                     })}
                   </span>
-                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]">
-                    {Math.round(progress)}%
-                  </span>
+                  <span>{Math.round(progress)}%</span>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-strong)]">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--bg-strong)]">
                   <motion.div
                     className="h-full rounded-full bg-[var(--accent)]"
                     initial={{ width: 0 }}
@@ -1069,14 +1067,6 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                 </div>
               ) : (
                 <div className="flex min-h-[240px] flex-col justify-center py-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    {currentBlock.required ? (
-                      <span className="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-ink)]">
-                        {t("publicRunner.required")}
-                      </span>
-                    ) : null}
-                  </div>
-
                   <h2 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
                     {currentBlock.title}
                   </h2>
@@ -1085,6 +1075,11 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
                       content={currentBlock.description}
                       className="mt-3 text-base leading-7 text-[var(--muted)]"
                     />
+                  ) : null}
+                  {currentBlock.required ? (
+                    <p className="mt-2 text-sm text-[var(--muted)]">
+                      {t("publicRunner.required")}
+                    </p>
                   ) : null}
 
                   <div className="mt-6 space-y-3">
