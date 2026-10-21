@@ -51,6 +51,8 @@ export function UserAvatar({
           alt=""
           className="absolute inset-0 size-full object-cover"
           referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
           onError={() => setFailedImage(image)}
           ref={(node) => {
             if (node?.complete && node.naturalWidth === 0) {
