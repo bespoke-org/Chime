@@ -1499,7 +1499,7 @@ export function BranchingGraphWorkspace({
                   <div
                     key={`${edge.id}-label`}
                     className={cn(
-                      "pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-xs font-medium shadow-[var(--shadow-card)]",
+                      "pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-xs font-medium shadow-[var(--shadow-elevated)]",
                       isActiveFromBlock
                         ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
                         : "border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--muted)]",
@@ -1599,7 +1599,7 @@ export function BranchingGraphWorkspace({
                       >
                         <button
                           type="button"
-                          className="flex size-7 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-card)] transition hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+                          className="flex size-7 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-elevated)] transition hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
                           aria-label={t("builder.addBlockAfter")}
                           title={t("builder.addBlockAfter")}
                           aria-expanded={isAddMenuOpen}
@@ -1618,7 +1618,7 @@ export function BranchingGraphWorkspace({
                       <div
                         ref={addMenuRef}
                         data-graph-add-menu
-                        className="absolute z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]"
+                        className="absolute z-20 min-w-[220px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
                         style={{
                           left: `${node.x + node.width + 44}px`,
                           top: `${node.y}px`,

@@ -120,7 +120,7 @@ export function ResponseExportActions({ formId }: { formId: string }) {
           <ChevronDown className="size-4 text-[var(--muted)]" />
         </Button>
         {isMenuOpen ? (
-          <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[180px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
+          <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 min-w-[180px] rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]">
             <div className="grid gap-1">
               <button
                 type="button"

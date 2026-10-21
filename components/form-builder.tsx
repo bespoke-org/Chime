@@ -1196,7 +1196,7 @@ export function FormBuilder({
                     </PopoverTrigger>
                     <PopoverContent
                       align="end"
-                      className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[18px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]"
+                      className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[18px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
                     >
                       <div className="grid gap-1">
                         {blockCreationOrder.map((type) => {

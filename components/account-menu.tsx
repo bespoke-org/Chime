@@ -49,7 +49,7 @@ export function AccountMenu({ user }: { user: UserIdentityLike }) {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 min-w-[240px] overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-card)]">
+        <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 min-w-[240px] overflow-hidden rounded-[18px] border border-[color:var(--line)] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]">
           <div className="flex items-center gap-3 rounded-[12px] px-3 py-3">
             <UserAvatar
               user={user}
