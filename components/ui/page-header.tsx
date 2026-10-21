@@ -48,7 +48,7 @@ export function PageHeader({
         {metadata ? (
           <p
             className={cn(
-              "mt-2 text-xs font-medium uppercase text-[var(--muted)]",
+              "mt-2 text-sm text-[var(--muted)]",
               metadataClassName,
             )}
           >

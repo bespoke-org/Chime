@@ -129,7 +129,6 @@ settings:
 dashboard:
   description: Create a form, open a draft, or review responses in the active workspace.
   newForm: New form
-  noFormsEyebrow: No forms yet
   noFormsTitle: "Create the first form in {workspace}"
   noFormsDescription: New forms start as drafts so you can edit before publishing.
   shareUrl: Share URL
@@ -149,7 +148,6 @@ builder:
   newBlock: New block
   addBlockAfter: Add block after this one
   openGraphMode: Open branching graph
-  graphModeEyebrow: Branching view
   graphModeTitle: Branching graph
   graphModeDescription: See the full route structure, select a block, and edit how respondents move through the form.
   exitGraphMode: Back to editor
@@ -159,7 +157,6 @@ builder:
   graphNodeNoRoutes: No outgoing routes
   graphEmptyTitle: No blocks to map yet
   graphEmptyDescription: Add blocks to start laying out the form flow.
-  graphSelectionEyebrow: Routing
   graphSelectionTitle: Select a block to edit its routes
   graphSelectionDescription: Click a block in the graph to inspect its branching settings.
   graphTextBlockDescription: Text blocks appear in the flow, but only question blocks can define branching routes.
@@ -353,7 +350,6 @@ builder:
   saveBlockChanges: Save
   cancelBlockChanges: Reset
   backFromUnsavedBlockChanges: Back
-  nothingSelected: Nothing selected
   nothingSelectedTitle: Select a block or open form settings.
   nothingSelectedDescription: Use the left panel to choose what you want to edit.
   addShortTextQuestion: Add a short text question
@@ -454,13 +450,11 @@ responses:
   viewSubmissions: By submissions
   viewQuestions: By questions
   backToBuilder: Back to builder
-  noSubmissionsEyebrow: No submissions yet
   noSubmissionsTitle: Publish the form to start collecting responses.
   noSubmissionsDescription: Only published forms are available on the public route, and every respondent stays anonymous on submission.
   waitingForSubmissionsTitle: Share the link to start collecting responses.
   waitingForSubmissionsDescription: "The form is live at {path}. Responses show up here as soon as they arrive."
   openPublicForm: Open public form
-  noQuestionBlocksEyebrow: No answerable questions
   noQuestionBlocksTitle: This form has no questions to summarize yet.
   noQuestionBlocksDescription: Add at least one answerable block to review responses by question.
   noAnswersYet: No answers yet for this question.

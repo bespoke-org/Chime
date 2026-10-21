@@ -161,9 +161,7 @@ export function BuilderHeader({
           />
           <FormStatusBadge status={form.status} closed={!availability.open} />
         </div>
-        <p className="mt-2 text-xs font-medium uppercase text-[var(--muted)]">
-          {workspaceLabel}
-        </p>
+        <p className="mt-2 text-sm text-[var(--muted)]">{workspaceLabel}</p>
       </div>
       <div className="flex flex-wrap items-center gap-3 lg:justify-end">
         <Button
@@ -328,9 +326,9 @@ export function FormSettingsPanel({
 
       <div className="grid gap-5 border-t border-[color:var(--line)] pt-6">
         <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+          <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.publicRoute")}
-          </p>
+          </h3>
           <p className="mt-1 text-xs text-[var(--muted)]">
             {t("builder.publicRouteHelp")}
           </p>
@@ -379,9 +377,9 @@ export function FormSettingsPanel({
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
         <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+          <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.afterSubmission")}
-          </p>
+          </h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {t("builder.afterSubmissionDescription")}
           </p>
@@ -453,9 +451,9 @@ export function FormSettingsPanel({
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
         <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+          <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.availability")}
-          </p>
+          </h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {t("builder.availabilityDescription")}
           </p>
@@ -550,9 +548,9 @@ export function FormSettingsPanel({
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
         <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+          <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.notifications")}
-          </p>
+          </h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {t("builder.notificationsDescription")}
           </p>
@@ -589,9 +587,9 @@ export function FormSettingsPanel({
 
       <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
         <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+          <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.appearance")}
-          </p>
+          </h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {t("builder.appearanceDescription")}
           </p>
@@ -1392,10 +1390,7 @@ export function EmptyEditorState({
   return (
     <div className="flex min-h-[420px] items-center justify-center border-t border-dashed border-[color:var(--line)] p-10 text-center">
       <div>
-        <p className="text-xs font-semibold uppercase text-[var(--accent)]">
-          {t("builder.nothingSelected")}
-        </p>
-        <h2 className="mt-4 font-display text-4xl text-[var(--ink)]">
+        <h2 className="font-display text-4xl text-[var(--ink)]">
           {t("builder.nothingSelectedTitle")}
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[var(--muted)]">

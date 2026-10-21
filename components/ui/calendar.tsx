@@ -63,7 +63,7 @@ export function Calendar({
         table: "w-full border-collapse",
         weekdays: cn("flex gap-1", defaultClassNames.weekdays),
         weekday: cn(
-          "flex-1 rounded-xl py-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]",
+          "flex-1 rounded-xl py-2 text-center text-xs font-medium text-[var(--muted)]",
           defaultClassNames.weekday,
         ),
         week: cn("mt-1 flex w-full gap-1", defaultClassNames.week),

@@ -412,9 +412,9 @@ export function WebhooksSection({
     <div className="space-y-5 border-t border-[color:var(--line)] pt-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+          <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.webhook")}
-          </p>
+          </h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {description}
           </p>

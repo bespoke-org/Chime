@@ -116,9 +116,9 @@ export function OrganizationSettingsPanel({
           {selectedOrganization ? (
             <>
               <div className="max-w-md border-t border-[color:var(--line)] pt-8">
-                <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                <h3 className="text-base font-semibold text-[var(--ink)]">
                   {t("settings.organizations.organizationLabel")}
-                </p>
+                </h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                   {t("settings.organizations.selectedOrgHelp")}
                 </p>
@@ -201,9 +201,9 @@ export function OrganizationSettingsPanel({
 
                 <div className="mt-6 space-y-8">
                   <div>
-                    <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                    <h3 className="text-base font-semibold text-[var(--ink)]">
                       {t("settings.organizations.members")}
-                    </p>
+                    </h3>
                     <div className="mt-4 space-y-4">
                       {selectedOrganization.members.map((member) => (
                         <div
@@ -266,9 +266,9 @@ export function OrganizationSettingsPanel({
 
                   <div className="border-t border-[color:var(--line)] pt-8">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                      <h3 className="text-base font-semibold text-[var(--ink)]">
                         {t("settings.organizations.inviteLinks")}
-                      </p>
+                      </h3>
                       {selectedOrganization.isOwner ? (
                         <form action={createOrganizationInviteLinkAction}>
                           <input
@@ -364,9 +364,9 @@ export function OrganizationSettingsPanel({
 
                   {selectedOrganization.isOwner ? (
                     <div className="border-t border-[color:var(--line)] pt-8">
-                      <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+                      <h3 className="text-base font-semibold text-[var(--ink)]">
                         {t("settings.organizations.dangerZone")}
-                      </p>
+                      </h3>
                       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                         {t("settings.organizations.deleteOrgHelp")}
                       </p>

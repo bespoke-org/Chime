@@ -190,7 +190,6 @@ export default async function ResponsesPage({
         responses.length === 0 ? (
           form.status === "PUBLISHED" ? (
             <EmptyState
-              eyebrow={t("responses.noSubmissionsEyebrow")}
               title={t("responses.waitingForSubmissionsTitle")}
               description={t("responses.waitingForSubmissionsDescription", {
                 path: `/f/${form.slug}`,
@@ -205,7 +204,6 @@ export default async function ResponsesPage({
             />
           ) : (
             <EmptyState
-              eyebrow={t("responses.noSubmissionsEyebrow")}
               title={t("responses.noSubmissionsTitle")}
               description={t("responses.noSubmissionsDescription")}
               action={
@@ -257,7 +255,6 @@ export default async function ResponsesPage({
         )
       ) : questionSummaries.length === 0 ? (
         <EmptyState
-          eyebrow={t("responses.noQuestionBlocksEyebrow")}
           title={t("responses.noQuestionBlocksTitle")}
           description={t("responses.noQuestionBlocksDescription")}
           action={

@@ -954,13 +954,11 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   if (isComplete) {
     return (
       <Card className="w-full max-w-3xl overflow-hidden">
-        <div className="border-b border-[color:var(--line)] bg-[var(--accent-soft)]/55 px-6 py-6 sm:px-8">
-          <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+        <div className="px-6 py-8 sm:px-8 sm:py-10">
+          <p className="text-sm text-[var(--muted)]">
             {t("publicRunner.responseReceived")}
           </p>
-        </div>
-        <div className="px-6 py-8 sm:px-8 sm:py-10">
-          <h2 className="max-w-2xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
+          <h2 className="mt-3 max-w-2xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
             {completionTitle}
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">

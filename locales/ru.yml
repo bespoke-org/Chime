@@ -129,7 +129,6 @@ settings:
 dashboard:
   description: Создавайте форму, открывайте черновик или просматривайте ответы в активном пространстве.
   newForm: Новая форма
-  noFormsEyebrow: Форм пока нет
   noFormsTitle: "Создайте первую форму в пространстве {workspace}"
   noFormsDescription: Новые формы создаются как черновики, чтобы вы могли отредактировать их перед публикацией.
   shareUrl: Публичный URL
@@ -149,7 +148,6 @@ builder:
   newBlock: Новый блок
   addBlockAfter: Добавить блок после этого
   openGraphMode: Открыть граф ветвления
-  graphModeEyebrow: Ветвление
   graphModeTitle: Граф ветвления
   graphModeDescription: Просматривайте всю структуру переходов, выбирайте блок и редактируйте маршруты, по которым респонденты проходят форму.
   exitGraphMode: Назад к редактору
@@ -159,7 +157,6 @@ builder:
   graphNodeNoRoutes: Нет исходящих маршрутов
   graphEmptyTitle: Пока нечего раскладывать на графе
   graphEmptyDescription: Добавьте блоки, чтобы построить маршрут формы.
-  graphSelectionEyebrow: Маршрутизация
   graphSelectionTitle: Выберите блок, чтобы редактировать его маршруты
   graphSelectionDescription: Нажмите на блок на графе, чтобы посмотреть и изменить настройки ветвления.
   graphTextBlockDescription: Текстовые блоки показываются в потоке, но задавать маршруты могут только блоки с ответом.
@@ -353,7 +350,6 @@ builder:
   saveBlockChanges: Сохранить
   cancelBlockChanges: Сбросить
   backFromUnsavedBlockChanges: Назад
-  nothingSelected: Ничего не выбрано
   nothingSelectedTitle: Выберите блок или откройте настройки формы.
   nothingSelectedDescription: Используйте левую панель, чтобы выбрать, что вы хотите редактировать.
   addShortTextQuestion: Добавить вопрос с коротким ответом
@@ -454,13 +450,11 @@ responses:
   viewSubmissions: По ответам
   viewQuestions: По вопросам
   backToBuilder: Назад к редактору
-  noSubmissionsEyebrow: Пока нет ответов
   noSubmissionsTitle: Опубликуйте форму, чтобы начать собирать ответы.
   noSubmissionsDescription: Только опубликованные формы доступны по публичному URL, и каждый респондент остаётся анонимным при ответе.
   waitingForSubmissionsTitle: Поделитесь ссылкой, чтобы начать собирать ответы.
   waitingForSubmissionsDescription: "Форма доступна по адресу {path}. Ответы появятся здесь сразу после отправки."
   openPublicForm: Открыть публичную форму
-  noQuestionBlocksEyebrow: Нет вопросов для сводки
   noQuestionBlocksTitle: В этой форме пока нет вопросов, которые можно суммировать.
   noQuestionBlocksDescription: Добавьте хотя бы один блок с ответом, чтобы просматривать ответы по вопросам.
   noAnswersYet: На этот вопрос пока нет ответов.

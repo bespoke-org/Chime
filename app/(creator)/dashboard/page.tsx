@@ -58,7 +58,6 @@ export default async function DashboardPage() {
       />
 
       <EmptyState
-        eyebrow={t("dashboard.noFormsEyebrow")}
         title={t("dashboard.noFormsTitle", { workspace: workspaceLabel })}
         description={t("dashboard.noFormsDescription")}
         action={

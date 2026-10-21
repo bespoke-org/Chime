@@ -1653,10 +1653,7 @@ export function BranchingGraphWorkspace({
         ) : (
           <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-                {t("builder.graphModeEyebrow")}
-              </p>
-              <h3 className="mt-4 font-display text-3xl text-[var(--ink)]">
+              <h3 className="font-display text-3xl text-[var(--ink)]">
                 {t("builder.graphEmptyTitle")}
               </h3>
               <p className="mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">
