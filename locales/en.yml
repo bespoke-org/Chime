@@ -38,13 +38,6 @@ statuses:
   draft: Draft
   published: Published
   closed: Closed
-loading:
-  page: "Loading {title}…"
-  titles:
-    dashboard: dashboard
-    publicForm: public form
-    formBuilder: form builder
-    responses: responses
 settings:
   shell:
     title: Settings

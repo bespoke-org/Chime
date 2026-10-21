@@ -38,13 +38,6 @@ statuses:
   draft: Черновик
   published: Опубликовано
   closed: Закрыта
-loading:
-  page: "Загрузка: {title}…"
-  titles:
-    dashboard: дашборд
-    publicForm: публичная форма
-    formBuilder: редактор формы
-    responses: ответы
 settings:
   shell:
     title: Настройки
