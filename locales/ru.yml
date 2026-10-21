@@ -472,7 +472,6 @@ responses:
   maxValue: "Максимум: {value}"
   averageValue: "Среднее: {value}"
   answerList: Ответы
-  open: Открыть
   downloadFile: Скачать
 responseDetail:
   title: "Ответ №{number} · {date}"

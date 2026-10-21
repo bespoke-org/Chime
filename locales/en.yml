@@ -472,7 +472,6 @@ responses:
   maxValue: "Max: {value}"
   averageValue: "Average: {value}"
   answerList: Answers
-  open: Open
   downloadFile: Download
 responseDetail:
   title: "Submission #{number} · {date}"

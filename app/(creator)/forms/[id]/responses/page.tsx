@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
@@ -134,23 +133,23 @@ export default async function ResponsesPage({
 
       {/* Visits are counted per browser since tracking began, so the
           shares are capped at 100% and absent when no visit was recorded. */}
-      <Card className="grid gap-4 p-5 sm:grid-cols-3">
+      <dl className="flex flex-wrap gap-x-10 gap-y-4">
         {funnelSteps.map((step) => (
           <div key={step.key}>
-            <p className="text-xs font-semibold uppercase text-[var(--accent)]">
+            <dt className="text-sm text-[var(--muted)]">
               {t(`responses.funnel.${step.key}`)}
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-[var(--ink)]">
+            </dt>
+            <dd className="mt-1 text-2xl font-semibold text-[var(--ink)]">
               {step.count}
               {step.key === "opened" ? null : (
                 <span className="ml-2 text-sm font-normal text-[var(--muted)]">
                   {step.percent === null ? "—" : `${step.percent}%`}
                 </span>
               )}
-            </p>
+            </dd>
           </div>
         ))}
-      </Card>
+      </dl>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex h-12 items-center gap-1 rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
@@ -179,11 +178,9 @@ export default async function ResponsesPage({
             {t("responses.viewSubmissions")}
           </Link>
         </div>
-        <div className="inline-flex h-12 items-center rounded-xl border border-[color:var(--line)] bg-[var(--surface-strong)] p-1">
-          <div className="inline-flex h-full items-center rounded-lg px-3 text-sm font-medium text-[var(--ink)]">
-            {t("responses.submissionsCount", { count: responses.length })}
-          </div>
-        </div>
+        <p className="text-sm text-[var(--muted)]">
+          {t("responses.submissionsCount", { count: responses.length })}
+        </p>
       </div>
 
       {currentView === "submissions" ? (
@@ -214,44 +211,33 @@ export default async function ResponsesPage({
             />
           )
         ) : (
-          <Card className="overflow-hidden p-0">
-            <div className="divide-y divide-[color:var(--line)]">
-              {responses.map((response) => (
-                <div
-                  key={response.id}
-                  className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(140px,260px)_190px_120px_1fr] sm:items-center sm:gap-y-4 sm:gap-x-3"
-                >
-                  <div className="min-w-0 sm:justify-self-start">
-                    {/* Identity fields name the respondent; without them
-                        the submission number stands in. */}
-                    <h2 className="truncate text-base font-semibold text-[var(--ink)] sm:text-left">
-                      {response.identity.length
-                        ? formatResponseIdentity(response.identity)
-                        : t("meta.response", {
-                            number: response.submissionNumber,
-                          })}
-                    </h2>
-                  </div>
-                  <p className="min-w-0 text-sm text-[var(--muted)] sm:justify-self-start sm:text-left">
-                    {formatDate(response.submittedAt, locale)}
-                  </p>
-                  <p className="min-w-0 text-sm text-[var(--muted)] sm:justify-self-start sm:text-left">
-                    {t("responses.answersCount", {
-                      count: response.answerCount,
-                    })}
-                  </p>
-                  <div className="sm:flex sm:justify-end">
-                    <Link href={`/forms/${form.id}/responses/${response.id}`}>
-                      <Button size="sm" variant="secondary">
-                        {t("responses.open")}
-                        <ArrowRight className="size-4" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <div className="divide-y divide-[color:var(--line)] border-y border-[color:var(--line)]">
+            {responses.map((response) => (
+              <Link
+                key={response.id}
+                href={`/forms/${form.id}/responses/${response.id}`}
+                className="grid gap-1 px-2 py-4 transition hover:bg-[var(--surface)] sm:grid-cols-[minmax(140px,260px)_190px_1fr] sm:items-center sm:gap-x-3"
+              >
+                {/* Identity fields name the respondent; without them
+                    the submission number stands in. */}
+                <h2 className="truncate text-base font-medium text-[var(--ink)]">
+                  {response.identity.length
+                    ? formatResponseIdentity(response.identity)
+                    : t("meta.response", {
+                        number: response.submissionNumber,
+                      })}
+                </h2>
+                <p className="text-sm text-[var(--muted)]">
+                  {formatDate(response.submittedAt, locale)}
+                </p>
+                <p className="text-sm text-[var(--muted)]">
+                  {t("responses.answersCount", {
+                    count: response.answerCount,
+                  })}
+                </p>
+              </Link>
+            ))}
+          </div>
         )
       ) : questionSummaries.length === 0 ? (
         <EmptyState
@@ -286,34 +272,23 @@ export default async function ResponsesPage({
                 />
               ) : null}
 
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Badge className="bg-[var(--surface-strong)] text-[var(--ink)]">
-                  {t("responses.reachedCount", { count: summary.reachedCount })}
-                </Badge>
-                <Badge className="bg-[var(--surface-strong)] text-[var(--ink)]">
-                  {t("responses.answeredCount", {
+              <p className="mt-6 text-sm text-[var(--muted)]">
+                {[
+                  t("responses.reachedCount", { count: summary.reachedCount }),
+                  t("responses.answeredCount", {
                     count: summary.answeredCount,
-                  })}
-                </Badge>
-                <Badge className="bg-[var(--surface-strong)] text-[var(--ink)]">
-                  {t("responses.emptyCount", { count: summary.emptyCount })}
-                </Badge>
-                <Badge className="bg-[var(--surface-strong)] text-[var(--ink)]">
-                  {t("responses.skippedCount", { count: summary.skippedCount })}
-                </Badge>
-              </div>
+                  }),
+                  t("responses.emptyCount", { count: summary.emptyCount }),
+                  t("responses.skippedCount", { count: summary.skippedCount }),
+                ].join(" · ")}
+              </p>
 
               {summary.kind === "choice" ? (
-                <div className="mt-6 overflow-hidden rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)]">
-                  {summary.optionCounts.map((option, index) => (
+                <div className="mt-6 divide-y divide-[color:var(--line)] rounded-[16px] border border-[color:var(--line)]">
+                  {summary.optionCounts.map((option) => (
                     <div
                       key={option.value}
-                      className={cn(
-                        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm",
-                        index % 2 === 0
-                          ? "bg-transparent"
-                          : "bg-[var(--bg-end)]",
-                      )}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm"
                     >
                       <span className="font-medium text-[var(--ink)]">
                         {getOptionLabel(summary, option.value)}
@@ -327,7 +302,7 @@ export default async function ResponsesPage({
               ) : null}
 
               {summary.kind === "number" ? (
-                <div className="mt-6 overflow-hidden rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)]">
+                <div className="mt-6 divide-y divide-[color:var(--line)] rounded-[16px] border border-[color:var(--line)]">
                   {[
                     {
                       label: t("responses.minLabel"),
@@ -350,15 +325,10 @@ export default async function ResponsesPage({
                           ? "—"
                           : numberFormatter.format(summary.max),
                     },
-                  ].map((row, index) => (
+                  ].map((row) => (
                     <div
                       key={row.label}
-                      className={cn(
-                        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm",
-                        index % 2 === 0
-                          ? "bg-transparent"
-                          : "bg-[var(--bg-end)]",
-                      )}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm"
                     >
                       <span className="font-medium text-[var(--ink)]">
                         {row.label}
@@ -370,16 +340,11 @@ export default async function ResponsesPage({
               ) : null}
 
               {summary.kind === "number" && summary.distribution ? (
-                <div className="mt-3 overflow-hidden rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)]">
-                  {summary.distribution.map((entry, index) => (
+                <div className="mt-3 divide-y divide-[color:var(--line)] rounded-[16px] border border-[color:var(--line)]">
+                  {summary.distribution.map((entry) => (
                     <div
                       key={entry.value}
-                      className={cn(
-                        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm",
-                        index % 2 === 0
-                          ? "bg-transparent"
-                          : "bg-[var(--bg-end)]",
-                      )}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-sm"
                     >
                       <span className="font-medium text-[var(--ink)]">
                         {entry.value}
@@ -396,16 +361,11 @@ export default async function ResponsesPage({
                     {t("responses.noAnswersYet")}
                   </p>
                 ) : (
-                  <ScrollHintPanel className="mt-6 max-h-80 overflow-y-auto rounded-[16px] border border-[color:var(--line)] bg-[var(--bg-start)] sm:max-h-96">
+                  <ScrollHintPanel className="mt-6 max-h-80 divide-y divide-[color:var(--line)] overflow-y-auto rounded-[16px] border border-[color:var(--line)] sm:max-h-96">
                     {summary.answers.map((answer, index) => (
                       <div
                         key={`${answer.responseId}-${answer.submissionNumber}-${index}`}
-                        className={cn(
-                          "grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-4",
-                          index % 2 === 0
-                            ? "bg-transparent"
-                            : "bg-[var(--bg-end)]",
-                        )}
+                        className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-4"
                       >
                         {summary.block.type === "LINK" ? (
                           <Link
