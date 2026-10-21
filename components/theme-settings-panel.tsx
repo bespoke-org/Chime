@@ -34,8 +34,6 @@ export function ThemeSettingsPanel() {
     <div>
       <PageHeader
         title={t("settings.appearance.title")}
-        description={t("settings.appearance.description")}
-        descriptionClassName="max-w-2xl"
         className="border-b-0 pb-0"
       />
 

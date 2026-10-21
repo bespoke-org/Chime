@@ -60,11 +60,7 @@ export function SettingsShell({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("settings.shell.title")}
-        description={t("settings.shell.description")}
-        descriptionClassName="max-w-2xl"
-      />
+      <PageHeader title={t("settings.shell.title")} />
 
       <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
         <div className="space-y-2 border-b border-[color:var(--line)] pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">

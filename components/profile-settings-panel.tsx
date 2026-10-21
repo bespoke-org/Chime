@@ -108,8 +108,6 @@ export function ProfileSettingsPanel({
     <div>
       <PageHeader
         title={t("settings.profile.title")}
-        description={t("settings.profile.description")}
-        descriptionClassName="max-w-2xl"
         className="border-b-0 pb-0"
       />
 
@@ -255,9 +253,6 @@ export function ProfileSettingsPanel({
               ))}
             </SelectContent>
           </Select>
-          <span className="text-xs text-[var(--muted)]">
-            {t("settings.profile.localeHelp")}
-          </span>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3 pt-2">

@@ -73,11 +73,7 @@ export default async function ResponseDetailPage({
             : submissionLabel
         }
         metadata={workspaceLabel}
-        description={
-          response.identity.length
-            ? submissionLabel
-            : t("responseDetail.description")
-        }
+        description={response.identity.length ? submissionLabel : undefined}
         actions={
           <Link href={`/forms/${id}/responses`}>
             <Button variant="secondary">

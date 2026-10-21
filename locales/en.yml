@@ -3,9 +3,7 @@ app:
   description: Lively Forms is a conversational form builder for creating, publishing, and reviewing forms.
   goToDashboardAria: Go to dashboard
 home:
-  description: "Like a seed in good soil, every thoughtful question has the power to make something grow. Build forms that feel alive—gentle invitations to reflect, respond, and uncover what matters most."
   welcomeBack: Welcome back
-  signedInDescription: Your workspace is ready when you are.
   openDashboard: Open dashboard
 footer:
   poweredBy: Built with
@@ -21,7 +19,6 @@ meta:
   notFound: Not found
 auth:
   title: Sign in to Lively Forms
-  description: Choose how you want to sign in.
   continueWithAtproto: Continue with ATProto
   atprotoIdentifierLabel: ATProto handle
   atprotoIdentifierPlaceholder: alice.bsky.social
@@ -54,7 +51,6 @@ loading:
 settings:
   shell:
     title: Settings
-    description: Manage your identity, shared workspaces, and how Lively Forms looks across creator pages and public forms.
   sections:
     profile:
       title: Profile
@@ -67,7 +63,6 @@ settings:
       description: Theme and visual preferences.
   profile:
     title: Your profile
-    description: Choose how your identity appears across creator surfaces, workspace member lists, and the navbar menu.
     profilePicture: Profile picture
     profilePictureDescription: Upload an image or paste a public image URL below.
     uploadImage: Upload image
@@ -78,7 +73,6 @@ settings:
     imageUrl: Profile image URL
     imageUrlHelp: Filled from your sign-in provider at first login. You can replace it with any public image URL.
     locale: Language
-    localeHelp: Choose the language used across the app for your account.
     notificationEmail: Notification email
     notificationEmailHelp: Used only for new-response notifications from forms where you turn them on. Leave empty to receive none.
     save: Save
@@ -88,7 +82,6 @@ settings:
   appearance:
     title: Theme settings
     toggle: Switch theme
-    description: Choose how Lively Forms looks across creator pages, public forms, and the home page.
     options:
       light:
         title: Light
@@ -101,13 +94,12 @@ settings:
         description: Follow your device theme automatically.
   organizations:
     title: Workspaces
-    description: Create shared workspaces, manage members, and issue invite links. Inside a shared workspace, every member can work with forms. Only the owner can manage the workspace itself.
+    description: Every member of a shared workspace works with its forms; only the owner manages the workspace itself.
     newOrganizationName: New workspace name
     newOrganizationPlaceholder: Alive Team
     createOrganization: Create workspace
     noneYet: You are not part of any shared workspaces yet.
     organizationLabel: Workspace
-    selectedOrgHelp: The settings below apply to the selected workspace.
     owner: Owner
     member: Member
     renameOrganization: Rename workspace
@@ -127,7 +119,6 @@ settings:
     copyInviteSuccess: Copied invite link.
     copyInviteError: Could not copy invite link.
 dashboard:
-  description: Create a form, open a draft, or review responses in the active workspace.
   newForm: New form
   noFormsTitle: "Create the first form in {workspace}"
   noFormsDescription: New forms start as drafts so you can edit before publishing.
@@ -149,7 +140,6 @@ builder:
   addBlockAfter: Add block after this one
   openGraphMode: Open branching graph
   graphModeTitle: Branching graph
-  graphModeDescription: See the full route structure, select a block, and edit how respondents move through the form.
   exitGraphMode: Back to editor
   graphCanvasAria: Branching graph canvas
   graphNodeIndex: "Block {number}"
@@ -158,17 +148,14 @@ builder:
   graphEmptyTitle: No blocks to map yet
   graphEmptyDescription: Add blocks to start laying out the form flow.
   graphSelectionTitle: Select a block to edit its routes
-  graphSelectionDescription: Click a block in the graph to inspect its branching settings.
   graphTextBlockDescription: Text blocks appear in the flow, but only question blocks can define branching routes.
   graphSelectedRoute: "Selected route: {route} → {target}"
-  graphEditDescription: Review the selected block's default path and branch rules.
   graphLinearRoute: Next
   graphDefaultRoute: Default
   settingsTitle: Settings
   editTitle: Edit title
   shareSlug: Public URL address
   afterSubmission: After submission
-  afterSubmissionDescription: Customize what respondents see after they finish the form, including an optional next-step link.
   completionTitle: Completion title
   completionMessage: Completion message
   followUpLabel: Follow-up link label
@@ -178,15 +165,12 @@ builder:
   publicRoute: Public route
   publicRouteHelp: Published forms accept anonymous submissions. Changes to a published form go live immediately.
   appearance: Appearance
-  appearanceDescription: Control what respondents see while moving through the form.
   respondentLanguage: Respondent interface language
   respondentLanguageHelp: Choose the language used for buttons, validation, progress, and other interface text in the public form.
   respondentLanguageOptions:
     visitor: Use visitor's language
   showProgress: Show form progress
-  showProgressHelp: Show respondents where they are in the form.
   allowBackNavigation: Allow going back to previous steps
-  allowBackNavigationHelp: Let respondents return to earlier visited steps in the public form runner.
   webhook: Webhooks
   webhookDescription: Send new responses to your server, each one as it arrives or as a periodic digest.
   webhookUrl: Webhook URL
@@ -223,13 +207,11 @@ builder:
   webhookReuseHelp: The URL, secret and delivery fill the fields below. The other form's webhook stays as it is.
   organizationWebhooksDescription: The workspace webhooks below also receive this form's responses. Only the workspace owner can change them.
   notifications: Notifications
-  notificationsDescription: Get an email each time a new response is stored.
   notifyOnResponse: Email me about new responses
   notifyOnResponseHelp: Each workspace member chooses this for themselves.
   notifyOnResponseMissingEmail: You have no notification email yet, so no emails are sent to you.
   notifyOnResponseOpenSettings: Open profile settings
   availability: Availability
-  availabilityDescription: Stop accepting responses at a set time, after a number of responses, or right now. Respondents then see the closed message instead of the form.
   closesAt: Close at
   closesAtHelp: Local time. Leave empty to keep the form open.
   maxResponses: Response limit
@@ -351,7 +333,6 @@ builder:
   cancelBlockChanges: Reset
   backFromUnsavedBlockChanges: Back
   nothingSelectedTitle: Select a block or open form settings.
-  nothingSelectedDescription: Use the left panel to choose what you want to edit.
   addShortTextQuestion: Add a short text question
   toasts:
     genericError: Something went wrong.
@@ -475,7 +456,6 @@ responses:
   downloadFile: Download
 responseDetail:
   title: "Submission #{number} · {date}"
-  description: Review submitted answers in form order.
   backToResponses: Back to responses
   contextTitle: Context
   required: Required
@@ -491,7 +471,6 @@ responseExport:
 join:
   joinTitle: "Join {organization}"
   alreadyMember: You already belong to this workspace. You can switch to it from the workspace selector.
-  inviteDescription: Accept this invite to collaborate in this workspace.
   openDashboard: Open dashboard
   joinOrganization: Join workspace
   cancel: Cancel

@@ -43,8 +43,6 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <PageHeader
         title={workspaceLabel}
-        description={t("dashboard.description")}
-        descriptionClassName="max-w-2xl"
         titleClassName="leading-tight"
         className="border-b-0 pb-0"
         actions={

@@ -3,9 +3,7 @@ app:
   description: Живые формы — это конструктор диалоговых форм для создания, публикации и просмотра форм.
   goToDashboardAria: Перейти в дашборд
 home:
-  description: "Как семя в хорошей почве, каждый продуманный вопрос может помочь чему-то вырасти. Создавайте формы, которые ощущаются живыми — мягкими приглашениями подумать, ответить и понять, что действительно важно."
   welcomeBack: С возвращением
-  signedInDescription: Ваше пространство готово.
   openDashboard: Открыть дашборд
 footer:
   poweredBy: Сделано с помощью
@@ -21,7 +19,6 @@ meta:
   notFound: Не найдено
 auth:
   title: Войти в Живые формы
-  description: Выберите способ входа.
   continueWithAtproto: Продолжить через ATProto
   atprotoIdentifierLabel: Хэндл ATProto
   atprotoIdentifierPlaceholder: alice.bsky.social
@@ -54,7 +51,6 @@ loading:
 settings:
   shell:
     title: Настройки
-    description: Управляйте своей идентичностью, общими пространствами и тем, как Живые формы выглядят на страницах для создателя и в публичных формах.
   sections:
     profile:
       title: Профиль
@@ -67,7 +63,6 @@ settings:
       description: Тема и визуальные настройки.
   profile:
     title: Ваш профиль
-    description: Выберите, как ваша идентичность отображается в интерфейсе создателя, списках участников пространства и меню в навбаре.
     profilePicture: Аватар
     profilePictureDescription: Загрузите изображение или вставьте публичную ссылку на него ниже.
     uploadImage: Загрузить изображение
@@ -78,7 +73,6 @@ settings:
     imageUrl: URL изображения профиля
     imageUrlHelp: Заполняется из профиля способа входа при первом входе. Можно заменить любой публичной ссылкой на изображение.
     locale: Язык
-    localeHelp: Выберите язык интерфейса для вашего аккаунта.
     notificationEmail: Email для уведомлений
     notificationEmailHelp: Используется только для уведомлений о новых ответах в формах, где вы их включили. Оставьте пустым, чтобы не получать письма.
     save: Сохранить
@@ -88,7 +82,6 @@ settings:
   appearance:
     title: Настройки темы
     toggle: Переключить тему
-    description: Выберите, как Живые формы выглядят на страницах создателя, в публичных формах и на главной странице.
     options:
       light:
         title: Светлая
@@ -101,13 +94,12 @@ settings:
         description: Следовать теме вашего устройства автоматически.
   organizations:
     title: Пространства
-    description: Создавайте общие пространства, управляйте участниками и создавайте ссылки-приглашения. В общем пространстве каждый участник может работать с формами. Только владелец может управлять самим пространством.
+    description: В общем пространстве каждый участник работает с формами, управляет пространством только владелец.
     newOrganizationName: Название нового пространства
     newOrganizationPlaceholder: Живая команда
     createOrganization: Создать пространство
     noneYet: Вы пока не состоите ни в одном общем пространстве.
     organizationLabel: Пространство
-    selectedOrgHelp: Настройки ниже применяются к выбранному пространству.
     owner: Владелец
     member: Участник
     renameOrganization: Переименовать пространство
@@ -127,7 +119,6 @@ settings:
     copyInviteSuccess: Ссылка-приглашение скопирована.
     copyInviteError: Не удалось скопировать ссылку-приглашение.
 dashboard:
-  description: Создавайте форму, открывайте черновик или просматривайте ответы в активном пространстве.
   newForm: Новая форма
   noFormsTitle: "Создайте первую форму в пространстве {workspace}"
   noFormsDescription: Новые формы создаются как черновики, чтобы вы могли отредактировать их перед публикацией.
@@ -149,7 +140,6 @@ builder:
   addBlockAfter: Добавить блок после этого
   openGraphMode: Открыть граф ветвления
   graphModeTitle: Граф ветвления
-  graphModeDescription: Просматривайте всю структуру переходов, выбирайте блок и редактируйте маршруты, по которым респонденты проходят форму.
   exitGraphMode: Назад к редактору
   graphCanvasAria: Холст графа ветвления
   graphNodeIndex: "Блок {number}"
@@ -158,17 +148,14 @@ builder:
   graphEmptyTitle: Пока нечего раскладывать на графе
   graphEmptyDescription: Добавьте блоки, чтобы построить маршрут формы.
   graphSelectionTitle: Выберите блок, чтобы редактировать его маршруты
-  graphSelectionDescription: Нажмите на блок на графе, чтобы посмотреть и изменить настройки ветвления.
   graphTextBlockDescription: Текстовые блоки показываются в потоке, но задавать маршруты могут только блоки с ответом.
   graphSelectedRoute: "Выбранный маршрут: {route} → {target}"
-  graphEditDescription: Проверьте маршрут по умолчанию и правила ветвления для выбранного блока.
   graphLinearRoute: Дальше
   graphDefaultRoute: По умолчанию
   settingsTitle: Настройки
   editTitle: Изменить название
   shareSlug: Адрес публичного URL
   afterSubmission: После отправки
-  afterSubmissionDescription: Настройте то, что увидят респонденты после завершения формы, включая необязательную ссылку на следующий шаг.
   completionTitle: Заголовок завершения
   completionMessage: Сообщение после завершения
   followUpLabel: Текст ссылки продолжения
@@ -178,15 +165,12 @@ builder:
   publicRoute: Публичный доступ
   publicRouteHelp: Опубликованные формы принимают анонимные ответы. Изменения в опубликованной форме становятся доступны сразу.
   appearance: Внешний вид
-  appearanceDescription: Управляйте тем, что респонденты видят во время прохождения формы.
   respondentLanguage: Язык интерфейса для респондента
   respondentLanguageHelp: Выберите язык кнопок, валидации, прогресса и другого интерфейсного текста в публичной форме.
   respondentLanguageOptions:
     visitor: Использовать язык посетителя
   showProgress: Показывать прогресс формы
-  showProgressHelp: Показывать респондентам, на каком шаге формы они находятся.
   allowBackNavigation: Разрешить возврат к предыдущим шагам
-  allowBackNavigationHelp: Разрешить респондентам возвращаться к уже пройденным шагам в публичном раннере формы.
   webhook: Вебхуки
   webhookDescription: Отправлять новые ответы на ваш сервер, каждый сразу после сохранения или сводкой за период.
   webhookUrl: URL вебхука
@@ -223,13 +207,11 @@ builder:
   webhookReuseHelp: Адрес, секрет и доставка подставятся в поля ниже. Вебхук другой формы не изменится.
   organizationWebhooksDescription: Вебхуки пространства ниже тоже получают ответы этой формы. Изменить их может только владелец пространства.
   notifications: Уведомления
-  notificationsDescription: Получайте письмо при каждом новом сохранённом ответе.
   notifyOnResponse: Присылать мне письма о новых ответах
   notifyOnResponseHelp: Каждый участник пространства включает это для себя.
   notifyOnResponseMissingEmail: У вас ещё не указан email для уведомлений, поэтому письма вам не отправляются.
   notifyOnResponseOpenSettings: Открыть настройки профиля
   availability: Приём ответов
-  availabilityDescription: Прекратите приём ответов в заданное время, после определённого числа ответов или прямо сейчас. Респонденты увидят сообщение о закрытии вместо формы.
   closesAt: Закрыть в
   closesAtHelp: Местное время. Оставьте пустым, чтобы форма оставалась открытой.
   maxResponses: Лимит ответов
@@ -351,7 +333,6 @@ builder:
   cancelBlockChanges: Сбросить
   backFromUnsavedBlockChanges: Назад
   nothingSelectedTitle: Выберите блок или откройте настройки формы.
-  nothingSelectedDescription: Используйте левую панель, чтобы выбрать, что вы хотите редактировать.
   addShortTextQuestion: Добавить вопрос с коротким ответом
   toasts:
     genericError: Что-то пошло не так.
@@ -475,7 +456,6 @@ responses:
   downloadFile: Скачать
 responseDetail:
   title: "Ответ №{number} · {date}"
-  description: Просматривайте ответы в порядке формы.
   backToResponses: Назад к ответам
   contextTitle: Контекст
   required: Обязательно
@@ -491,7 +471,6 @@ responseExport:
 join:
   joinTitle: "Вступить в {organization}"
   alreadyMember: Вы уже состоите в этом пространстве. Вы можете переключиться на него через переключатель пространств.
-  inviteDescription: Примите это приглашение, чтобы работать вместе в этом пространстве.
   openDashboard: Открыть дашборд
   joinOrganization: Вступить в пространство
   cancel: Отмена

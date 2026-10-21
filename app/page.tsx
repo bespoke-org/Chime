@@ -51,11 +51,6 @@ export default async function HomePage({
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
               {session?.user ? t("home.welcomeBack") : t("auth.title")}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)] sm:text-base">
-              {session?.user
-                ? t("home.signedInDescription")
-                : t("auth.description")}
-            </p>
 
             <div className="mt-7">
               {session?.user ? (

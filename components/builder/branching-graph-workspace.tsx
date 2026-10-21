@@ -1337,9 +1337,6 @@ export function BranchingGraphWorkspace({
         <h3 className="font-display text-3xl text-[var(--ink)]">
           {t("builder.graphSelectionTitle")}
         </h3>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-          {t("builder.graphSelectionDescription")}
-        </p>
       </div>
     ) : (
       <BlockEditorPanel

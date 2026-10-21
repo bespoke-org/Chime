@@ -54,11 +54,11 @@ export default async function JoinOrganizationPage({
             <h1 className="font-display text-4xl text-[var(--ink)]">
               {t("join.joinTitle", { organization: invite.organizationName })}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              {invite.alreadyMember
-                ? t("join.alreadyMember")
-                : t("join.inviteDescription")}
-            </p>
+            {invite.alreadyMember ? (
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                {t("join.alreadyMember")}
+              </p>
+            ) : null}
 
             <div className="mt-8 flex flex-wrap gap-3">
               {invite.alreadyMember ? (

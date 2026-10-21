@@ -380,9 +380,6 @@ export function FormSettingsPanel({
           <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.afterSubmission")}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.afterSubmissionDescription")}
-          </p>
         </div>
 
         <div className="grid gap-5">
@@ -454,9 +451,6 @@ export function FormSettingsPanel({
           <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.availability")}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.availabilityDescription")}
-          </p>
         </div>
 
         <FormClosedStatusLine form={form} />
@@ -551,9 +545,6 @@ export function FormSettingsPanel({
           <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.notifications")}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.notificationsDescription")}
-          </p>
         </div>
 
         <label className="flex items-start gap-3 text-sm text-[var(--muted)]">
@@ -590,9 +581,6 @@ export function FormSettingsPanel({
           <h3 className="text-base font-semibold text-[var(--ink)]">
             {t("builder.appearance")}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {t("builder.appearanceDescription")}
-          </p>
         </div>
 
         <div className="grid gap-2 text-sm text-[var(--muted)]">
@@ -642,9 +630,6 @@ export function FormSettingsPanel({
             <span className="font-medium text-[var(--ink)]">
               {t("builder.showProgress")}
             </span>
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.showProgressHelp")}
-            </span>
           </div>
         </label>
 
@@ -661,9 +646,6 @@ export function FormSettingsPanel({
           <div className="grid gap-1">
             <span className="font-medium text-[var(--ink)]">
               {t("builder.allowBackNavigation")}
-            </span>
-            <span className="text-xs text-[var(--muted)]">
-              {t("builder.allowBackNavigationHelp")}
             </span>
           </div>
         </label>
@@ -1393,9 +1375,6 @@ export function EmptyEditorState({
         <h2 className="font-display text-4xl text-[var(--ink)]">
           {t("builder.nothingSelectedTitle")}
         </h2>
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[var(--muted)]">
-          {t("builder.nothingSelectedDescription")}
-        </p>
         <div className="mt-6 flex justify-center">
           <Button variant="secondary" onClick={onAddShortText}>
             <Plus className="size-4" />

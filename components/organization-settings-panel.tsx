@@ -119,9 +119,6 @@ export function OrganizationSettingsPanel({
                 <h3 className="text-base font-semibold text-[var(--ink)]">
                   {t("settings.organizations.organizationLabel")}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                  {t("settings.organizations.selectedOrgHelp")}
-                </p>
                 <div className="mt-3">
                   <Select
                     value={selectedOrganization.id}
