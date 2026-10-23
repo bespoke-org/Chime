@@ -486,8 +486,8 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     answersRef.current = answers;
   }, [answers]);
 
-  // The funnel counts a visitor once on open and once on the first answer
-  // or step forward; both are fire-and-forget.
+  // The funnel counts a visitor once on open, once on the first answer or
+  // step forward, and once on submission; all are fire-and-forget.
   const hasSentStartRef = useRef(false);
 
   useEffect(() => {
@@ -676,6 +676,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
             startedAt: startedAtRef.current,
           });
           removeStoredPublicFormDraft(storageKey);
+          sendFormVisitEvent(form.slug, "submit");
           setIsComplete(true);
         } catch (caughtError) {
           showToast(

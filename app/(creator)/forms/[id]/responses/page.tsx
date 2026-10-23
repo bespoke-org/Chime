@@ -93,8 +93,8 @@ export default async function ResponsesPage({
     },
     {
       key: "submitted",
-      count: responses.length,
-      percent: getFunnelPercent(responses.length, visits.opened),
+      count: visits.submitted,
+      percent: getFunnelPercent(visits.submitted, visits.opened),
     },
   ] as const;
   const questionsHref = `/forms/${form.id}/responses?view=questions`;

@@ -8,11 +8,11 @@ import { workspaceAccessWhere } from "@/lib/workspaces";
 
 const formVisitEventSchema = z.object({
   visitorId: z.uuid(),
-  event: z.enum(["open", "start"]),
+  event: z.enum(["open", "start", "submit"]),
 });
 
-// Records that a browser opened a published form or gave its first
-// answer. Visits by people who can edit the form are not recorded, so
+// Records that a browser opened a published form, gave its first answer,
+// or submitted it. Visits by people who can edit the form are not recorded, so
 // previewing it does not inflate the funnel.
 export async function recordFormVisit(
   slug: string,
@@ -57,25 +57,41 @@ export async function recordFormVisit(
     return;
   }
 
-  // A start can arrive without an open when the open beacon was lost.
+  // A later event can arrive without the earlier ones when their beacons
+  // were lost; it still counts the earlier steps.
+  const now = new Date();
+
   await db.formVisit.upsert({
     where,
-    create: { formId: form.id, visitorId, startedAt: new Date() },
+    create: {
+      formId: form.id,
+      visitorId,
+      startedAt: now,
+      submittedAt: event === "submit" ? now : null,
+    },
     update: {},
   });
   await db.formVisit.updateMany({
     where: { formId: form.id, visitorId, startedAt: null },
-    data: { startedAt: new Date() },
+    data: { startedAt: now },
   });
+
+  if (event === "submit") {
+    await db.formVisit.updateMany({
+      where: { formId: form.id, visitorId, submittedAt: null },
+      data: { submittedAt: now },
+    });
+  }
 }
 
 export async function countFormVisits(formId: string) {
-  const [opened, started] = await Promise.all([
+  const [opened, started, submitted] = await Promise.all([
     db.formVisit.count({ where: { formId } }),
     db.formVisit.count({ where: { formId, startedAt: { not: null } } }),
+    db.formVisit.count({ where: { formId, submittedAt: { not: null } } }),
   ]);
 
-  return { opened, started };
+  return { opened, started, submitted };
 }
 
 export function assertVisitRateAllowed(

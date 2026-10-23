@@ -36,12 +36,12 @@ enum OrganizationMemberRole {
 }
 
 model User {
-  id                      String                 @id @default(cuid())
+  id                      String                         @id @default(cuid())
   name                    String?
   firstName               String?
   secondName              String?
   locale                  String?
-  email                   String?                @unique
+  email                   String?                        @unique
   emailVerified           DateTime?
   notificationEmail       String?
   image                   String?
@@ -49,28 +49,28 @@ model User {
   sessions                Session[]
   forms                   Form[]
   organizationMemberships OrganizationMembership[]
-  ownedOrganizations      Organization[]         @relation("OrganizationOwner")
-  createdInviteLinks      OrganizationInviteLink[] @relation("OrganizationInviteLinkCreator")
+  ownedOrganizations      Organization[]                 @relation("OrganizationOwner")
+  createdInviteLinks      OrganizationInviteLink[]       @relation("OrganizationInviteLinkCreator")
   formSubscriptions       FormNotificationSubscription[]
-  createdAt               DateTime               @default(now())
-  updatedAt               DateTime               @updatedAt
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.Text
+  access_token             String? @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.Text
+  session_state            String?
   refresh_token_expires_in Int?
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -112,34 +112,34 @@ model AtprotoOAuthSession {
 }
 
 model Form {
-  id                  String        @id @default(cuid())
+  id                  String                         @id @default(cuid())
   userId              String
   organizationId      String?
-  title               String        @default("Untitled form")
-  description         String        @default("")
-  completionTitle     String        @default("")
-  completionMessage   String        @default("")
+  title               String                         @default("Untitled form")
+  description         String                         @default("")
+  completionTitle     String                         @default("")
+  completionMessage   String                         @default("")
   completionLinkLabel String?
   completionLinkUrl   String?
   respondentLocale    String?
-  showProgress        Boolean       @default(true)
-  allowBackNavigation Boolean       @default(true)
+  showProgress        Boolean                        @default(true)
+  allowBackNavigation Boolean                        @default(true)
   closesAt            DateTime?
   maxResponses        Int?
-  closedManually      Boolean       @default(false)
-  closedMessage       String        @default("")
-  slug                String        @unique
-  status              FormStatus    @default(DRAFT)
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  closedManually      Boolean                        @default(false)
+  closedMessage       String                         @default("")
+  slug                String                         @unique
+  status              FormStatus                     @default(DRAFT)
+  user                User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization        Organization?                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   blocks              FormBlock[]
   responses           Response[]
   uploads             Upload[]
   subscriptions       FormNotificationSubscription[]
   visits              FormVisit[]
   webhooks            FormWebhook[]
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
 
   @@index([userId, updatedAt(sort: Desc)])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -201,15 +201,17 @@ model FormWebhook {
   @@index([mode, enabled])
 }
 
-// One row per browser per form: opening the public form records it, and
-// the first answer sets startedAt. Holds no personal data.
+// One row per browser per form: opening the public form records it, the
+// first answer sets startedAt, and a submission sets submittedAt. Holds no
+// personal data.
 model FormVisit {
-  id        String    @id @default(cuid())
-  formId    String
-  visitorId String
-  openedAt  DateTime  @default(now())
-  startedAt DateTime?
-  form      Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  formId      String
+  visitorId   String
+  openedAt    DateTime  @default(now())
+  startedAt   DateTime?
+  submittedAt DateTime?
+  form        Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@unique([formId, visitorId])
 }
@@ -285,14 +287,14 @@ model OrganizationMembership {
 }
 
 model OrganizationInviteLink {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   createdById    String
-  token          String        @unique
+  token          String       @unique
   revokedAt      DateTime?
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy      User          @relation("OrganizationInviteLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt      DateTime      @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("OrganizationInviteLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt(sort: Desc)])
 }

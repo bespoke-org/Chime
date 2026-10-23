@@ -4,6 +4,7 @@ type VisitRow = {
   formId: string;
   visitorId: string;
   startedAt: Date | null;
+  submittedAt: Date | null;
 };
 
 let publishedSlugs: Record<string, string> = {};
@@ -40,7 +41,8 @@ mock.module("@/lib/db", () => ({
     formVisit: {
       upsert: async (args: {
         where: { formId_visitorId: { formId: string; visitorId: string } };
-        create: Omit<VisitRow, "startedAt"> & { startedAt?: Date };
+        create: Pick<VisitRow, "formId" | "visitorId"> &
+          Partial<Pick<VisitRow, "startedAt" | "submittedAt">>;
       }) => {
         const { formId, visitorId } = args.where.formId_visitorId;
         const existing = visits.find(
@@ -51,20 +53,24 @@ mock.module("@/lib/db", () => ({
           visits.push({
             ...args.create,
             startedAt: args.create.startedAt ?? null,
+            submittedAt: args.create.submittedAt ?? null,
           });
         }
       },
       updateMany: async (args: {
-        where: { formId: string; visitorId: string };
-        data: { startedAt: Date };
+        where: { formId: string; visitorId: string } & Partial<
+          Record<"startedAt" | "submittedAt", null>
+        >;
+        data: Partial<Record<"startedAt" | "submittedAt", Date>>;
       }) => {
         for (const visit of visits) {
           if (
             visit.formId === args.where.formId &&
             visit.visitorId === args.where.visitorId &&
-            visit.startedAt === null
+            (!("startedAt" in args.where) || visit.startedAt === null) &&
+            (!("submittedAt" in args.where) || visit.submittedAt === null)
           ) {
-            visit.startedAt = args.data.startedAt;
+            Object.assign(visit, args.data);
           }
         }
       },
@@ -119,6 +125,26 @@ describe("recordFormVisit", () => {
     expect(visits[0]?.startedAt instanceof Date).toBe(true);
   });
 
+  test("a submit after an open marks the visit as started and submitted", async () => {
+    reset();
+    await recordFormVisit("demo-form", { visitorId, event: "open" }, null);
+    await recordFormVisit("demo-form", { visitorId, event: "submit" }, null);
+
+    expect(visits.length).toBe(1);
+    expect(visits[0]?.startedAt instanceof Date).toBe(true);
+    expect(visits[0]?.submittedAt instanceof Date).toBe(true);
+  });
+
+  test("submitting twice from one browser counts one submitted visit", async () => {
+    reset();
+    await recordFormVisit("demo-form", { visitorId, event: "submit" }, null);
+    const firstSubmittedAt = visits[0]?.submittedAt;
+    await recordFormVisit("demo-form", { visitorId, event: "submit" }, null);
+
+    expect(visits.length).toBe(1);
+    expect(visits[0]?.submittedAt).toBe(firstSubmittedAt);
+  });
+
   test("ignores forms that are not published", async () => {
     reset();
     await recordFormVisit("draft-form", { visitorId, event: "open" }, null);
@@ -156,7 +182,7 @@ describe("recordFormVisit", () => {
     ).toContain("Invalid visit event.");
     expect(
       await errorMessage(
-        recordFormVisit("demo-form", { visitorId, event: "submit" }, null),
+        recordFormVisit("demo-form", { visitorId, event: "close" }, null),
       ),
     ).toContain("Invalid visit event.");
     expect(visits.length).toBe(0);

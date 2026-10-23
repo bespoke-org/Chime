@@ -6,9 +6,10 @@ export type FormFunnelCounts = {
   submitted: number;
 };
 
-// Share of visitors who reached a step, as a whole percent. Responses
-// submitted before visits were tracked can outnumber the visits, so the
-// share is capped at 100; with no recorded visits there is no share.
+// Share of visitors who reached a step, as a whole percent. Every step
+// counts browsers, so a step cannot exceed the opens; the cap at 100 only
+// guards against counts read at different moments. With no recorded visits
+// there is no share.
 export function getFunnelPercent(count: number, opened: number) {
   if (opened <= 0) {
     return null;

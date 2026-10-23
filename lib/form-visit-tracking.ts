@@ -1,5 +1,5 @@
 // Runs in the browser. The visitor id is random, stays in localStorage, and
-// is the only thing that ties the open and start events of one browser.
+// is the only thing that ties the events of one browser.
 
 const VISITOR_ID_STORAGE_KEY = "lively-forms:visitor-id";
 
@@ -22,7 +22,10 @@ function getVisitorId() {
 // sendBeacon queues the request without blocking the page and still
 // delivers it when the respondent closes the tab right away. Without it or
 // without storage the event is skipped.
-export function sendFormVisitEvent(slug: string, event: "open" | "start") {
+export function sendFormVisitEvent(
+  slug: string,
+  event: "open" | "start" | "submit",
+) {
   const visitorId = getVisitorId();
 
   if (!visitorId || typeof navigator.sendBeacon !== "function") {
