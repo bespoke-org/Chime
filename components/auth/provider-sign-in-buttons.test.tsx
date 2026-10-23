@@ -58,13 +58,13 @@ describe("ProviderSignInButtons", () => {
     signInCalls = [];
     const view = renderButtons("en", [
       { id: "google", label: "Google" },
-      { id: "oidc", label: "SGU" },
+      { id: "oidc", label: "SSO" },
     ]);
 
     const buttons = view.getAllByRole("button");
     expect(buttons.length).toBe(2);
     expect(buttons[0]?.textContent).toContain("Continue with Google");
-    expect(buttons[1]?.textContent).toContain("Continue with SGU");
+    expect(buttons[1]?.textContent).toContain("Continue with SSO");
 
     fireEvent.click(buttons[1]!);
 
@@ -95,7 +95,7 @@ describe("ProviderSignInButtons icons", () => {
   test("renders the configured icon image for a provider", () => {
     const restoreDom = installTestDom();
     const view = renderButtons("en", [
-      { id: "oidc", label: "SGU", iconUrl: "https://example.edu/logo.svg" },
+      { id: "oidc", label: "SSO", iconUrl: "https://example.com/logo.svg" },
       { id: "github", label: "GitHub" },
     ]);
 
@@ -104,7 +104,7 @@ describe("ProviderSignInButtons icons", () => {
     );
     expect(masked.length).toBe(1);
     expect(
-      masked[0]?.style.maskImage.includes("https://example.edu/logo.svg"),
+      masked[0]?.style.maskImage.includes("https://example.com/logo.svg"),
     ).toBe(true);
     expect(view.container.querySelectorAll("svg").length > 0).toBe(true);
 

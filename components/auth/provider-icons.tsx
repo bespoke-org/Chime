@@ -1,4 +1,4 @@
-import { GraduationCap, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 
 import type { SignInProviderId } from "@/lib/oidc-auth";
 import { cn } from "@/lib/utils";
@@ -75,10 +75,6 @@ export function ProviderIcon({
 
   if (providerId === "google") {
     return <GoogleIcon className={className} />;
-  }
-
-  if (providerId === "oidc") {
-    return <GraduationCap className={className} aria-hidden="true" />;
   }
 
   return <LogIn className={className} aria-hidden="true" />;
