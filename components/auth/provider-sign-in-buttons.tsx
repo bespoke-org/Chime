@@ -61,11 +61,6 @@ export function ProviderSignInButtons({
           </span>
         </Button>
       ))}
-      <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-        <span className="h-px flex-1 bg-[var(--line-strong)]" />
-        {t("auth.providerDivider")}
-        <span className="h-px flex-1 bg-[var(--line-strong)]" />
-      </div>
     </div>
   );
 }

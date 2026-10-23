@@ -24,7 +24,6 @@ auth:
   continueWith: "Continue with {name}"
   oauthError: Sign-in did not complete. Try again or use another method.
   oauthAccountNotLinked: This email is already used by another sign-in method.
-  providerDivider: or
 workspace:
   selectAria: Select workspace
   personal: Personal workspace

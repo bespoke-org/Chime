@@ -24,7 +24,6 @@ auth:
   continueWith: "Войти через {name}"
   oauthError: Вход не завершился. Попробуйте снова или используйте другой способ.
   oauthAccountNotLinked: Этот email уже используется другим способом входа.
-  providerDivider: или
 workspace:
   selectAria: Выбрать пространство
   personal: Личное пространство

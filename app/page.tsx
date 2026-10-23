@@ -60,8 +60,10 @@ export default async function HomePage({
               {authErrorKey ? (
                 <AuthErrorAlert message={t(authErrorKey)} />
               ) : null}
-              <ProviderSignInButtons providers={providers} />
-              <AtprotoSignInForm />
+              <div className="flex flex-col gap-3">
+                <ProviderSignInButtons providers={providers} />
+                <AtprotoSignInForm />
+              </div>
             </div>
           </div>
         </Card>
