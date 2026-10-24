@@ -1,0 +1,14 @@
+.git
+.env*
+!.env.example
+.next
+node_modules
+coverage
+test-results
+playwright-report
+.playwright-cli
+tsconfig.tsbuildinfo
+.DS_Store
+docs
+e2e
+openspec

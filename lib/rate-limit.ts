@@ -86,12 +86,35 @@ export class SlidingWindowRateLimiter {
   }
 }
 
-export function getClientIp(headers: Headers) {
-  const forwardedFor = headers.get("x-forwarded-for");
-  const firstForwarded = forwardedFor?.split(",")[0]?.trim();
+const DEFAULT_TRUSTED_PROXY_HOPS = 1;
 
-  if (firstForwarded) {
-    return firstForwarded;
+// Number of reverse proxies in front of the app that append the address they
+// saw to X-Forwarded-For. The client is that many entries from the right;
+// everything left of it was sent by the client and can be anything.
+export function getTrustedProxyHops(
+  env: Record<string, string | undefined> = process.env,
+) {
+  const hops = Number.parseInt(env.TRUSTED_PROXY_HOPS ?? "", 10);
+
+  return Number.isInteger(hops) && hops >= 0
+    ? hops
+    : DEFAULT_TRUSTED_PROXY_HOPS;
+}
+
+export function getClientIp(
+  headers: Headers,
+  env: Record<string, string | undefined> = process.env,
+) {
+  const forwarded = (headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const hops = getTrustedProxyHops(env);
+
+  if (forwarded.length && hops > 0) {
+    // With fewer entries than hops the header was not filled by the proxies
+    // alone; the leftmost entry is the closest we can get.
+    return forwarded[Math.max(0, forwarded.length - hops)];
   }
 
   const realIp = headers.get("x-real-ip")?.trim();

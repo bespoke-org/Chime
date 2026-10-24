@@ -1,0 +1,73 @@
+# Self-hosted stack: the app image built from this tree, Postgres, Garage and
+# a one-shot migration. Copy .env.example to .env, fill in the values listed
+# in docs/deployment.md, then:
+#
+#   docker compose -f compose.prod.yaml up -d --build
+#
+# Only the app (APP_PORT, default 3000) and the Garage S3 API (3900) are
+# published, both on the loopback interface, for a reverse proxy that
+# terminates HTTPS. Postgres is reachable from the other services only.
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lively_forms
+      POSTGRES_USER: lively_forms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lively_forms -d lively_forms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  garage:
+    image: docker.io/dxflrs/garage:v2.4.1
+    container_name: lively-forms-garage
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?set GARAGE_RPC_SECRET in .env}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?set GARAGE_ADMIN_TOKEN in .env}
+    ports:
+      # Browsers upload straight to Garage through the proxy at S3_PUBLIC_ENDPOINT.
+      - "127.0.0.1:3900:3900"
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+
+  migrate:
+    build: .
+    image: lively-forms
+    restart: "no"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://lively_forms:${POSTGRES_PASSWORD}@postgres:5432/lively_forms?schema=public
+    command: ["bunx", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    image: lively-forms
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://lively_forms:${POSTGRES_PASSWORD}@postgres:5432/lively_forms?schema=public
+      # The app reaches Garage over the compose network; S3_PUBLIC_ENDPOINT in
+      # .env is what the browser reaches.
+      S3_ENDPOINT: http://garage:3900
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      garage:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  garage-meta:
+  garage-data:

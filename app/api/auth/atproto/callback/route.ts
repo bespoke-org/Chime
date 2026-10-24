@@ -5,6 +5,7 @@ import {
   getAtprotoRedirectUrl,
   getNextAuthSessionCookieName,
 } from "@/lib/atproto-auth";
+import { SignInNotAllowedError } from "@/lib/sign-in-allowlist";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,10 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
+    if (error instanceof SignInNotAllowedError) {
+      return redirectWithError("not_allowed");
+    }
+
     console.error("ATProto sign-in callback failed", error);
     return redirectWithError("callback_failed");
   }

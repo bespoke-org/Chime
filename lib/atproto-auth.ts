@@ -11,6 +11,11 @@ import type { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 
 import { db } from "@/lib/db";
+import {
+  isSignInAllowed,
+  parseAllowedSignInIdentifiers,
+  SignInNotAllowedError,
+} from "@/lib/sign-in-allowlist";
 import { syncAtprotoProfileFields } from "@/lib/users";
 
 const ATPROTO_PROVIDER = "atproto";
@@ -251,6 +256,11 @@ export async function completeAtprotoSignIn(params: URLSearchParams) {
   const handle = profileData?.handle ?? did;
   const displayName = profileData?.displayName ?? null;
   const avatar = profileData?.avatar ?? null;
+
+  if (!isSignInAllowed({ did, handle }, parseAllowedSignInIdentifiers())) {
+    await sessionStore.del(did);
+    throw new SignInNotAllowedError();
+  }
 
   const user = await db.$transaction(async (tx) => {
     const existingAccount = await tx.account.findUnique({

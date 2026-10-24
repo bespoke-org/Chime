@@ -100,6 +100,7 @@ mock.module("@/lib/db", () => ({
 }));
 
 const { completeAtprotoSignIn } = await import("@/lib/atproto-auth");
+const { SignInNotAllowedError } = await import("@/lib/sign-in-allowlist");
 
 function resetTestState(callbackUrl = "/dashboard") {
   callbackResult = {
@@ -134,6 +135,27 @@ describe("completeAtprotoSignIn", () => {
     const result = await completeAtprotoSignIn(new URLSearchParams("code=ok"));
 
     expect(result.callbackUrl).toBe("/dashboard");
+  });
+
+  test("refuses a handle outside the allowlist before touching the user", async () => {
+    resetTestState();
+    process.env.ALLOWED_SIGNIN_IDENTIFIERS = "other.example.org";
+
+    let thrown: unknown = null;
+
+    try {
+      await completeAtprotoSignIn(new URLSearchParams("code=ok"));
+    } catch (error) {
+      thrown = error;
+    } finally {
+      delete process.env.ALLOWED_SIGNIN_IDENTIFIERS;
+    }
+
+    expect(thrown instanceof SignInNotAllowedError).toBe(true);
+
+    expect(createdSessions.length).toBe(0);
+    expect(profileSyncs.length).toBe(0);
+    expect(deletedOAuthSessions[0]).toBe("did:plc:123");
   });
 
   test("creates an ATProto account for a new DID", async () => {

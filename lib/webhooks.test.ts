@@ -6,10 +6,14 @@ import type { SubmissionSnapshotBlock } from "@/lib/form-submission";
 import {
   buildWebhookPayload,
   deliverWebhook,
+  isPublicIpAddress,
+  isPublicWebhookTarget,
   isPublicWebhookUrl,
   signWebhookPayload,
   type WebhookPayload,
 } from "@/lib/webhooks";
+
+const publicLookup = async () => ["93.184.216.34"];
 
 describe("isPublicWebhookUrl", () => {
   test("accepts public http and https hosts", () => {
@@ -22,6 +26,8 @@ describe("isPublicWebhookUrl", () => {
       "https://8.8.8.8/hook",
       "https://172.32.0.1/hook",
       "https://172.15.0.1/hook",
+      "https://100.128.0.1/hook",
+      "https://100.63.255.255/hook",
     ]) {
       expect(isPublicWebhookUrl(url)).toBe(true);
     }
@@ -49,12 +55,17 @@ describe("isPublicWebhookUrl", () => {
       "https://172.31.255.255/hook",
       "https://192.168.1.1/hook",
       "https://169.254.169.254/latest",
+      "https://100.64.0.1/hook",
+      "https://100.127.255.255/hook",
+      "https://224.0.0.251/hook",
+      "https://255.255.255.255/hook",
       "https://0.0.0.0/hook",
       "https://[::1]/hook",
       "https://[::ffff:127.0.0.1]/hook",
       "https://[::ffff:7f00:1]/hook",
       "https://[fd00::1]/hook",
       "https://[fe80::1]/hook",
+      "https://[ff02::1]/hook",
     ]) {
       expect(isPublicWebhookUrl(url)).toBe(false);
     }
@@ -71,6 +82,80 @@ describe("isPublicWebhookUrl", () => {
       false,
     );
     expect(isPublicWebhookUrl("https://user@example.com/hook")).toBe(false);
+  });
+});
+
+describe("isPublicIpAddress", () => {
+  test("classifies plain and IPv4-mapped addresses", () => {
+    expect(isPublicIpAddress("93.184.216.34")).toBe(true);
+    expect(isPublicIpAddress("2001:db8::1")).toBe(true);
+    expect(isPublicIpAddress("10.1.2.3")).toBe(false);
+    expect(isPublicIpAddress("100.64.1.1")).toBe(false);
+    expect(isPublicIpAddress("::ffff:127.0.0.1")).toBe(false);
+    expect(isPublicIpAddress("::ffff:a00:1")).toBe(false);
+    expect(isPublicIpAddress("::ffff:5db8:d822")).toBe(true);
+    expect(isPublicIpAddress("fe80::1")).toBe(false);
+    expect(isPublicIpAddress("not-an-ip")).toBe(false);
+  });
+});
+
+describe("isPublicWebhookTarget", () => {
+  test("accepts a name whose addresses are all public", async () => {
+    const seen: string[] = [];
+    const lookup = async (hostname: string) => {
+      seen.push(hostname);
+      return ["93.184.216.34", "2606:2800:21f:cb07:6820:80da:af6b:8b2c"];
+    };
+
+    expect(
+      await isPublicWebhookTarget("https://example.com/hook", lookup),
+    ).toBe(true);
+    expect(seen.join(",")).toBe("example.com");
+  });
+
+  test("rejects a name that resolves to a private or mapped address", async () => {
+    for (const addresses of [
+      ["127.0.0.1"],
+      ["93.184.216.34", "10.0.0.5"],
+      ["::ffff:10.0.0.5"],
+      ["100.64.0.9"],
+      ["fd00::1"],
+      [],
+    ]) {
+      expect(
+        await isPublicWebhookTarget(
+          "https://127.0.0.1.nip.io/hook",
+          async () => addresses,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  test("rejects a name that does not resolve", async () => {
+    expect(
+      await isPublicWebhookTarget("https://example.invalid/hook", async () => {
+        throw new Error("ENOTFOUND");
+      }),
+    ).toBe(false);
+  });
+
+  test("does not resolve IP literals and keeps the shape check", async () => {
+    const lookup = async () => {
+      throw new Error("should not be called");
+    };
+
+    expect(await isPublicWebhookTarget("https://8.8.8.8/hook", lookup)).toBe(
+      true,
+    );
+    expect(await isPublicWebhookTarget("https://[2001:db8::1]/", lookup)).toBe(
+      true,
+    );
+    expect(await isPublicWebhookTarget("https://10.0.0.1/hook", lookup)).toBe(
+      false,
+    );
+    expect(await isPublicWebhookTarget("ftp://example.com/x", lookup)).toBe(
+      false,
+    );
   });
 });
 
@@ -200,6 +285,27 @@ const quietWarn = async <T>(run: () => Promise<T>) => {
 };
 
 describe("deliverWebhook", () => {
+  test("does not send to a host that resolves to a private address", async () => {
+    const { calls, fetchImpl } = createFakeFetch([
+      () => new Response(null, { status: 200 }),
+    ]);
+
+    const result = await quietWarn(() =>
+      deliverWebhook({
+        url: "https://127.0.0.1.nip.io/hook",
+        secret: null,
+        payload: payload(),
+        fetchImpl,
+        lookup: async () => ["127.0.0.1"],
+        retryDelayMs: 0,
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("blocked_address");
+    expect(calls.length).toBe(0);
+  });
+
   test("posts signed JSON once on success", async () => {
     const { calls, fetchImpl } = createFakeFetch([
       () => new Response(null, { status: 200 }),
@@ -209,6 +315,7 @@ describe("deliverWebhook", () => {
       url: "https://example.com/hook",
       secret: "s3cret",
       payload: payload(),
+      lookup: publicLookup,
       fetchImpl,
       now: () => 1700000000123,
     });
@@ -237,6 +344,7 @@ describe("deliverWebhook", () => {
       url: "https://example.com/hook",
       secret: null,
       payload: payload(),
+      lookup: publicLookup,
       fetchImpl,
     });
 
@@ -254,6 +362,7 @@ describe("deliverWebhook", () => {
         url: "https://example.com/hook",
         secret: null,
         payload: payload(),
+        lookup: publicLookup,
         fetchImpl,
         retryDelayMs: 0,
       }),
@@ -274,6 +383,7 @@ describe("deliverWebhook", () => {
         url: "https://example.com/hook",
         secret: null,
         payload: payload(),
+        lookup: publicLookup,
         fetchImpl,
         retryDelayMs: 0,
       }),
@@ -296,6 +406,7 @@ describe("deliverWebhook", () => {
         url: "https://example.com/hook",
         secret: null,
         payload: payload(),
+        lookup: publicLookup,
         fetchImpl,
         retryDelayMs: 0,
       }),
@@ -316,6 +427,7 @@ describe("deliverWebhook", () => {
       url: "https://example.com/hook",
       secret: null,
       payload: payload(),
+      lookup: publicLookup,
       fetchImpl,
       retryDelayMs: 0,
     });
@@ -337,6 +449,7 @@ describe("deliverWebhook", () => {
         url: "https://example.com/hook",
         secret: null,
         payload: payload(),
+        lookup: publicLookup,
         fetchImpl,
         timeoutMs: 10,
         retryDelayMs: 0,

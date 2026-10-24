@@ -1,4 +1,6 @@
 import { createHmac } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { isIP } from "node:net";
 
 import { getAppBaseUrl } from "@/lib/app-url";
 import { isQuestionBlock } from "@/lib/blocks";
@@ -32,9 +34,11 @@ function isPrivateIpv4(host: string) {
     a === 0 ||
     a === 10 ||
     a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
-    (a === 169 && b === 254)
+    (a === 169 && b === 254) ||
+    a >= 224
   );
 }
 
@@ -68,15 +72,34 @@ function isPrivateIpv6(host: string) {
     }
   }
 
-  // fc00::/7 (unique local) and fe80::/10 (link local).
+  // fc00::/7 (unique local), fe80::/10 (link local) and ff00::/8 (multicast).
   return (
-    /^f[cd][0-9a-f]{2}:/.test(literal) || /^fe[89ab][0-9a-f]:/.test(literal)
+    /^f[cd][0-9a-f]{2}:/.test(literal) ||
+    /^fe[89ab][0-9a-f]:/.test(literal) ||
+    /^ff[0-9a-f]{2}:/.test(literal)
   );
 }
 
+// True for an address a webhook may be sent to: not loopback, unspecified,
+// private (RFC 1918), shared (100.64.0.0/10), link-local, unique-local or
+// multicast, in IPv4, IPv6 or IPv4-mapped IPv6 form.
+export function isPublicIpAddress(address: string) {
+  const bare = address.replace(/^\[|\]$/g, "");
+
+  switch (isIP(bare)) {
+    case 4:
+      return !isPrivateIpv4(bare);
+    case 6:
+      return !isPrivateIpv6(bare);
+    default:
+      return false;
+  }
+}
+
 // A webhook URL must point at a public http(s) host so the server cannot be
-// made to call itself or anything on its network. Hostnames are only checked
-// by shape; DNS resolution is left to the fetch.
+// made to call itself or anything on its network. This checks the URL as
+// written, which is what the builder validates; a hostname is resolved and
+// checked again by isPublicWebhookTarget right before each delivery.
 export function isPublicWebhookUrl(value: string) {
   let url: URL;
 
@@ -109,6 +132,42 @@ export function isPublicWebhookUrl(value: string) {
   }
 
   return !isPrivateIpv4(host);
+}
+
+export type AddressLookup = (hostname: string) => Promise<string[]>;
+
+const defaultLookup: AddressLookup = async (hostname) =>
+  (await dnsLookup(hostname, { all: true })).map((entry) => entry.address);
+
+// Resolves the hostname and refuses the URL when any of its addresses is not
+// public, so a name like 127.0.0.1.nip.io or a record pointing into the
+// network is caught. fetch resolves the name once more when it connects:
+// an answer that changes between the two lookups is not caught. Pinning the
+// connection to the checked address would need a custom dispatcher, which
+// the fetch of Node and Bun do not share.
+export async function isPublicWebhookTarget(
+  value: string,
+  lookup: AddressLookup = defaultLookup,
+) {
+  if (!isPublicWebhookUrl(value)) {
+    return false;
+  }
+
+  const host = new URL(value.trim()).hostname;
+
+  if (isIP(host.replace(/^\[|\]$/g, ""))) {
+    return true;
+  }
+
+  let addresses: string[];
+
+  try {
+    addresses = await lookup(host);
+  } catch {
+    return false;
+  }
+
+  return addresses.length > 0 && addresses.every(isPublicIpAddress);
 }
 
 export type WebhookAnswer = {
@@ -218,6 +277,7 @@ export type WebhookDeliveryInput = {
   secret: string | null;
   payload: WebhookPayload | WebhookBatchPayload;
   fetchImpl?: typeof fetch;
+  lookup?: AddressLookup;
   timeoutMs?: number;
   retryDelayMs?: number;
   now?: () => number;
@@ -296,23 +356,21 @@ export async function deliverWebhook(
       `sha256=${signWebhookPayload(body, input.secret, timestamp)}`;
   }
 
-  let result = await postOnce({
-    url: input.url,
-    fetchImpl,
-    timeoutMs,
-    body,
-    headers,
-  });
+  // The host is resolved and checked before each attempt, so a webhook saved
+  // with a public-looking name cannot reach the server's own network.
+  const attempt = async (): Promise<WebhookDeliveryResult> => {
+    if (!(await isPublicWebhookTarget(input.url, input.lookup))) {
+      return { ok: false, error: "blocked_address" };
+    }
 
-  if (shouldRetry(result)) {
+    return postOnce({ url: input.url, fetchImpl, timeoutMs, body, headers });
+  };
+
+  let result = await attempt();
+
+  if (shouldRetry(result) && result.error !== "blocked_address") {
     await sleep(retryDelayMs);
-    result = await postOnce({
-      url: input.url,
-      fetchImpl,
-      timeoutMs,
-      body,
-      headers,
-    });
+    result = await attempt();
   }
 
   if (!result.ok) {

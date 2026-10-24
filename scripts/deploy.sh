@@ -1,29 +1,59 @@
 #!/usr/bin/env bash
+# Ships the working tree to a host over ssh and runs it there with
+# podman-compose and systemd. This is the author's setup; the container image
+# with compose.prod.yaml is the general path, see docs/deployment.md.
 set -euo pipefail
 
-DEPLOY_HOST="${DEPLOY_HOST:-root@10.72.30.114}"
+usage() {
+  cat >&2 <<'USAGE'
+Required environment variables:
+
+  DEPLOY_HOST          ssh destination, for example root@forms.example.com
+  PUBLIC_URL           HTTPS origin served by the reverse proxy, for example
+                       https://forms.example.com (forwarded to the app on PORT)
+  STORAGE_PUBLIC_URL   HTTPS origin the proxy forwards to Garage on port 3900,
+                       for example https://storage.example.com; browsers upload
+                       there. Not needed with ENABLE_STORAGE=0.
+
+Optional: DEPLOY_DIR=/opt/lively-forms PORT=8000 SERVICE_NAME=lively-forms
+          RESET_DB=0 ENABLE_STORAGE=1 SYNC_PROVIDER_ENV=0
+
+Example:
+
+  DEPLOY_HOST=root@forms.example.com \
+  PUBLIC_URL=https://forms.example.com \
+  STORAGE_PUBLIC_URL=https://storage.example.com \
+    bun run deploy
+USAGE
+  exit 1
+}
+
+DEPLOY_HOST="${DEPLOY_HOST:-}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/lively-forms}"
 PORT="${PORT:-8000}"
-# Stage is public at forms.alivetech.org. Caddy terminates HTTPS there and
-# proxies requests over the private network to http://10.72.30.114:8000.
 # OAuth URLs must always use the public HTTPS origin, never the upstream URL.
-PUBLIC_URL="${PUBLIC_URL:-https://forms.alivetech.org}"
-PROXY_UPSTREAM="${PROXY_UPSTREAM:-http://10.72.30.114:8000}"
+PUBLIC_URL="${PUBLIC_URL:-}"
 SERVICE_NAME="${SERVICE_NAME:-lively-forms}"
 # RESET_DB=1 drops the compose volumes before starting them, so the migrations
 # apply to an empty database. Everything stored on the server is lost.
 RESET_DB="${RESET_DB:-0}"
 # ENABLE_STORAGE=0 skips the Garage setup (layout, bucket, key, CORS, S3_* in .env).
 ENABLE_STORAGE="${ENABLE_STORAGE:-1}"
-# Browsers upload straight to Garage, so the gate exposes it at this HTTPS
-# origin (proxied to 10.72.30.114:3900). Written to .env as S3_PUBLIC_ENDPOINT.
-STORAGE_PUBLIC_URL="${STORAGE_PUBLIC_URL:-https://storage.forms.alivetech.org}"
+# Written to .env as S3_PUBLIC_ENDPOINT.
+STORAGE_PUBLIC_URL="${STORAGE_PUBLIC_URL:-}"
 # SYNC_PROVIDER_ENV=1 copies the OIDC_*, GITHUB_* and GOOGLE_* lines of the
 # local .env into the server .env, replacing the keys that are already there.
 SYNC_PROVIDER_ENV="${SYNC_PROVIDER_ENV:-0}"
 
+if [ -z "${DEPLOY_HOST}" ] || [ -z "${PUBLIC_URL}" ]; then
+  usage
+fi
+if [ "${ENABLE_STORAGE}" = "1" ] && [ -z "${STORAGE_PUBLIC_URL}" ]; then
+  usage
+fi
+
 echo "Deploying to ${DEPLOY_HOST}:${DEPLOY_DIR} on port ${PORT}"
-echo "Public URL: ${PUBLIC_URL} (proxied to ${PROXY_UPSTREAM})"
+echo "Public URL: ${PUBLIC_URL}"
 echo "Flags: RESET_DB=${RESET_DB} ENABLE_STORAGE=${ENABLE_STORAGE} SYNC_PROVIDER_ENV=${SYNC_PROVIDER_ENV}"
 if [ "${ENABLE_STORAGE}" = "1" ]; then
   echo "Storage public URL: ${STORAGE_PUBLIC_URL} (browsers upload there)"
@@ -98,11 +128,17 @@ PODMAN_COMPOSE="$(command -v podman-compose)"
 
 cd "${DEPLOY_DIR}"
 
+# The container secrets are generated once and kept in .env, which compose
+# reads. Postgres applies its password only when the volume is created.
 if [ ! -f .env ]; then
   AUTH_SECRET="$(openssl rand -base64 32)"
+  POSTGRES_PASSWORD="$(openssl rand -hex 32)"
   umask 077
   cat > .env <<ENV
-DATABASE_URL="postgresql://lively_forms:lively_forms@127.0.0.1:5432/lively_forms?schema=public"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+GARAGE_RPC_SECRET="$(openssl rand -hex 32)"
+GARAGE_ADMIN_TOKEN="$(openssl rand -hex 32)"
+DATABASE_URL="postgresql://lively_forms:${POSTGRES_PASSWORD}@127.0.0.1:5432/lively_forms?schema=public"
 AUTH_SECRET="${AUTH_SECRET}"
 NEXTAUTH_URL="${PUBLIC_URL}"
 ATPROTO_PUBLIC_URL="${PUBLIC_URL}"
@@ -113,18 +149,39 @@ ENV
   umask 022
 fi
 
-# Pins the public URLs, merges the provider lines sent from the local .env
-# (if any) and appends the optional keys as commented placeholders so the
-# server .env documents what can be set. Existing values are kept, except
-# DATABASE_URL after RESET_DB=1: the new volume has the compose credentials.
+# Pins the public URLs, adds the container secrets an older .env lacks,
+# merges the provider lines sent from the local .env (if any) and appends the
+# optional keys as commented placeholders so the server .env documents what
+# can be set. Existing values are kept, except DATABASE_URL after RESET_DB=1:
+# the new volume has the compose credentials.
 python3 - "${PUBLIC_URL}" "${RESET_DB}" <<'PY'
 from pathlib import Path
 import re
+import secrets
 import sys
 public_url = sys.argv[1]
 reset_db = sys.argv[2] == '1'
 path = Path('.env')
 lines = path.read_text().splitlines()
+
+def key_of(line):
+    match = re.match(r'^#?\s*([A-Z][A-Z0-9_]*)=', line)
+    return match.group(1) if match else None
+
+def value_of(key):
+    for line in lines:
+        if line.startswith(f'{key}='):
+            return line.split('=', 1)[1].strip().strip('"')
+    return None
+
+for key in ('POSTGRES_PASSWORD', 'GARAGE_RPC_SECRET', 'GARAGE_ADMIN_TOKEN'):
+    if value_of(key) is None:
+        lines.append(f'{key}="{secrets.token_hex(32)}"')
+        note = ''
+        if key == 'POSTGRES_PASSWORD':
+            note = '; the existing database keeps its old password until it is changed by hand, see docs/deployment.md'
+        print(f'Added {key} to .env{note}')
+
 updates = {
     'NEXTAUTH_URL': f'"{public_url}"',
     'ATPROTO_PUBLIC_URL': f'"{public_url}"',
@@ -132,7 +189,7 @@ updates = {
     'ATPROTO_REDIRECT_URI': f'"{public_url}/api/auth/atproto/callback"',
 }
 if reset_db:
-    updates['DATABASE_URL'] = '"postgresql://lively_forms:lively_forms@127.0.0.1:5432/lively_forms?schema=public"'
+    updates['DATABASE_URL'] = f'"postgresql://lively_forms:{value_of("POSTGRES_PASSWORD")}@127.0.0.1:5432/lively_forms?schema=public"'
     print('RESET_DB=1: DATABASE_URL set to the compose credentials')
 providers = Path('.env.providers')
 if providers.exists():
@@ -142,10 +199,6 @@ if providers.exists():
             updates[key.strip()] = value
     providers.unlink()
     print('Merged provider variables into .env')
-
-def key_of(line):
-    match = re.match(r'^#?\s*([A-Z][A-Z0-9_]*)=', line)
-    return match.group(1) if match else None
 
 seen = set()
 out = []
@@ -231,13 +284,6 @@ set +a
 
 bun install --frozen-lockfile
 
-# The container from the old compose project is unknown to the new one and
-# would hold port 5432 if it were ever started again.
-if podman container exists the-forms-postgres; then
-  podman rm -f the-forms-postgres
-  echo "Removed stale container the-forms-postgres"
-fi
-
 if [ "${RESET_DB}" = "1" ]; then
   echo "RESET_DB=1: removing the compose containers and volumes, the database starts empty"
   "${PODMAN_COMPOSE}" down -v || true
@@ -288,6 +334,7 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=${DEPLOY_DIR}
+EnvironmentFile=${DEPLOY_DIR}/.env
 ExecStart=${PODMAN_COMPOSE} -f ${DEPLOY_DIR}/compose.yaml up -d
 ExecStop=${PODMAN_COMPOSE} -f ${DEPLOY_DIR}/compose.yaml down
 TimeoutStartSec=300

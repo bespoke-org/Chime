@@ -150,22 +150,50 @@ describe("SlidingWindowRateLimiter", () => {
 });
 
 describe("getClientIp", () => {
-  test("prefers the first x-forwarded-for entry", () => {
+  test("takes the x-forwarded-for entry added by the trusted proxy", () => {
     const headers = new Headers({
       "x-forwarded-for": " 203.0.113.9 , 10.0.0.1",
       "x-real-ip": "10.0.0.2",
     });
 
-    expect(getClientIp(headers)).toBe("203.0.113.9");
+    // One hop by default: the last entry was appended by the proxy, the
+    // first one came from the client and could be forged.
+    expect(getClientIp(headers, {})).toBe("10.0.0.1");
+    expect(getClientIp(headers, { TRUSTED_PROXY_HOPS: "2" })).toBe(
+      "203.0.113.9",
+    );
+  });
+
+  test("falls back to the leftmost entry when there are fewer entries than hops", () => {
+    const headers = new Headers({ "x-forwarded-for": "203.0.113.9" });
+
+    expect(getClientIp(headers, { TRUSTED_PROXY_HOPS: "3" })).toBe(
+      "203.0.113.9",
+    );
+  });
+
+  test("ignores x-forwarded-for with zero hops and bad values", () => {
+    const headers = new Headers({
+      "x-forwarded-for": "203.0.113.9",
+      "x-real-ip": "10.0.0.2",
+    });
+
+    expect(getClientIp(headers, { TRUSTED_PROXY_HOPS: "0" })).toBe("10.0.0.2");
+    expect(getClientIp(headers, { TRUSTED_PROXY_HOPS: "many" })).toBe(
+      "203.0.113.9",
+    );
+    expect(getClientIp(headers, { TRUSTED_PROXY_HOPS: "-1" })).toBe(
+      "203.0.113.9",
+    );
   });
 
   test("falls back to x-real-ip and then to unknown", () => {
-    expect(getClientIp(new Headers({ "x-real-ip": "10.0.0.2" }))).toBe(
+    expect(getClientIp(new Headers({ "x-real-ip": "10.0.0.2" }), {})).toBe(
       "10.0.0.2",
     );
-    expect(getClientIp(new Headers({ "x-forwarded-for": " , " }))).toBe(
+    expect(getClientIp(new Headers({ "x-forwarded-for": " , " }), {})).toBe(
       "unknown",
     );
-    expect(getClientIp(new Headers())).toBe("unknown");
+    expect(getClientIp(new Headers(), {})).toBe("unknown");
   });
 });

@@ -134,7 +134,7 @@ Notes:
 - The pre-commit hook runs `bun run check`, which includes formatting, unit tests, linting, type-checking, and a production build.
 - `bun run build` also validates translation resources before the Next.js build.
 - `bun test` runs the unit tests, `bun run test:e2e` runs the Playwright tests in `e2e/`.
-- `bun run deploy` runs `scripts/deploy.sh`, which ships the working tree to the stage host over ssh.
+- `bun run deploy` runs `scripts/deploy.sh`, which ships the working tree over ssh to the host in `DEPLOY_HOST` (the author's setup, see [deployment.md](./deployment.md)).
 
 ## Important directories
 

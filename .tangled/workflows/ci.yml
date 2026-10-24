@@ -1,0 +1,24 @@
+# Tangled CI (spindle). Runs the same checks as the pre-commit hook.
+when:
+  - event: ["push", "manual"]
+    branch: ["main"]
+  - event: ["pull_request"]
+    branch: ["main"]
+
+engine: "nixery"
+
+dependencies:
+  nixpkgs:
+    - bun
+    - nodejs_22
+
+environment:
+  CI: "true"
+  # The build needs the variables to exist; nothing connects to them.
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/lively_forms?schema=public"
+  AUTH_SECRET: "ci-auth-secret-ci-auth-secret-ci-auth-secret"
+  NEXTAUTH_URL: "http://localhost:3000"
+
+steps:
+  - name: "Install and check"
+    command: "bun install --frozen-lockfile && bun run check"

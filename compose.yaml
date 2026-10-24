@@ -1,3 +1,7 @@
+# Local Postgres and Garage. The secrets have development defaults; a
+# deployment sets POSTGRES_PASSWORD, GARAGE_RPC_SECRET and GARAGE_ADMIN_TOKEN
+# in .env (scripts/deploy.sh and compose.prod.yaml do). Ports are published on
+# the loopback interface only.
 services:
   postgres:
     image: docker.io/library/postgres:16-alpine
@@ -6,9 +10,9 @@ services:
     environment:
       POSTGRES_DB: lively_forms
       POSTGRES_USER: lively_forms
-      POSTGRES_PASSWORD: lively_forms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lively_forms}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -21,9 +25,12 @@ services:
     image: docker.io/dxflrs/garage:v2.4.1
     container_name: lively-forms-garage
     restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-4f1d3b0a9c8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-lively-forms-local-admin-token}
     ports:
-      - "3900:3900"
-      - "3903:3903"
+      - "127.0.0.1:3900:3900"
+      - "127.0.0.1:3903:3903"
     volumes:
       - ./garage/garage.toml:/etc/garage.toml:ro
       - garage-meta:/var/lib/garage/meta

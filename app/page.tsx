@@ -10,6 +10,10 @@ import { getRequestI18n } from "@/lib/i18n-server";
 import { getSignInProviderOptions } from "@/lib/oidc-auth";
 
 function getAuthErrorKey(authError?: string, oauthError?: string) {
+  if (authError === "not_allowed" || oauthError === "AccessDenied") {
+    return "auth.signInNotAllowed";
+  }
+
   if (authError) {
     return "auth.atprotoError";
   }

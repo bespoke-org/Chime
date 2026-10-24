@@ -2,7 +2,7 @@
 // one app-wide IANA zone (DIGEST_TIMEZONE); the Intl API converts between
 // that zone and UTC so no date library is needed.
 
-export const DEFAULT_DIGEST_TIMEZONE = "Europe/Saratov";
+export const DEFAULT_DIGEST_TIMEZONE = "UTC";
 
 export const DIGEST_INTERVALS = ["HOURLY", "DAILY", "WEEKLY"] as const;
 export type DigestIntervalValue = (typeof DIGEST_INTERVALS)[number];

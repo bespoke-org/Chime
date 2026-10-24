@@ -24,6 +24,7 @@ auth:
   continueWith: "Войти через {name}"
   oauthError: Вход не завершился. Попробуйте снова или используйте другой способ.
   oauthAccountNotLinked: Этот email уже используется другим способом входа.
+  signInNotAllowed: Этому аккаунту вход сюда не разрешён.
 workspace:
   selectAria: Выбрать пространство
   personal: Личное пространство

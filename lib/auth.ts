@@ -22,6 +22,10 @@ import {
   mapOidcProfile,
   pickAccountColumns,
 } from "@/lib/oidc-auth";
+import {
+  isSignInAllowed,
+  parseAllowedSignInIdentifiers,
+} from "@/lib/sign-in-allowlist";
 import { syncExternalProfileFields } from "@/lib/users";
 
 function getProviders(env: NodeJS.ProcessEnv): Provider[] {
@@ -94,9 +98,23 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/",
+    // A refused sign-in (AccessDenied) comes back to the sign-in page.
+    error: "/",
   },
   providers: getProviders(process.env),
   callbacks: {
+    // The email the provider asserts decides, not the one stored on the user.
+    async signIn({ user, account, profile }) {
+      const email =
+        getExternalProfile(account?.provider ?? "", profile)?.email ??
+        user.email ??
+        null;
+
+      return isSignInAllowed(
+        { email },
+        parseAllowedSignInIdentifiers(process.env),
+      );
+    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;

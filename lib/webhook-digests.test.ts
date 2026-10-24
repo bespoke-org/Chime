@@ -175,7 +175,8 @@ function reset(
   responses = stored;
   forms = organizationForms;
   updateCalls = [];
-  delete process.env.DIGEST_TIMEZONE;
+  // The slots below are computed for Saratov (UTC+4 all year).
+  process.env.DIGEST_TIMEZONE = "Europe/Saratov";
 }
 
 function captureDeliveries(ok = true) {
@@ -265,6 +266,7 @@ describe("buildBatchPayload", () => {
       secret: "s3cret",
       payload,
       now: () => 1_760_000_000_000,
+      lookup: async () => ["93.184.216.34"],
       fetchImpl: (async (_url: string | URL | Request, init?: RequestInit) => {
         headers = init?.headers as Record<string, string>;
         body = String(init?.body);

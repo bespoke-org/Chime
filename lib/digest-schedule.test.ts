@@ -24,14 +24,12 @@ const hourly: DigestSchedule = { interval: "HOURLY" };
 const iso = (value: Date | null) => (value ? value.toISOString() : null);
 
 describe("getDigestTimezone", () => {
-  test("defaults to Europe/Saratov and ignores unknown zones", () => {
-    expect(getDigestTimezone({})).toBe("Europe/Saratov");
+  test("defaults to UTC and ignores unknown zones", () => {
+    expect(getDigestTimezone({})).toBe("UTC");
     expect(getDigestTimezone({ DIGEST_TIMEZONE: " Europe/Berlin " })).toBe(
       "Europe/Berlin",
     );
-    expect(getDigestTimezone({ DIGEST_TIMEZONE: "Mars/Olympus" })).toBe(
-      "Europe/Saratov",
-    );
+    expect(getDigestTimezone({ DIGEST_TIMEZONE: "Mars/Olympus" })).toBe("UTC");
   });
 });
 
