@@ -1,6 +1,6 @@
 ## Context
 
-Lively Forms already supports the core creator and respondent workflows, but several key surfaces still read like a promotional landing experience rather than a focused internal tool. The current home page, login screen, creator layout, dashboard, and builder all use decorative gradients, showcase blocks, and persuasive copy that add visual weight without adding functional value.
+Chime already supports the core creator and respondent workflows, but several key surfaces still read like a promotional landing experience rather than a focused internal tool. The current home page, login screen, creator layout, dashboard, and builder all use decorative gradients, showcase blocks, and persuasive copy that add visual weight without adding functional value.
 
 This change is intentionally presentation-only. The routes, auth model, data flow, and builder/respondent behavior stay the same. The design work therefore needs to be implemented by simplifying component structure, trimming copy, and tightening visual styling without disturbing existing user flows.
 

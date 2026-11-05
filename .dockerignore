@@ -1,4 +1,6 @@
 .git
+.agents
+.serena
 .env*
 !.env.example
 .next

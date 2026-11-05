@@ -233,7 +233,7 @@ describe("PublicFormRunner", () => {
     );
 
     window.localStorage.setItem(
-      `lively-forms-public-runner-draft:${form.id}`,
+      `chime-public-runner-draft:${form.id}`,
       JSON.stringify(
         createPublicFormDraft(form, {
           answers: { name: "Ada", notes: "Saved" },
@@ -271,7 +271,7 @@ describe("PublicFormRunner", () => {
     ]);
 
     window.localStorage.setItem(
-      `lively-forms-public-runner-draft:${form.id}`,
+      `chime-public-runner-draft:${form.id}`,
       JSON.stringify(
         createPublicFormDraft(form, {
           answers: { name: "Ada", notes: "Saved" },
@@ -379,7 +379,7 @@ describe("PublicFormRunner", () => {
     const savedAt = Date.now() - 5 * 60 * 1000;
 
     window.localStorage.setItem(
-      `lively-forms-public-runner-draft:${form.id}`,
+      `chime-public-runner-draft:${form.id}`,
       JSON.stringify({
         ...createPublicFormDraft(form, {
           answers: { name: "Ada" },
@@ -911,7 +911,7 @@ describe("PublicFormRunner", () => {
           status: 200,
           json: async () => ({
             uploadId: "up-1",
-            url: "https://files.example/lively-forms/forms/f/photo/up-1/me.png?sig",
+            url: "https://files.example/chime/forms/f/photo/up-1/me.png?sig",
             method: "PUT",
             headers: { "content-type": "image/png" },
             expiresAt: "2026-10-18T10:10:00.000Z",

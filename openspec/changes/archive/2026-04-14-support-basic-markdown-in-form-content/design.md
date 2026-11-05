@@ -1,6 +1,6 @@
 ## Context
 
-Lively Forms currently stores author-written content such as question descriptions and text block bodies as plain strings and renders them directly in the public runner and creator-facing response review screens. This keeps storage simple, but it prevents authors from adding lightweight structure or emphasis without introducing custom styling or extra blocks.
+Chime currently stores author-written content such as question descriptions and text block bodies as plain strings and renders them directly in the public runner and creator-facing response review screens. This keeps storage simple, but it prevents authors from adding lightweight structure or emphasis without introducing custom styling or extra blocks.
 
 This change needs to improve readability while preserving the existing data model and avoiding unsafe HTML rendering. The same authored content appears in multiple UI surfaces, so the rendering approach should be shared rather than duplicated. The requested scope is limited to author-written content only; respondent-submitted free-form answers remain plain text.
 

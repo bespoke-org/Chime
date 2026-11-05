@@ -10,7 +10,7 @@ import {
 const env = {
   S3_ENDPOINT: "http://garage:3900/",
   S3_PUBLIC_ENDPOINT: "https://files.example.com",
-  S3_BUCKET: "lively-forms",
+  S3_BUCKET: "chime",
   S3_ACCESS_KEY_ID: "GK0123",
   S3_SECRET_ACCESS_KEY: "secret",
 };
@@ -22,7 +22,7 @@ describe("getObjectStorageConfig", () => {
         endpoint: "http://garage:3900",
         publicEndpoint: "https://files.example.com",
         region: "garage",
-        bucket: "lively-forms",
+        bucket: "chime",
         accessKeyId: "GK0123",
         secretAccessKey: "secret",
       }),
@@ -78,7 +78,7 @@ describe("presigned URLs", () => {
     );
 
     expect(url.origin).toBe("https://files.example.com");
-    expect(url.pathname).toBe("/lively-forms/forms/f/b/u/cv.pdf");
+    expect(url.pathname).toBe("/chime/forms/f/b/u/cv.pdf");
     expect(url.searchParams.get("X-Amz-Expires")).toBe("600");
     expect(url.searchParams.has("X-Amz-Signature")).toBe(true);
     // The browser cannot compute SDK checksums, so none may be required.

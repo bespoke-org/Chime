@@ -393,7 +393,7 @@ describe("FormBuilder", () => {
     const previousFetch = globalThis.fetch;
     const savedWebhook = {
       id: "wh-1",
-      url: "https://hooks.example.com/lively",
+      url: "https://hooks.example.com/chime",
       secret: null,
       enabled: true,
       mode: "DIGEST" as const,
@@ -445,7 +445,7 @@ describe("FormBuilder", () => {
     }) as HTMLButtonElement;
     // The open webhook editor has its own Save.
     expect(saveSettings.disabled).toBe(true);
-    typeIntoInput(urlInput, "https://hooks.example.com/lively");
+    typeIntoInput(urlInput, "https://hooks.example.com/chime");
     fireEvent.click(view.getByRole("radio", { name: /Send a digest/ }));
 
     // The interval select is rendered once digest mode is chosen; the time
@@ -463,7 +463,7 @@ describe("FormBuilder", () => {
     expect(fetchCalls[0]?.init?.method).toBe("POST");
     expect(String(fetchCalls[0]?.init?.body)).toBe(
       JSON.stringify({
-        url: "https://hooks.example.com/lively",
+        url: "https://hooks.example.com/chime",
         secret: null,
         enabled: true,
         mode: "DIGEST",
@@ -474,7 +474,7 @@ describe("FormBuilder", () => {
     );
 
     await waitFor(() => {
-      expect(view.getByText("https://hooks.example.com/lively") !== null).toBe(
+      expect(view.getByText("https://hooks.example.com/chime") !== null).toBe(
         true,
       );
     });
@@ -955,7 +955,7 @@ describe("FormBuilder", () => {
     });
 
     window.localStorage.setItem(
-      "lively-forms:branching-graph-layout:form-1",
+      "chime:branching-graph-layout:form-1",
       JSON.stringify({ "block-1": { x: 164, y: 132 } }),
     );
 
@@ -1029,7 +1029,7 @@ describe("FormBuilder", () => {
     });
 
     expect(
-      window.localStorage.getItem("lively-forms:branching-graph-layout:form-1"),
+      window.localStorage.getItem("chime:branching-graph-layout:form-1"),
     ).toContain('"block-1":{"x":128,"y":108}');
 
     cleanup();

@@ -1,6 +1,6 @@
 ## Why
 
-Lively Forms currently treats every form as a single user’s personal resource, which blocks teams from collaborating in a shared workspace. Adding organizations now unlocks multi-user use cases while keeping permissions simple: all members can work with organization forms, and only the organization owner handles organization administration.
+Chime currently treats every form as a single user’s personal resource, which blocks teams from collaborating in a shared workspace. Adding organizations now unlocks multi-user use cases while keeping permissions simple: all members can work with organization forms, and only the organization owner handles organization administration.
 
 ## What Changes
 

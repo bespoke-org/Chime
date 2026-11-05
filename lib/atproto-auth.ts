@@ -53,7 +53,7 @@ export function getAtprotoAuthConfig() {
     baseUrl,
     clientId,
     redirectUri,
-    clientName: process.env.ATPROTO_CLIENT_NAME ?? "Lively Forms",
+    clientName: process.env.ATPROTO_CLIENT_NAME ?? "Chime",
     scope,
   };
 }

@@ -5,7 +5,7 @@ Every webhook fires once per response. Receivers that aggregate, such as a daily
 ## What Changes
 
 - Each `FormWebhook` gets an on/off switch and a delivery mode: `IMMEDIATE` sends `response.created` per response as before; `DIGEST` sends `responses.batch` once per period, hourly, daily at a time or weekly on a weekday at a time, with every response stored in the period.
-- Digest times are read in one app-wide zone, `DIGEST_TIMEZONE` (default `Europe/Saratov`), shown in the builder next to the time field.
+- Digest times are read in one app-wide zone, `DIGEST_TIMEZONE` (default `UTC`), shown in the builder next to the time field.
 - A scheduler tick runs once a minute inside the server process and is also available as `bun run webhooks:digest` for cron. A missed slot after downtime is sent once for the whole gap; a failed batch is retried until the period is 24 hours old, then skipped and logged.
 - Webhooks are managed through their own endpoints (`GET`/`POST /api/forms/:formId/webhooks`, `PATCH`/`DELETE /api/forms/:formId/webhooks/:webhookId`) and saved one at a time from the builder, no longer through the settings Save button; `formMetadataSchema` loses its `webhooks` field.
 - **BREAKING**: `FormWebhook.position` is dropped; webhooks are listed by `createdAt`.

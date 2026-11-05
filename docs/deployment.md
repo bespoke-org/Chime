@@ -2,6 +2,21 @@
 
 This project is a Next.js app backed by PostgreSQL and Auth.js sessions. Creators sign in with ATProto OAuth, and optionally with Google, GitHub, or any OpenID Connect provider. For a server, start at [Self-hosting with containers](#self-hosting-with-containers).
 
+Organization-specific SSO labels and icons, access rules, mail and storage belong in deployment configuration; see [customization.md](customization.md).
+
+## Upgrading to Chime
+
+The Chime release changes the default names of services, containers, the database and the upload bucket. Existing resources can retain their names. Before upgrading:
+
+1. Back up PostgreSQL and Garage, and keep the existing `.env`, `AUTH_SECRET` and storage credentials. Apply the existing migration history with `prisma migrate deploy`; no database rename or reset is required.
+2. Set `POSTGRES_USER` and `POSTGRES_DB` to the role and database from the current `DATABASE_URL`. These variables also control the connection string inside `compose.prod.yaml`. The SSH deployment script derives missing values from an existing `DATABASE_URL`.
+3. Keep the existing Compose project name with `COMPOSE_PROJECT_NAME`, especially if the checkout or deployment directory changes: Compose uses it to identify persistent volumes. Keep the existing `POSTGRES_CONTAINER` (for `compose.yaml`) and `GARAGE_CONTAINER` when reusing named containers. Set the same `GARAGE_CONTAINER` when running `storage:init`.
+4. Retain `S3_BUCKET`, `GARAGE_KEY_NAME`, endpoints and credentials. The SSH deployment script preserves a configured bucket and key name. For `storage:init`, pass the existing bucket and container as environment variables; `GARAGE_ENV_FILE` is an output file and does not load those values for you.
+5. For SSH/systemd installations, pass the existing `DEPLOY_DIR` and `SERVICE_NAME` to `bun run deploy`, so the same services are updated. Configure the OIDC provider icon with an externally hosted URL; organization emblems are no longer bundled.
+6. Update webhook receivers to read `X-Chime-Event`, `X-Chime-Timestamp` and `X-Chime-Signature`; the user agent is `chime-webhook/1`. The payload and HMAC-SHA256 algorithm are unchanged. Coordinate receiver updates before switching the app.
+
+Browser storage and the active-workspace cookie use the `chime` namespace. Previously saved respondent progress, graph positions, theme preferences and workspace selection are not restored automatically. Visitor IDs are regenerated, so returning browsers may count as new visitors. Stored forms, submitted responses and uploaded files are unaffected when the existing database and bucket are retained.
+
 ## Required environment variables
 
 Copy `.env.example` to `.env` and provide values for:
@@ -13,7 +28,7 @@ NEXTAUTH_URL="http://127.0.0.1:3000"
 ATPROTO_PUBLIC_URL="http://127.0.0.1:3000"
 ATPROTO_CLIENT_ID="http://localhost?redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fapi%2Fauth%2Fatproto%2Fcallback&scope=atproto%20transition%3Ageneric"
 ATPROTO_REDIRECT_URI="http://127.0.0.1:3000/api/auth/atproto/callback"
-ATPROTO_CLIENT_NAME="Lively Forms"
+ATPROTO_CLIENT_NAME="Chime"
 # Optional, defaults to "atproto transition:generic"
 # ATPROTO_SCOPE="atproto transition:generic"
 # Optional OAuth sign-in providers; each is shown only when its variables are set
@@ -41,7 +56,7 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # Optional zone for digest webhook schedules (IANA name), see Webhooks below
 # DIGEST_TIMEZONE="UTC"
 # Optional email notifications to form owners; without these the setting has no effect
-# MAIL_FROM="Lively Forms <forms@example.com>"
+# MAIL_FROM="Chime <forms@example.com>"
 # SMTP_URL="smtp://user:password@smtp.example.com:587"
 # Or the split form instead of SMTP_URL
 # SMTP_HOST="smtp.example.com"
@@ -53,7 +68,7 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # S3_ENDPOINT="http://127.0.0.1:3900"          # reached by the server
 # S3_PUBLIC_ENDPOINT="http://127.0.0.1:3900"   # reached by the browser, defaults to S3_ENDPOINT
 # S3_REGION="garage"
-# S3_BUCKET="lively-forms"
+# S3_BUCKET="chime"
 # S3_ACCESS_KEY_ID=""
 # S3_SECRET_ACCESS_KEY=""
 # UPLOAD_MAX_SIZE_MB=25                # caps the per-block limit creators may set
@@ -65,6 +80,12 @@ ATPROTO_CLIENT_NAME="Lively Forms"
 # them into the server .env). Postgres applies its password only when the
 # volume is created, see docs/deployment.md.
 # POSTGRES_PASSWORD=""
+# POSTGRES_USER="chime"
+# POSTGRES_DB="chime"
+# COMPOSE_PROJECT_NAME="chime"
+# POSTGRES_CONTAINER="chime-postgres"
+# GARAGE_CONTAINER="chime-garage"
+# GARAGE_KEY_NAME="chime"
 # GARAGE_RPC_SECRET=""
 # GARAGE_ADMIN_TOKEN=""
 ```
@@ -198,15 +219,15 @@ Set `NEXTAUTH_URL` and `ATPROTO_PUBLIC_URL` to the same public base URL. If the 
 6. File uploads are optional. To enable them: install bun on the host and run `bun install` in the checkout, then
 
    ```bash
-   GARAGE_ENV_FILE=.env GARAGE_KEY_NAME=lively-forms UPLOAD_CORS_ORIGIN=https://forms.example.com bun run storage:init
+   GARAGE_ENV_FILE=.env GARAGE_KEY_NAME=chime UPLOAD_CORS_ORIGIN=https://forms.example.com bun run storage:init
    ```
 
-   which prepares the Garage node, the `lively-forms` bucket and a key, sets the CORS rule and writes `S3_*` into `.env`. Add `S3_PUBLIC_ENDPOINT="https://storage.example.com"` to `.env`, point that origin at `http://127.0.0.1:3900` in the proxy and run `docker compose -f compose.prod.yaml up -d app`. The `S3_ENDPOINT` written by the script is for the host; inside the stack the app uses `http://garage:3900`, set in `compose.prod.yaml`.
+   which prepares the Garage node, the `chime` bucket and a key, sets the CORS rule and writes `S3_*` into `.env`. Add `S3_PUBLIC_ENDPOINT="https://storage.example.com"` to `.env`, point that origin at `http://127.0.0.1:3900` in the proxy and run `docker compose -f compose.prod.yaml up -d app`. The `S3_ENDPOINT` written by the script is for the host; inside the stack the app uses `http://garage:3900`, set in `compose.prod.yaml`.
 
 7. Schedule the upload cleanup from the host's cron, for example daily:
 
    ```cron
-   0 4 * * * cd /opt/lively-forms && docker compose -f compose.prod.yaml run --rm app bun run uploads:cleanup
+   0 4 * * * cd /opt/chime && docker compose -f compose.prod.yaml run --rm app bun run uploads:cleanup
    ```
 
    The digest webhook scheduler runs inside the app container.
@@ -220,16 +241,16 @@ To update, pull the new tree and run `docker compose -f compose.prod.yaml up -d 
 The Postgres image applies `POSTGRES_PASSWORD` only when it creates the data volume, so for a running database change the password in place and then in `.env`:
 
 ```bash
-docker compose -f compose.prod.yaml exec postgres psql -U lively_forms -d lively_forms \
-  -c "ALTER USER lively_forms PASSWORD '<new password>'"
-# script setup: podman exec lively-forms-postgres psql -U lively_forms -d lively_forms -c "..."
+docker compose -f compose.prod.yaml exec postgres psql -U chime -d chime \
+  -c "ALTER USER chime PASSWORD '<new password>'"
+# script setup: podman exec chime-postgres psql -U chime -d chime -c "..."
 ```
 
 Then set `POSTGRES_PASSWORD` (and, for the script setup, the password inside `DATABASE_URL`) in `.env` and restart the app.
 
 ## Deploying with scripts/deploy.sh (the author's setup)
 
-`bun run deploy` (`scripts/deploy.sh`) ships the working tree over ssh to a host that runs the containers with podman-compose and the app with bun under systemd. It needs `DEPLOY_HOST` (ssh destination), `PUBLIC_URL` (the HTTPS origin the reverse proxy serves, forwarded to the app on `PORT`, default 8000) and, unless `ENABLE_STORAGE=0`, `STORAGE_PUBLIC_URL` (the HTTPS origin the proxy forwards to Garage on port 3900). Without them the script prints its usage and stops. `DEPLOY_DIR` defaults to `/opt/lively-forms`.
+`bun run deploy` (`scripts/deploy.sh`) ships the working tree over ssh to a host that runs the containers with podman-compose and the app with bun under systemd. It needs `DEPLOY_HOST` (ssh destination), `PUBLIC_URL` (the HTTPS origin the reverse proxy serves, forwarded to the app on `PORT`, default 8000) and, unless `ENABLE_STORAGE=0`, `STORAGE_PUBLIC_URL` (the HTTPS origin the proxy forwards to Garage on port 3900). Without them the script prints its usage and stops. `DEPLOY_DIR` defaults to `/opt/chime`.
 
 ```bash
 DEPLOY_HOST=root@forms.example.com \
@@ -243,10 +264,10 @@ The script:
 1. Clears the server tree except `.env`, `.next` and `node_modules`, copies the local tree without `.git`, `.env`, `.next` and `node_modules`, installs podman, podman-compose, node 22 and bun when they are missing.
 2. Creates `.env` with a generated `AUTH_SECRET`, `POSTGRES_PASSWORD`, `GARAGE_RPC_SECRET` and `GARAGE_ADMIN_TOKEN` if there is none, adds the three container secrets to an older `.env` that lacks them (the running database keeps its old password until it is rotated as described above), pins `NEXTAUTH_URL` and the `ATPROTO_*` URLs to `PUBLIC_URL` and appends the optional keys as commented placeholders. Existing values are kept.
 3. Starts `compose.yaml` (Postgres and Garage, ports on the loopback interface) and waits for Postgres.
-4. Sets up Garage with `scripts/garage-init.sh`: layout, bucket `lively-forms`, key `lively-forms`, CORS rule for `PUBLIC_URL`; writes `S3_ENDPOINT=http://127.0.0.1:3900`, `S3_REGION`, `S3_BUCKET`, the key pair (only when `.env` has none) and `S3_PUBLIC_ENDPOINT=STORAGE_PUBLIC_URL`. In production `S3_PUBLIC_ENDPOINT` is required: without it the storage counts as not configured and the `FILE_UPLOAD` block answers that uploads are not available instead of handing the browser an unreachable URL.
+4. Sets up Garage with `scripts/garage-init.sh`: layout, the configured `S3_BUCKET` and `GARAGE_KEY_NAME` (both default to `chime`), CORS rule for `PUBLIC_URL`; writes `S3_ENDPOINT=http://127.0.0.1:3900`, `S3_REGION`, `S3_BUCKET`, the key pair (only when `.env` has none) and `S3_PUBLIC_ENDPOINT=STORAGE_PUBLIC_URL`. In production `S3_PUBLIC_ENDPOINT` is required: without it the storage counts as not configured and the `FILE_UPLOAD` block answers that uploads are not available instead of handing the browser an unreachable URL.
 5. Runs `bunx prisma migrate deploy` and `bun run build`.
-6. Installs two systemd units: `lively-forms-compose.service` (oneshot, `podman-compose up -d` on boot with the `.env` as `EnvironmentFile`, `down` on stop; podman does not restart containers after a reboot by itself) and `lively-forms.service` (`bun run start` on `PORT`, `Requires=` and `After=` the compose unit). Both are enabled.
-7. Schedules `bun run uploads:cleanup` daily at 04:00 through `/etc/cron.d/lively-forms-cleanup` when `crond` is active, otherwise through `lively-forms-cleanup.timer`.
+6. Installs two systemd units: `chime-compose.service` (oneshot, `podman-compose up -d` on boot with the `.env` as `EnvironmentFile`, `down` on stop; podman does not restart containers after a reboot by itself) and `chime.service` (`bun run start` on `PORT`, `Requires=` and `After=` the compose unit). Both are enabled.
+7. Schedules `bun run uploads:cleanup` daily at 04:00 through `/etc/cron.d/chime-cleanup` when `crond` is active, otherwise through `chime-cleanup.timer`.
 8. Prints the state of both units and the status code of `http://127.0.0.1:<PORT>/`.
 
 Flags, all passed as environment variables:
@@ -344,10 +365,10 @@ A `responses.batch` body with two responses:
 Request headers:
 
 - `Content-Type: application/json`
-- `User-Agent: lively-forms-webhook/1`
-- `X-Lively-Forms-Event: response.created` or `responses.batch`
-- `X-Lively-Forms-Timestamp`: Unix time in seconds when the request was signed
-- `X-Lively-Forms-Signature: sha256=<hex>`, only when a secret is set
+- `User-Agent: chime-webhook/1`
+- `X-Chime-Event: response.created` or `responses.batch`
+- `X-Chime-Timestamp`: Unix time in seconds when the request was signed
+- `X-Chime-Signature: sha256=<hex>`, only when a secret is set
 
 The signature is HMAC-SHA256 over `"<timestamp>.<raw body>"` with the secret as key. To verify, recompute it from the raw request body and compare with a constant-time comparison:
 
@@ -407,10 +428,10 @@ Executable and HTML types (`application/x-msdownload`, `application/x-sh`, `appl
 Uploads that were requested but never attached to a response stay `PENDING`. Remove them, with their objects, from cron:
 
 ```cron
-0 4 * * * root cd /opt/lively-forms && set -a && . ./.env && set +a && /root/.bun/bin/bun run uploads:cleanup
+0 4 * * * root cd /opt/chime && set -a && . ./.env && set +a && /root/.bun/bin/bun run uploads:cleanup
 ```
 
-`scripts/deploy.sh` installs this line as `/etc/cron.d/lively-forms-cleanup`; with `compose.prod.yaml` the command is `docker compose -f compose.prod.yaml run --rm app bun run uploads:cleanup`.
+`scripts/deploy.sh` installs this line as `/etc/cron.d/chime-cleanup`; with `compose.prod.yaml` the command is `docker compose -f compose.prod.yaml run --rm app bun run uploads:cleanup`.
 
 The script deletes pending uploads older than 24 hours in batches of 1000. Deleting a form, a file block or an organization removes the objects of its uploads from storage after the rows are gone; a failed object delete is logged and does not fail the request. Responses cannot be deleted individually, so their files stay with the form.
 

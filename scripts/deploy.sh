@@ -15,7 +15,7 @@ Required environment variables:
                        for example https://storage.example.com; browsers upload
                        there. Not needed with ENABLE_STORAGE=0.
 
-Optional: DEPLOY_DIR=/opt/lively-forms PORT=8000 SERVICE_NAME=lively-forms
+Optional: DEPLOY_DIR=/opt/chime PORT=8000 SERVICE_NAME=chime
           RESET_DB=0 ENABLE_STORAGE=1 SYNC_PROVIDER_ENV=0
 
 Example:
@@ -29,11 +29,11 @@ USAGE
 }
 
 DEPLOY_HOST="${DEPLOY_HOST:-}"
-DEPLOY_DIR="${DEPLOY_DIR:-/opt/lively-forms}"
+DEPLOY_DIR="${DEPLOY_DIR:-/opt/chime}"
 PORT="${PORT:-8000}"
 # OAuth URLs must always use the public HTTPS origin, never the upstream URL.
 PUBLIC_URL="${PUBLIC_URL:-}"
-SERVICE_NAME="${SERVICE_NAME:-lively-forms}"
+SERVICE_NAME="${SERVICE_NAME:-chime}"
 # RESET_DB=1 drops the compose volumes before starting them, so the migrations
 # apply to an empty database. Everything stored on the server is lost.
 RESET_DB="${RESET_DB:-0}"
@@ -67,6 +67,8 @@ ssh "${DEPLOY_HOST}" "mkdir -p '${DEPLOY_DIR}' && find '${DEPLOY_DIR}' -mindepth
 COPYFILE_DISABLE=1 tar \
   --no-xattrs \
   --exclude='.git' \
+  --exclude='.agents' \
+  --exclude='.serena' \
   --exclude='.env' \
   --exclude='.next' \
   --exclude='node_modules' \
@@ -136,15 +138,17 @@ if [ ! -f .env ]; then
   umask 077
   cat > .env <<ENV
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+POSTGRES_USER="chime"
+POSTGRES_DB="chime"
 GARAGE_RPC_SECRET="$(openssl rand -hex 32)"
 GARAGE_ADMIN_TOKEN="$(openssl rand -hex 32)"
-DATABASE_URL="postgresql://lively_forms:${POSTGRES_PASSWORD}@127.0.0.1:5432/lively_forms?schema=public"
+DATABASE_URL="postgresql://chime:${POSTGRES_PASSWORD}@127.0.0.1:5432/chime?schema=public"
 AUTH_SECRET="${AUTH_SECRET}"
 NEXTAUTH_URL="${PUBLIC_URL}"
 ATPROTO_PUBLIC_URL="${PUBLIC_URL}"
 ATPROTO_CLIENT_ID="${PUBLIC_URL}/api/atproto/client-metadata"
 ATPROTO_REDIRECT_URI="${PUBLIC_URL}/api/auth/atproto/callback"
-ATPROTO_CLIENT_NAME="Lively Forms"
+ATPROTO_CLIENT_NAME="Chime"
 ENV
   umask 022
 fi
@@ -159,6 +163,7 @@ from pathlib import Path
 import re
 import secrets
 import sys
+from urllib.parse import unquote, urlsplit
 public_url = sys.argv[1]
 reset_db = sys.argv[2] == '1'
 path = Path('.env')
@@ -173,6 +178,15 @@ def value_of(key):
         if line.startswith(f'{key}='):
             return line.split('=', 1)[1].strip().strip('"')
     return None
+
+# Keep the identity of an existing database when adopting the new defaults.
+database = urlsplit(value_of('DATABASE_URL') or '')
+for key, default in (
+    ('POSTGRES_USER', unquote(database.username or '') or 'chime'),
+    ('POSTGRES_DB', unquote(database.path.lstrip('/')) or 'chime'),
+):
+    if value_of(key) is None:
+        lines.append(f'{key}="{default}"')
 
 for key in ('POSTGRES_PASSWORD', 'GARAGE_RPC_SECRET', 'GARAGE_ADMIN_TOKEN'):
     if value_of(key) is None:
@@ -189,7 +203,7 @@ updates = {
     'ATPROTO_REDIRECT_URI': f'"{public_url}/api/auth/atproto/callback"',
 }
 if reset_db:
-    updates['DATABASE_URL'] = f'"postgresql://lively_forms:{value_of("POSTGRES_PASSWORD")}@127.0.0.1:5432/lively_forms?schema=public"'
+    updates['DATABASE_URL'] = f'"postgresql://{value_of("POSTGRES_USER")}:{value_of("POSTGRES_PASSWORD")}@127.0.0.1:5432/{value_of("POSTGRES_DB")}?schema=public"'
     print('RESET_DB=1: DATABASE_URL set to the compose credentials')
 providers = Path('.env.providers')
 if providers.exists():
@@ -229,13 +243,17 @@ template = f'''
 # OIDC_PROVIDER_NAME="SSO"
 # OIDC_PROVIDER_ICON_URL=""
 # OIDC_SCOPE="openid profile email"
+# Optional deployment policy and digest time zone
+# ALLOWED_SIGNIN_IDENTIFIERS=""
+# TRUSTED_PROXY_HOPS=1
+# DIGEST_TIMEZONE="UTC"
 # Optional public submission limits, defaults shown
 # SUBMISSION_RATE_LIMIT=5
 # SUBMISSION_GLOBAL_RATE_LIMIT=30
 # SUBMISSION_RATE_WINDOW_SECONDS=600
 # SUBMISSION_MIN_FILL_SECONDS=3
 # Optional email notifications to form owners
-# MAIL_FROM="Lively Forms <forms@example.com>"
+# MAIL_FROM="Chime <forms@example.com>"
 # SMTP_URL="smtp://user:password@smtp.example.com:587"
 # SMTP_HOST="smtp.example.com"
 # SMTP_PORT=587
@@ -249,7 +267,7 @@ template = f'''
 # S3_ENDPOINT="http://127.0.0.1:3900"
 # S3_PUBLIC_ENDPOINT="https://storage.example.com"
 # S3_REGION="garage"
-# S3_BUCKET="lively-forms"
+# S3_BUCKET="chime"
 # S3_ACCESS_KEY_ID=""
 # S3_SECRET_ACCESS_KEY=""
 # UPLOAD_MAX_SIZE_MB=25
@@ -295,20 +313,20 @@ fi
 "${PODMAN_COMPOSE}" up -d
 
 for _ in $(seq 1 30); do
-  if podman exec lively-forms-postgres pg_isready -U lively_forms -d lively_forms >/dev/null 2>&1; then
+  if podman exec "${POSTGRES_CONTAINER:-chime-postgres}" pg_isready -U "${POSTGRES_USER:-chime}" -d "${POSTGRES_DB:-chime}" >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
-podman exec lively-forms-postgres pg_isready -U lively_forms -d lively_forms
+podman exec "${POSTGRES_CONTAINER:-chime-postgres}" pg_isready -U "${POSTGRES_USER:-chime}" -d "${POSTGRES_DB:-chime}"
 
 if [ "${ENABLE_STORAGE}" = "1" ]; then
   # Writes S3_ENDPOINT, S3_REGION and S3_BUCKET into .env, the key pair only
   # when .env has none, and sets the bucket CORS rule for the public origin.
   GARAGE_ENV_FILE=.env \
-  GARAGE_KEY_NAME=lively-forms \
+  GARAGE_KEY_NAME="${GARAGE_KEY_NAME:-chime}" \
   S3_ENDPOINT="http://127.0.0.1:3900" \
-  S3_BUCKET="lively-forms" \
+  S3_BUCKET="${S3_BUCKET:-chime}" \
   UPLOAD_CORS_ORIGIN="${PUBLIC_URL}" \
     bash scripts/garage-init.sh
   sed -i -E '/^#? ?S3_PUBLIC_ENDPOINT=/d' .env
@@ -326,7 +344,7 @@ bun run build
 # brings the compose project up and the app unit requires it.
 cat > "/etc/systemd/system/${COMPOSE_SERVICE_NAME}.service" <<UNIT
 [Unit]
-Description=Lively Forms containers (podman-compose)
+Description=Chime containers (podman-compose)
 After=network-online.target
 Wants=network-online.target
 
@@ -345,7 +363,7 @@ UNIT
 
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<UNIT
 [Unit]
-Description=Lively Forms
+Description=Chime
 Requires=${COMPOSE_SERVICE_NAME}.service
 After=network.target ${COMPOSE_SERVICE_NAME}.service
 
@@ -376,7 +394,7 @@ CRON
 else
   cat > "/etc/systemd/system/${CLEANUP_NAME}.service" <<UNIT
 [Unit]
-Description=Lively Forms upload cleanup
+Description=Chime upload cleanup
 After=${COMPOSE_SERVICE_NAME}.service
 
 [Service]
@@ -387,7 +405,7 @@ ExecStart=/bin/bash -c '${CLEANUP_CMD}'
 UNIT
   cat > "/etc/systemd/system/${CLEANUP_NAME}.timer" <<UNIT
 [Unit]
-Description=Lively Forms upload cleanup, daily at 04:00
+Description=Chime upload cleanup, daily at 04:00
 
 [Timer]
 OnCalendar=*-*-* 04:00:00

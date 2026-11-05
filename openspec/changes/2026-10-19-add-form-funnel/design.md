@@ -25,7 +25,7 @@ The public runner already keeps answers and progress in client state and saves a
 - `viewCount` and `startCount` columns on `Form`: rejected because every reload would count and the history would be lost.
 
 ### 2. A random visitor id in `localStorage`
-The runner reads or creates a UUID under `lively-forms:visitor-id`. When storage is unavailable, no event is sent.
+The runner reads or creates a UUID under `chime:visitor-id`. When storage is unavailable, no event is sent.
 
 **Why:** It holds no personal data and survives reloads. A hash of IP and user agent was rejected because it is personal data and merges people behind one NAT.
 

@@ -1,7 +1,7 @@
 // Runs in the browser. The visitor id is random, stays in localStorage, and
 // is the only thing that ties the events of one browser.
 
-const VISITOR_ID_STORAGE_KEY = "lively-forms:visitor-id";
+const VISITOR_ID_STORAGE_KEY = "chime:visitor-id";
 
 function getVisitorId() {
   try {

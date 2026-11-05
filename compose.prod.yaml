@@ -12,20 +12,20 @@ services:
     image: docker.io/library/postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: lively_forms
-      POSTGRES_USER: lively_forms
+      POSTGRES_DB: ${POSTGRES_DB:-chime}
+      POSTGRES_USER: ${POSTGRES_USER:-chime}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lively_forms -d lively_forms"]
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s
       timeout: 5s
       retries: 5
 
   garage:
     image: docker.io/dxflrs/garage:v2.4.1
-    container_name: lively-forms-garage
+    container_name: ${GARAGE_CONTAINER:-chime-garage}
     restart: unless-stopped
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?set GARAGE_RPC_SECRET in .env}
@@ -40,22 +40,22 @@ services:
 
   migrate:
     build: .
-    image: lively-forms
+    image: chime
     restart: "no"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://lively_forms:${POSTGRES_PASSWORD}@postgres:5432/lively_forms?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chime}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-chime}?schema=public
     command: ["bunx", "prisma", "migrate", "deploy"]
     depends_on:
       postgres:
         condition: service_healthy
 
   app:
-    image: lively-forms
+    image: chime
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://lively_forms:${POSTGRES_PASSWORD}@postgres:5432/lively_forms?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chime}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-chime}?schema=public
       # The app reaches Garage over the compose network; S3_PUBLIC_ENDPOINT in
       # .env is what the browser reaches.
       S3_ENDPOINT: http://garage:3900

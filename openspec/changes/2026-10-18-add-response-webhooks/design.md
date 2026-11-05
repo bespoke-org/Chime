@@ -37,7 +37,7 @@ A response is created in `createAnonymousResponse` after the submission is valid
 - Serializing values to export strings (joined choices, localized agreement labels): rejected; a machine receiver is better served by the stored string or string array.
 
 ### 3. HMAC-SHA256 over timestamp and body
-When a secret is set, the request carries `X-Lively-Forms-Timestamp` and `X-Lively-Forms-Signature: sha256=<hex>` where the hex is HMAC-SHA256 of `"<timestamp>.<body>"`. Without a secret the request is sent unsigned.
+When a secret is set, the request carries `X-Chime-Timestamp` and `X-Chime-Signature: sha256=<hex>` where the hex is HMAC-SHA256 of `"<timestamp>.<body>"`. Without a secret the request is sent unsigned.
 
 **Why:** This is the common shape of webhook signing; binding the timestamp lets receivers reject replays. The body is signed as the exact string that is sent.
 

@@ -58,7 +58,7 @@ const singleContext = {
 function postRequest() {
   return new Request("http://localhost/api/organizations/org-1/webhooks", {
     method: "POST",
-    body: JSON.stringify({ url: "https://hooks.example.com/lively" }),
+    body: JSON.stringify({ url: "https://hooks.example.com/chime" }),
   });
 }
 

@@ -10,9 +10,9 @@
 # file does not have them yet, and nothing secret is printed.
 set -euo pipefail
 
-CONTAINER="${GARAGE_CONTAINER:-lively-forms-garage}"
-BUCKET="${S3_BUCKET:-lively-forms}"
-KEY_NAME="${GARAGE_KEY_NAME:-lively-forms-dev}"
+CONTAINER="${GARAGE_CONTAINER:-chime-garage}"
+BUCKET="${S3_BUCKET:-chime}"
+KEY_NAME="${GARAGE_KEY_NAME:-chime-dev}"
 ENDPOINT="${S3_ENDPOINT:-http://127.0.0.1:3900}"
 ORIGIN="${UPLOAD_CORS_ORIGIN:-http://127.0.0.1:3000}"
 ENV_FILE="${GARAGE_ENV_FILE:-}"

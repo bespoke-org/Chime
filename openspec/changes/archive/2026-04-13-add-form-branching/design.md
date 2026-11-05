@@ -1,6 +1,6 @@
 ## Context
 
-Lively Forms currently stores form structure as an ordered list of `FormBlock` records, with block-specific settings serialized in each block's `config` JSON. The creator builder edits one block at a time, and the public runner assumes a strictly linear progression by incrementing a numeric step across `form.blocks`.
+Chime currently stores form structure as an ordered list of `FormBlock` records, with block-specific settings serialized in each block's `config` JSON. The creator builder edits one block at a time, and the public runner assumes a strictly linear progression by incrementing a numeric step across `form.blocks`.
 
 Branching is a cross-cutting change because it touches block configuration parsing, builder editing UI, publish validation, runner navigation state, and submission-time validation. The current architecture is a good fit for an incremental implementation because blocks already have stable IDs and a JSON config surface that can absorb routing metadata without introducing a new top-level table.
 

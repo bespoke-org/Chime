@@ -5,29 +5,29 @@
 services:
   postgres:
     image: docker.io/library/postgres:16-alpine
-    container_name: lively-forms-postgres
+    container_name: ${POSTGRES_CONTAINER:-chime-postgres}
     restart: unless-stopped
     environment:
-      POSTGRES_DB: lively_forms
-      POSTGRES_USER: lively_forms
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lively_forms}
+      POSTGRES_DB: ${POSTGRES_DB:-chime}
+      POSTGRES_USER: ${POSTGRES_USER:-chime}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chime}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lively_forms -d lively_forms"]
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s
       timeout: 5s
       retries: 5
 
   garage:
     image: docker.io/dxflrs/garage:v2.4.1
-    container_name: lively-forms-garage
+    container_name: ${GARAGE_CONTAINER:-chime-garage}
     restart: unless-stopped
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-4f1d3b0a9c8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a}
-      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-lively-forms-local-admin-token}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-chime-local-admin-token}
     ports:
       - "127.0.0.1:3900:3900"
       - "127.0.0.1:3903:3903"

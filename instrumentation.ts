@@ -6,14 +6,14 @@
 const DIGEST_TICK_MS = 60 * 1000;
 
 const globalState = globalThis as unknown as {
-  __livelyFormsDigestTimer?: ReturnType<typeof setInterval>;
+  __chimeDigestTimer?: ReturnType<typeof setInterval>;
 };
 
 export async function register() {
   if (
     process.env.NEXT_RUNTIME !== "nodejs" ||
     process.env.NEXT_PHASE === "phase-production-build" ||
-    globalState.__livelyFormsDigestTimer
+    globalState.__chimeDigestTimer
   ) {
     return;
   }
@@ -37,8 +37,8 @@ export async function register() {
     }
   };
 
-  globalState.__livelyFormsDigestTimer = setInterval(() => {
+  globalState.__chimeDigestTimer = setInterval(() => {
     void tick();
   }, DIGEST_TICK_MS);
-  globalState.__livelyFormsDigestTimer.unref?.();
+  globalState.__chimeDigestTimer.unref?.();
 }

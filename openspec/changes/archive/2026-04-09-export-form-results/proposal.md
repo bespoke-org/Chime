@@ -1,6 +1,6 @@
 ## Why
 
-Creators can review responses inside Lively Forms today, but they cannot take that data into spreadsheets, reporting workflows, or external tools. Adding export support now unlocks a practical next step for real form usage and addresses a common expectation for form products.
+Creators can review responses inside Chime today, but they cannot take that data into spreadsheets, reporting workflows, or external tools. Adding export support now unlocks a practical next step for real form usage and addresses a common expectation for form products.
 
 ## What Changes
 

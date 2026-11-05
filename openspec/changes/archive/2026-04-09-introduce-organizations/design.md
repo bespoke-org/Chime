@@ -1,6 +1,6 @@
 ## Context
 
-Lively Forms currently has a simple creator model: a signed-in user owns forms personally and all creator authorization checks are based on `form.userId`. That keeps the product simple for solo usage, but it prevents teams from sharing forms, reviewing responses together, or managing a common workspace.
+Chime currently has a simple creator model: a signed-in user owns forms personally and all creator authorization checks are based on `form.userId`. That keeps the product simple for solo usage, but it prevents teams from sharing forms, reviewing responses together, or managing a common workspace.
 
 This change introduces organizations as collaborative workspaces while preserving personal forms. It is cross-cutting because it affects data modeling, access control, dashboard scoping, form creation/editing, response review/export, and new organization management screens.
 

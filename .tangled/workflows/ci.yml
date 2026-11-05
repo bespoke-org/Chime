@@ -15,7 +15,7 @@ dependencies:
 environment:
   CI: "true"
   # The build needs the variables to exist; nothing connects to them.
-  DATABASE_URL: "postgresql://ci:ci@localhost:5432/lively_forms?schema=public"
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/chime?schema=public"
   AUTH_SECRET: "ci-auth-secret-ci-auth-secret-ci-auth-secret"
   NEXTAUTH_URL: "http://localhost:3000"
 

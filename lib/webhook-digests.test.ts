@@ -274,8 +274,8 @@ describe("buildBatchPayload", () => {
       }) as typeof fetch,
     });
 
-    expect(headers["x-lively-forms-event"]).toBe("responses.batch");
-    expect(headers["x-lively-forms-signature"]).toBe(
+    expect(headers["x-chime-event"]).toBe("responses.batch");
+    expect(headers["x-chime-signature"]).toBe(
       `sha256=${signWebhookPayload(body, "s3cret", 1_760_000_000)}`,
     );
     expect(body).toBe(JSON.stringify(payload));

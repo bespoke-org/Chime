@@ -30,7 +30,7 @@ const errorMessages: Record<
     tryAgain: "Try again",
     footer: {
       poweredBy: "Built with",
-      appName: "Lively Forms",
+      appName: "Chime",
       licensedUnder: "Licensed under",
       sourceCode: "Source code",
       reportBug: "Report a bug",
@@ -44,7 +44,7 @@ const errorMessages: Record<
     tryAgain: "Попробовать снова",
     footer: {
       poweredBy: "Сделано с помощью",
-      appName: "Живые формы",
+      appName: "Chime",
       licensedUnder: "Лицензия",
       sourceCode: "Исходный код",
       reportBug: "Сообщить об ошибке",

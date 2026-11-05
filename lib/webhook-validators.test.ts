@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { webhookInputSchema } from "@/lib/webhook-validators";
 
-const url = "https://hooks.example.com/lively";
+const url = "https://hooks.example.com/chime";
 
 function parse(input: Record<string, unknown>) {
   return webhookInputSchema.parse({ url, ...input });

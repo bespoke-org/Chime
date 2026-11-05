@@ -1,6 +1,6 @@
 # Development
 
-This document covers day-to-day local development for Lively Forms.
+This document covers day-to-day local development for Chime.
 
 ## Prerequisites
 
@@ -91,7 +91,7 @@ After the first `bun run db:up`:
 bun run storage:init
 ```
 
-The script (`scripts/garage-init.sh`) assigns the node to the layout, creates the `lively-forms` bucket and a key with read, write and owner permissions, sets a CORS rule for `http://127.0.0.1:3000` through `scripts/garage-cors.ts`, and prints the `S3_*` variables for `.env`. Running it again is harmless. Set `UPLOAD_CORS_ORIGIN` before running it if the app is served from another origin.
+The script (`scripts/garage-init.sh`) assigns the node to the layout, creates the `chime` bucket and a key with read, write and owner permissions, sets a CORS rule for `http://127.0.0.1:3000` through `scripts/garage-cors.ts`, and prints the `S3_*` variables for `.env`. Running it again is harmless. Set `UPLOAD_CORS_ORIGIN` before running it if the app is served from another origin.
 
 The browser uploads straight to Garage with a presigned URL, so the origin must be allowed by the bucket's CORS rule or the PUT fails in the browser with a CORS error while `curl` succeeds.
 

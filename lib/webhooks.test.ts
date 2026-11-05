@@ -18,7 +18,7 @@ const publicLookup = async () => ["93.184.216.34"];
 describe("isPublicWebhookUrl", () => {
   test("accepts public http and https hosts", () => {
     for (const url of [
-      "https://hooks.example.com/lively",
+      "https://hooks.example.com/chime",
       "http://example.com:8080/path?x=1",
       "HTTPS://EXAMPLE.COM/Hook",
       "  https://example.com/hook  ",
@@ -326,11 +326,11 @@ describe("deliverWebhook", () => {
     expect(calls[0].url).toBe("https://example.com/hook");
     expect(calls[0].method).toBe("POST");
     expect(calls[0].headers["content-type"]).toBe("application/json");
-    expect(calls[0].headers["user-agent"]).toBe("lively-forms-webhook/1");
-    expect(calls[0].headers["x-lively-forms-event"]).toBe("response.created");
-    expect(calls[0].headers["x-lively-forms-timestamp"]).toBe("1700000000");
+    expect(calls[0].headers["user-agent"]).toBe("chime-webhook/1");
+    expect(calls[0].headers["x-chime-event"]).toBe("response.created");
+    expect(calls[0].headers["x-chime-timestamp"]).toBe("1700000000");
     expect(calls[0].body).toBe(JSON.stringify(payload()));
-    expect(calls[0].headers["x-lively-forms-signature"]).toBe(
+    expect(calls[0].headers["x-chime-signature"]).toBe(
       `sha256=${signWebhookPayload(calls[0].body, "s3cret", 1700000000)}`,
     );
   });
@@ -348,8 +348,8 @@ describe("deliverWebhook", () => {
       fetchImpl,
     });
 
-    expect("x-lively-forms-signature" in calls[0].headers).toBe(false);
-    expect(calls[0].headers["x-lively-forms-event"]).toBe("response.created");
+    expect("x-chime-signature" in calls[0].headers).toBe(false);
+    expect(calls[0].headers["x-chime-event"]).toBe("response.created");
   });
 
   test("does not retry a 4xx answer", async () => {

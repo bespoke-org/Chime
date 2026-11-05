@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "lively-forms",
+      "name": "chime",
       "dependencies": {
         "@atproto/api": "^0.20.41",
         "@atproto/oauth-client-node": "^0.5.3",

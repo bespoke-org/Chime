@@ -12,7 +12,7 @@ import {
 
 const oidcEnv = {
   OIDC_ISSUER: "https://auth.example.com/realms/master/",
-  OIDC_CLIENT_ID: "lively-forms",
+  OIDC_CLIENT_ID: "chime",
   OIDC_CLIENT_SECRET: "secret",
 };
 
@@ -21,7 +21,7 @@ describe("getOidcConfig", () => {
     expect(JSON.stringify(getOidcConfig(oidcEnv))).toBe(
       JSON.stringify({
         issuer: "https://auth.example.com/realms/master",
-        clientId: "lively-forms",
+        clientId: "chime",
         clientSecret: "secret",
         name: "SSO",
         iconUrl: null,
@@ -33,11 +33,11 @@ describe("getOidcConfig", () => {
   test("uses the configured name and scope", () => {
     const config = getOidcConfig({
       ...oidcEnv,
-      OIDC_PROVIDER_NAME: "СГУ",
+      OIDC_PROVIDER_NAME: "Example University",
       OIDC_SCOPE: "openid email",
     });
 
-    expect(config?.name).toBe("СГУ");
+    expect(config?.name).toBe("Example University");
     expect(config?.scope).toBe("openid email");
   });
 
@@ -69,7 +69,7 @@ describe("getSignInProviderOptions", () => {
   test("lists enabled providers in a fixed order with their labels", () => {
     const options = getSignInProviderOptions({
       ...oidcEnv,
-      OIDC_PROVIDER_NAME: "СГУ",
+      OIDC_PROVIDER_NAME: "Example University",
       GITHUB_CLIENT_ID: "h",
       GITHUB_CLIENT_SECRET: "s",
       GOOGLE_CLIENT_ID: "g",
@@ -80,7 +80,7 @@ describe("getSignInProviderOptions", () => {
       JSON.stringify([
         { id: "google", label: "Google" },
         { id: "github", label: "GitHub" },
-        { id: "oidc", label: "СГУ" },
+        { id: "oidc", label: "Example University" },
       ]),
     );
   });

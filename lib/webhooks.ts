@@ -17,7 +17,7 @@ import { buildUploadDownloadUrl } from "@/lib/uploads";
 
 export const WEBHOOK_EVENT_RESPONSE_CREATED = "response.created";
 export const WEBHOOK_EVENT_RESPONSES_BATCH = "responses.batch";
-export const WEBHOOK_USER_AGENT = "lively-forms-webhook/1";
+export const WEBHOOK_USER_AGENT = "chime-webhook/1";
 
 const PRIVATE_HOST_SUFFIXES = [".local", ".internal"];
 
@@ -347,12 +347,12 @@ export async function deliverWebhook(
   const headers: Record<string, string> = {
     "content-type": "application/json",
     "user-agent": WEBHOOK_USER_AGENT,
-    "x-lively-forms-event": input.payload.event,
-    "x-lively-forms-timestamp": String(timestamp),
+    "x-chime-event": input.payload.event,
+    "x-chime-timestamp": String(timestamp),
   };
 
   if (input.secret) {
-    headers["x-lively-forms-signature"] =
+    headers["x-chime-signature"] =
       `sha256=${signWebhookPayload(body, input.secret, timestamp)}`;
   }
 

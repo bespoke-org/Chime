@@ -1,6 +1,6 @@
 ## Why
 
-Lively Forms currently runs every published form as a fixed linear sequence, which makes simple follow-up questions and fully divergent form paths impossible. Adding branching now unlocks more practical onboarding, qualification, and decision-tree flows without forcing creators to duplicate forms for each audience.
+Chime currently runs every published form as a fixed linear sequence, which makes simple follow-up questions and fully divergent form paths impossible. Adding branching now unlocks more practical onboarding, qualification, and decision-tree flows without forcing creators to duplicate forms for each audience.
 
 ## What Changes
 

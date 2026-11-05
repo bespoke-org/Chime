@@ -1,17 +1,17 @@
 {
-  "name": "lively-forms",
+  "name": "chime",
   "version": "0.1.0",
   "private": true,
   "description": "A conversational form builder inspired by Typeform.",
   "license": "AGPL-3.0-only",
   "author": "Michael Chernigin <michaelchernigin@gmail.com>",
-  "homepage": "https://tangled.org/chernigin.com/lively-forms",
+  "homepage": "https://github.com/bespoke-org/Chime",
   "bugs": {
-    "url": "https://tangled.org/chernigin.com/lively-forms/issues"
+    "url": "https://github.com/bespoke-org/Chime/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://tangled.org/chernigin.com/lively-forms"
+    "url": "https://github.com/bespoke-org/Chime"
   },
   "scripts": {
     "dev": "next dev",

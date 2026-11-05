@@ -335,11 +335,11 @@ describe("createAnonymousResponse webhook", () => {
 
   test("an organization webhook with the form webhook's URL is sent once, with the form's secret", async () => {
     resetTestState({
-      webhooks: [{ url: "https://hooks.example.com/lively", secret: "form" }],
+      webhooks: [{ url: "https://hooks.example.com/chime", secret: "form" }],
       organization: {
         webhooks: [
-          { url: "HTTPS://Hooks.Example.com/lively/", secret: "org" },
-          { url: "https://hooks.example.com/lively?team=a", secret: "query" },
+          { url: "HTTPS://Hooks.Example.com/chime/", secret: "org" },
+          { url: "https://hooks.example.com/chime?team=a", secret: "query" },
         ],
       },
     });

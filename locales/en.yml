@@ -1,6 +1,6 @@
 app:
-  name: Lively Forms
-  description: Lively Forms is a conversational form builder for creating, publishing, and reviewing forms.
+  name: Chime
+  description: Chime is a conversational form builder for creating, publishing, and reviewing forms.
   goToDashboardAria: Go to dashboard
 footer:
   poweredBy: Built with
@@ -15,7 +15,7 @@ meta:
   joinOrganization: Join workspace
   notFound: Not found
 auth:
-  title: Sign in to Lively Forms
+  title: Sign in to Chime
   continueWithAtproto: Continue with ATProto
   atprotoIdentifierLabel: ATProto handle
   atprotoIdentifierPlaceholder: alice.bsky.social
@@ -161,10 +161,10 @@ builder:
   webhook: Webhooks
   webhookDescription: Send new responses to your server, each one as it arrives or as a periodic digest.
   webhookUrl: Webhook URL
-  webhookUrlPlaceholder: https://example.com/hooks/lively-forms
+  webhookUrlPlaceholder: https://example.com/hooks/chime
   webhookUrlHelp: A public https:// address. We POST a JSON body with the form, response id, and answers. Addresses on private networks are rejected.
   webhookSecret: Signing secret
-  webhookSecretHelp: Optional. When set, each request carries an X-Lively-Forms-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
+  webhookSecretHelp: Optional. When set, each request carries an X-Chime-Signature header with an HMAC-SHA256 of the timestamp and body so your endpoint can verify the sender.
   addWebhook: Add webhook
   editWebhook: Edit webhook
   removeWebhook: Remove webhook

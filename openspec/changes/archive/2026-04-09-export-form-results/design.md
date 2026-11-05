@@ -1,6 +1,6 @@
 ## Context
 
-Lively Forms already stores anonymous responses and gives creators an authenticated response review surface, but that data currently stays inside the product. Exporting responses is a cross-cutting addition because it touches creator UI, ownership checks, response shaping, and file generation for multiple output formats.
+Chime already stores anonymous responses and gives creators an authenticated response review surface, but that data currently stays inside the product. Exporting responses is a cross-cutting addition because it touches creator UI, ownership checks, response shaping, and file generation for multiple output formats.
 
 The current codebase already has server-side form ownership checks and response retrieval in `lib/forms.ts` plus creator-facing response pages under `app/(creator)/forms/[id]/responses/`. The new export flow should fit that model: exports are generated on the server for owned forms only and downloaded from the creator surface.
 

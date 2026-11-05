@@ -20,14 +20,14 @@ describe("getMailerConfig", () => {
 
   test("uses SMTP_URL as the transport when present", () => {
     const config = getMailerConfig({
-      MAIL_FROM: " Lively Forms <forms@example.com> ",
+      MAIL_FROM: " Chime <forms@example.com> ",
       SMTP_URL: " smtp://user:pass@smtp.example.com:587 ",
       SMTP_HOST: "ignored.example.com",
     });
 
     expect(JSON.stringify(config)).toBe(
       JSON.stringify({
-        from: "Lively Forms <forms@example.com>",
+        from: "Chime <forms@example.com>",
         transport: "smtp://user:pass@smtp.example.com:587",
       }),
     );

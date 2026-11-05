@@ -1,6 +1,6 @@
-<h1 align="center">Lively Forms</h1>
+<h1 align="center">Chime</h1>
 
-Lively Forms is a self-hosted form builder in the style of Typeform: the respondent sees one question at a time, the creator builds the form from blocks, adds branching, publishes it at a public link and reviews or exports the responses. It is a single Next.js app on PostgreSQL with optional S3-compatible storage for file uploads, released under the AGPL.
+Chime is a self-hosted form builder in the style of Typeform: the respondent sees one question at a time, the creator builds the form from blocks, adds branching, publishes it at a public link and reviews or exports the responses. It is a single Next.js app on PostgreSQL with optional S3-compatible storage for file uploads, released under the AGPL.
 
 <!-- screenshot: builder with the block list and the settings panel -->
 <!-- screenshot: public runner with one question on screen -->
@@ -25,8 +25,8 @@ Lively Forms is a self-hosted form builder in the style of Typeform: the respond
 The stack runs from `compose.prod.yaml`: the app image built by the `Dockerfile`, PostgreSQL 16, [Garage](https://garagehq.deuxfleurs.fr) for file uploads and a one-shot migration. A reverse proxy with HTTPS in front of it is expected.
 
 ```bash
-git clone https://tangled.org/chernigin.com/lively-forms
-cd lively-forms
+git clone https://github.com/bespoke-org/Chime.git
+cd Chime
 cp .env.example .env
 # set AUTH_SECRET, NEXTAUTH_URL, ATPROTO_PUBLIC_URL, ATPROTO_CLIENT_ID, ATPROTO_REDIRECT_URI,
 # POSTGRES_PASSWORD, GARAGE_RPC_SECRET and GARAGE_ADMIN_TOKEN in .env
@@ -38,6 +38,8 @@ The app listens on `127.0.0.1:3000`. The step-by-step guide, the file upload set
 ## Configuration
 
 All settings are environment variables, listed with comments in [.env.example](.env.example).
+
+Deployment-specific authentication, access policy, provider icons, mail and storage are configured outside the source tree. See [Deployment customization](docs/customization.md) for the available settings and when a fork is needed. Before upgrading an existing installation, follow [Upgrading to Chime](docs/deployment.md#upgrading-to-chime).
 
 | Variable                                                                                                                 | Required                         | Purpose                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -59,9 +61,9 @@ All settings are environment variables, listed with comments in [.env.example](.
 
 ## How it compares
 
-- [Typeform](https://www.typeform.com) is the hosted, subscription service this project takes its one-question-at-a-time format from; its plans meter responses per month and it is not self-hostable. Lively Forms has no plans or limits beyond your server and no hosted offering.
-- [Formbricks](https://github.com/formbricks/formbricks) is an open source (AGPL core, separately licensed enterprise folder) experience management platform with in-app, website, link and email surveys and a Docker self-hosting path. Lively Forms covers link forms only, has no SDK for embedding in your own app and no enterprise edition.
-- Compared with both, Lively Forms is small: one process, a PostgreSQL database and an S3 bucket, with ATProto sign-in and workspaces; rate limits and the digest scheduler are per app instance, so it runs as a single instance.
+- [Typeform](https://www.typeform.com) is the hosted, subscription service this project takes its one-question-at-a-time format from; its plans meter responses per month and it is not self-hostable. Chime has no plans or limits beyond your server and no hosted offering.
+- [Formbricks](https://github.com/formbricks/formbricks) is an open source (AGPL core, separately licensed enterprise folder) experience management platform with in-app, website, link and email surveys and a Docker self-hosting path. Chime covers link forms only, has no SDK for embedding in your own app and no enterprise edition.
+- Compared with both, Chime is small: one process, a PostgreSQL database and an S3 bucket, with ATProto sign-in and workspaces; rate limits and the digest scheduler are per app instance, so it runs as a single instance.
 
 ## Development
 
@@ -75,11 +77,11 @@ bun run storage:init
 bun run dev
 ```
 
-Open `http://127.0.0.1:3000`. `bun run check` runs formatting, unit tests, lint, type check and the production build; the pre-commit hook and CI (`.tangled/workflows/ci.yml`) run the same. See [docs/development.md](docs/development.md).
+Open `http://127.0.0.1:3000`. `bun run check` runs formatting, unit tests, lint, type check and the production build; the pre-commit hook runs the same checks. See [docs/development.md](docs/development.md).
 
 ## Credits
 
-Lively Forms is written by Michael Chernigin and Nikita Rydanov.
+Chime is written by Michael Chernigin and Nikita Rydanov.
 
 ## License
 

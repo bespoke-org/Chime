@@ -4,8 +4,7 @@ import { resolveNextBlockId } from "@/lib/branching";
 import type { SerializedBlock } from "@/lib/blocks";
 import type { AnswerValue, PublicForm } from "@/lib/form-types";
 
-export const PUBLIC_FORM_DRAFT_STORAGE_PREFIX =
-  "lively-forms-public-runner-draft";
+export const PUBLIC_FORM_DRAFT_STORAGE_PREFIX = "chime-public-runner-draft";
 export const PUBLIC_FORM_DRAFT_VERSION = 1;
 
 const answerValueSchema = z.union([z.string(), z.array(z.string())]);

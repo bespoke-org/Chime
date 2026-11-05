@@ -178,9 +178,9 @@ type GraphNodePositionOverride = {
   y: number;
 };
 
-const GRAPH_LAYOUT_STORAGE_KEY_PREFIX = "lively-forms:branching-graph-layout:";
+const GRAPH_LAYOUT_STORAGE_KEY_PREFIX = "chime:branching-graph-layout:";
 const GRAPH_INSPECTOR_WIDTH_STORAGE_KEY_PREFIX =
-  "lively-forms:branching-graph-inspector-width:";
+  "chime:branching-graph-inspector-width:";
 const GRAPH_CANVAS_PADDING = 720;
 const DEFAULT_IMMERSIVE_INSPECTOR_WIDTH = 560;
 // Matches the panel's left-4 inset.

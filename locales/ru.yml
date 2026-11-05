@@ -1,6 +1,6 @@
 app:
-  name: Живые формы
-  description: Живые формы — это конструктор диалоговых форм для создания, публикации и просмотра форм.
+  name: Chime
+  description: Chime — это конструктор диалоговых форм для создания, публикации и просмотра форм.
   goToDashboardAria: Перейти в дашборд
 footer:
   poweredBy: Сделано с помощью
@@ -15,7 +15,7 @@ meta:
   joinOrganization: Вступить в пространство
   notFound: Не найдено
 auth:
-  title: Войти в Живые формы
+  title: Войти в Chime
   continueWithAtproto: Продолжить через ATProto
   atprotoIdentifierLabel: Хэндл ATProto
   atprotoIdentifierPlaceholder: alice.bsky.social
@@ -83,7 +83,7 @@ settings:
     title: Пространства
     description: В общем пространстве каждый участник работает с формами, управляет пространством только владелец.
     newOrganizationName: Название нового пространства
-    newOrganizationPlaceholder: Живая команда
+    newOrganizationPlaceholder: Моя команда
     createOrganization: Создать пространство
     noneYet: Вы пока не состоите ни в одном общем пространстве.
     organizationLabel: Пространство
@@ -161,10 +161,10 @@ builder:
   webhook: Вебхуки
   webhookDescription: Отправлять новые ответы на ваш сервер, каждый сразу после сохранения или сводкой за период.
   webhookUrl: URL вебхука
-  webhookUrlPlaceholder: https://example.com/hooks/lively-forms
+  webhookUrlPlaceholder: https://example.com/hooks/chime
   webhookUrlHelp: Публичный адрес сервера (https://). Мы отправляем POST с JSON, в котором есть форма, идентификатор ответа и ответы. Адреса в частных сетях отклоняются.
   webhookSecret: Секрет подписи
-  webhookSecretHelp: Необязательно. Если задан, каждый запрос содержит заголовок X-Lively-Forms-Signature с HMAC-SHA256 от метки времени и тела, чтобы ваш сервер мог проверить отправителя.
+  webhookSecretHelp: Необязательно. Если задан, каждый запрос содержит заголовок X-Chime-Signature с HMAC-SHA256 от метки времени и тела, чтобы ваш сервер мог проверить отправителя.
   addWebhook: Добавить вебхук
   editWebhook: Изменить вебхук
   removeWebhook: Удалить вебхук

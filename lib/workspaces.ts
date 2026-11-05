@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import type { ActiveWorkspace, CreatorWorkspaceOption } from "@/lib/form-types";
 
-export const ACTIVE_WORKSPACE_COOKIE = "lively-active-workspace";
+export const ACTIVE_WORKSPACE_COOKIE = "chime-active-workspace";
 
 export function serializeWorkspaceValue(workspace: ActiveWorkspace) {
   return workspace.kind === "personal"

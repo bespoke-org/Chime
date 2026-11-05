@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: New responses are delivered to the form's webhook
-The system SHALL send one `POST` request with a JSON body to the form's webhook URL after a response is stored, when a URL is configured. The body SHALL contain `event` set to `response.created`, `formId`, `formSlug`, `formTitle`, `responseId`, `submittedAt` as an ISO 8601 timestamp, and `answers` as a list of `{ blockId, type, title, value }` entries for the question blocks the respondent reached, in form order, where `value` is the stored string or list of strings. The request SHALL carry `Content-Type: application/json`, `User-Agent: lively-forms-webhook/1`, `X-Lively-Forms-Event`, and `X-Lively-Forms-Timestamp`.
+The system SHALL send one `POST` request with a JSON body to the form's webhook URL after a response is stored, when a URL is configured. The body SHALL contain `event` set to `response.created`, `formId`, `formSlug`, `formTitle`, `responseId`, `submittedAt` as an ISO 8601 timestamp, and `answers` as a list of `{ blockId, type, title, value }` entries for the question blocks the respondent reached, in form order, where `value` is the stored string or list of strings. The request SHALL carry `Content-Type: application/json`, `User-Agent: chime-webhook/1`, `X-Chime-Event`, and `X-Chime-Timestamp`.
 
 #### Scenario: Response stored for a form with a webhook
 - **WHEN** a respondent submits a published form that has a webhook URL
@@ -16,7 +16,7 @@ The system SHALL send one `POST` request with a JSON body to the form's webhook 
 - **THEN** the system stores the response and sends no request
 
 ### Requirement: Webhook requests are signed when a secret is set
-When the form has a signing secret, the system SHALL add `X-Lively-Forms-Signature: sha256=<hex>` where `<hex>` is the HMAC-SHA256 of the string `"<timestamp>.<body>"` keyed with the secret, `<timestamp>` is the value of `X-Lively-Forms-Timestamp` in Unix seconds, and `<body>` is the exact request body. Without a secret the header SHALL be absent.
+When the form has a signing secret, the system SHALL add `X-Chime-Signature: sha256=<hex>` where `<hex>` is the HMAC-SHA256 of the string `"<timestamp>.<body>"` keyed with the secret, `<timestamp>` is the value of `X-Chime-Timestamp` in Unix seconds, and `<body>` is the exact request body. Without a secret the header SHALL be absent.
 
 #### Scenario: Receiver verifies a signed request
 - **WHEN** a receiver recomputes HMAC-SHA256 over the timestamp header, a dot, and the raw request body using the form's secret

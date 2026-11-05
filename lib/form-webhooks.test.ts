@@ -144,7 +144,7 @@ async function statusOf(run: () => Promise<unknown>) {
   }
 }
 
-const url = "https://hooks.example.com/lively";
+const url = "https://hooks.example.com/chime";
 
 describe("form webhooks service", () => {
   test("lists other forms' webhooks to copy, newest first, once each", async () => {
@@ -156,7 +156,7 @@ describe("form webhooks service", () => {
     accessibleFormId = "form-3";
     // The same endpoint with another spelling and the same settings.
     await createFormWebhook("user-1", "form-3", {
-      url: "https://HOOKS.example.com/lively/",
+      url: "https://HOOKS.example.com/chime/",
       secret: "s3cret",
     });
     await createFormWebhook("user-1", "form-3", {
@@ -183,7 +183,7 @@ describe("form webhooks service", () => {
           formTitle: "Анкета",
         },
         {
-          url: "https://HOOKS.example.com/lively/",
+          url: "https://HOOKS.example.com/chime/",
           secret: "s3cret",
           mode: "IMMEDIATE",
           digestInterval: null,
@@ -436,8 +436,8 @@ describe("organization webhooks service", () => {
 
 describe("normalizeWebhookUrl", () => {
   test("ignores case of scheme and host, a trailing slash and a fragment", () => {
-    expect(normalizeWebhookUrl("HTTPS://Hooks.Example.COM/Lively/")).toBe(
-      "https://hooks.example.com/Lively",
+    expect(normalizeWebhookUrl("HTTPS://Hooks.Example.COM/Chime/")).toBe(
+      "https://hooks.example.com/Chime",
     );
     expect(normalizeWebhookUrl("https://hooks.example.com:443/")).toBe(
       "https://hooks.example.com",
