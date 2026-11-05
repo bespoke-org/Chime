@@ -1,10 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test.describe("Public runner text-input focus", () => {
   test("focuses the next text input after continuing from a text step", async ({
     page,
+    publicForm,
   }) => {
-    await page.goto("/dev/public-runner-focus");
+    await page.goto(`/f/${publicForm.slug}`);
 
     const nameInput = page.getByPlaceholder("Type your name");
     await expect(nameInput).toBeFocused();
@@ -19,8 +20,9 @@ test.describe("Public runner text-input focus", () => {
 
   test("focuses the next text input after continuing from a choice step", async ({
     page,
+    publicForm,
   }) => {
-    await page.goto("/dev/public-runner-focus");
+    await page.goto(`/f/${publicForm.slug}`);
 
     await page.getByPlaceholder("Type your name").fill("Ada");
     await page.getByRole("button", { name: /^Continue$/ }).click();
