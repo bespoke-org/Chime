@@ -168,7 +168,6 @@ The setup follows the [Next.js Playwright guide](https://nextjs.org/docs/app/gui
 - `locales/` — translation YAML files
 - `prisma/` — schema and migrations
 - `docs/` — project documentation
-- `openspec/` — product/spec workflow artifacts
 
 ## Important files
 

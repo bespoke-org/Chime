@@ -4,5 +4,4 @@ test-results
 playwright-report
 .agents
 .serena
-openspec
 public
