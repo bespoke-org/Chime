@@ -88,4 +88,4 @@ Chime is written by Michael Chernigin and Nikita Rydanov.
 Licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`).
 See [LICENSE](./LICENSE).
 
-Copyright (C) 2026 Michael Chernigin
+Copyright (C) 2026 Michael Chernigin and Nikita Rydanov
