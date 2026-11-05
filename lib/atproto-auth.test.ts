@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { createTimeoutFetch, getSafeAtprotoCallbackUrl } from "./atproto-auth";
+import {
+  createTimeoutFetch,
+  getSafeAtprotoCallbackUrl,
+} from "./atproto-auth-utils";
 
 async function captureRejection(promise: Promise<unknown>) {
   try {
