@@ -77,7 +77,7 @@ bun run storage:init
 bun run dev
 ```
 
-Open `http://127.0.0.1:3000`. `bun run check` runs formatting, unit tests, lint, type check and the production build; the pre-commit hook runs the same checks. See [docs/development.md](docs/development.md).
+Open `http://127.0.0.1:3000`. `bun run check` runs formatting, unit tests, lint, type check and the production build; the pre-commit hook and GitHub Actions (`.github/workflows/ci.yml`) run the same. See [docs/development.md](docs/development.md).
 
 ## Credits
 
