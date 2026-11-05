@@ -10,6 +10,11 @@ import {
 import type { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 
+import {
+  createTimeoutFetch,
+  getAtprotoPublicBaseUrl,
+  getSafeAtprotoCallbackUrl,
+} from "@/lib/atproto-auth-utils";
 import { db } from "@/lib/db";
 import {
   isSignInAllowed,
@@ -18,9 +23,14 @@ import {
 } from "@/lib/sign-in-allowlist";
 import { syncAtprotoProfileFields } from "@/lib/users";
 
+export {
+  createTimeoutFetch,
+  getAtprotoPublicBaseUrl,
+  getSafeAtprotoCallbackUrl,
+} from "@/lib/atproto-auth-utils";
+
 const ATPROTO_PROVIDER = "atproto";
 const DEFAULT_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-const OAUTH_FETCH_TIMEOUT_MS = 10_000;
 const OAUTH_AUTHORIZATION_TIMEOUT_MS = 15_000;
 
 type AtprotoOAuthStateValue = NodeSavedState & Prisma.JsonObject;
@@ -29,15 +39,6 @@ type AtprotoOAuthSessionValue = NodeSavedSession & Prisma.JsonObject;
 type AtprotoStatePayload = {
   callbackUrl?: string;
 };
-
-export function getAtprotoPublicBaseUrl() {
-  const baseUrl =
-    process.env.ATPROTO_PUBLIC_URL ??
-    process.env.NEXTAUTH_URL ??
-    "http://127.0.0.1:3000";
-
-  return baseUrl.replace(/\/$/, "");
-}
 
 export function getAtprotoAuthConfig() {
   const baseUrl = getAtprotoPublicBaseUrl();
@@ -136,20 +137,6 @@ const sessionStore: NodeSavedSessionStore = {
   },
 };
 
-export function createTimeoutFetch(
-  fetchImplementation: typeof fetch,
-  timeoutMs = OAUTH_FETCH_TIMEOUT_MS,
-): typeof fetch {
-  return (input, init) => {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    const signal = init?.signal
-      ? AbortSignal.any([init.signal, timeoutSignal])
-      : timeoutSignal;
-
-    return fetchImplementation(input, { ...init, signal });
-  };
-}
-
 const oauthFetch = createTimeoutFetch(globalThis.fetch);
 
 let atprotoOAuthClient: NodeOAuthClient | null = null;
@@ -203,25 +190,6 @@ function parseAtprotoState(state: string | null): AtprotoStatePayload {
   } catch {
     return {};
   }
-}
-
-function isSafeCallbackUrl(value: string | null | undefined): value is string {
-  if (typeof value !== "string" || !value.startsWith("/")) {
-    return false;
-  }
-
-  try {
-    const baseUrl = new URL(getAtprotoPublicBaseUrl());
-    return new URL(value, baseUrl).origin === baseUrl.origin;
-  } catch {
-    return false;
-  }
-}
-
-export function getSafeAtprotoCallbackUrl(
-  value: string | null | undefined,
-): string {
-  return isSafeCallbackUrl(value) ? value : "/dashboard";
 }
 
 export function getAtprotoRedirectUrl(path: string) {

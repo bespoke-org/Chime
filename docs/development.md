@@ -133,8 +133,8 @@ Notes:
 
 - The pre-commit hook runs `bun run check`, which includes formatting, unit tests, linting, type-checking, and a production build.
 - `bun run build` also validates translation resources before the Next.js build.
-- `bun test` runs the unit/component tests. `bun run typecheck` generates Next.js route types before TypeScript checks, so it also works on a fresh checkout.
-- GitHub Actions runs two jobs: `check` for formatting, unit tests, lint and types; `e2e` for PostgreSQL migrations, a production build and Chromium tests. It uses Node 22 and Bun 1.3.13, matching the Docker image. Test reports and browser failure diagnostics are retained for seven days.
+- `bun run test` runs the unit/component tests with a fresh JavaScript context per file, so module mocks and globals do not leak between files. `bun run typecheck` generates Next.js route types before TypeScript checks, so it also works on a fresh checkout.
+- GitHub Actions runs three independent jobs: `lint` for formatting, lint and types; `unit` for unit/component tests; `e2e` for PostgreSQL migrations, a production build and Chromium tests. All use Ubuntu 24.04, which is supported by the locked Playwright version. It uses Node 22 and Bun 1.3.13, matching the Docker image. Test reports and browser failure diagnostics are retained for seven days.
 - CI caches Bun's downloaded packages, then always installs from `bun.lock`; installed modules, Prisma clients and browser binaries are not cached.
 - `bun run deploy` runs `scripts/deploy.sh`, which ships the working tree over ssh to the host in `DEPLOY_HOST` (the author's setup, see [deployment.md](./deployment.md)).
 
