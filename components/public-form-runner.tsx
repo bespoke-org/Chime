@@ -612,6 +612,7 @@ export function PublicFormRunner({
   const { t } = useI18n();
   const [answers, setAnswers] = useState<RunnerAnswers>({});
   const [route, setRoute] = useState(initialRoute);
+  const [validatedStepKey, setValidatedStepKey] = useState<string | null>(null);
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -628,6 +629,7 @@ export function PublicFormRunner({
   // The current step's text fields, keyed by block id: Enter walks them in
   // saved order, and focus restore targets the first one. Steps of one page
   // re-render the same block ids, so the nodes are replaced per instance.
+  const blockNodesRef = useRef(new Map<string, HTMLDivElement>());
   const fieldNodesRef = useRef(
     new Map<string, HTMLInputElement | HTMLTextAreaElement>(),
   );
@@ -946,19 +948,16 @@ export function PublicFormRunner({
 
   // One forward action per step: every block of the instance on screen is
   // validated with the existing per-block validation (per instance for a
-  // repeating page), and the first invalid block keeps the step on screen
-  // with its error message.
-  const validateCurrentStep = useCallback(
+  // repeating page). Errors remain next to their fields until corrected.
+  const getCurrentStepErrors = useCallback(
     (answerSet: RunnerAnswers = answers) => {
+      const errors: Record<string, AnswerValidationError> = {};
+
       if (!currentPage) {
-        return true;
+        return errors;
       }
 
       const plan = planPageInstances(currentPage, pages, answerSet);
-
-      if (plan.kind === "blocked") {
-        return false;
-      }
 
       for (const block of currentPage.blocks) {
         if (block.type === "TEXT") {
@@ -978,32 +977,52 @@ export function PublicFormRunner({
             : validateAndNormalizeAnswer(block, answerSet[block.id]);
 
         if (!result.ok) {
-          showToast(getBlockErrorMessage(block, result.error, t), "error");
-
-          // Point the respondent at the failing field without stealing focus
-          // from a field they are already in.
-          if (
-            fieldNodesRef.current.get(block.id) &&
-            fieldNodesRef.current.get(block.id) !== document.activeElement
-          ) {
-            focusPageField(block.id);
-          }
-
-          return false;
+          errors[block.id] = result.error;
         }
       }
 
-      return true;
+      return errors;
     },
-    [
-      answers,
-      currentPage,
-      currentInstanceIndex,
-      focusPageField,
-      pages,
-      showToast,
-      t,
-    ],
+    [answers, currentPage, currentInstanceIndex, pages],
+  );
+  const fieldErrors =
+    validatedStepKey === currentStepKey ? getCurrentStepErrors() : {};
+
+  function getFieldValidationProps(blockId: string) {
+    return {
+      "aria-invalid": Boolean(fieldErrors[blockId]),
+      "aria-describedby": fieldErrors[blockId] ? `error-${blockId}` : undefined,
+    };
+  }
+
+  const validateCurrentStep = useCallback(
+    (answerSet: RunnerAnswers = answers) => {
+      const errors = getCurrentStepErrors(answerSet);
+      const firstInvalidBlockId = Object.keys(errors)[0];
+
+      if (!firstInvalidBlockId) {
+        setValidatedStepKey(null);
+        return true;
+      }
+
+      setValidatedStepKey(currentStepKey);
+      pendingFocusStepKeyRef.current = null;
+      const blockNode = blockNodesRef.current.get(firstInvalidBlockId);
+      blockNode?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+
+      if (fieldNodesRef.current.has(firstInvalidBlockId)) {
+        focusPageField(firstInvalidBlockId);
+      } else {
+        blockNode
+          ?.querySelector<HTMLElement>(
+            "button:not(:disabled), input:not(:disabled)",
+          )
+          ?.focus({ preventScroll: true });
+      }
+
+      return false;
+    },
+    [answers, currentStepKey, focusPageField, getCurrentStepErrors],
   );
 
   const handleContinue = useCallback(
@@ -1161,6 +1180,7 @@ export function PublicFormRunner({
   );
 
   const handleBack = useCallback(() => {
+    setValidatedStepKey(null);
     setRoute((current) => retreatRunnerRoute(current, { allowBackNavigation }));
   }, [allowBackNavigation]);
 
@@ -1439,7 +1459,7 @@ export function PublicFormRunner({
               exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.24, ease: "easeOut" }}
               onAnimationComplete={() => {
-                if (firstFieldBlockId) {
+                if (firstFieldBlockId && validatedStepKey !== currentStepKey) {
                   pendingFocusStepKeyRef.current = currentStepKey;
                   focusPageField(firstFieldBlockId);
                 }
@@ -1471,6 +1491,13 @@ export function PublicFormRunner({
               {currentPage.blocks.map((block, blockIndex) => (
                 <div
                   key={block.id}
+                  ref={(node) => {
+                    if (node) {
+                      blockNodesRef.current.set(block.id, node);
+                    } else {
+                      blockNodesRef.current.delete(block.id);
+                    }
+                  }}
                   className={blockIndex === 0 ? undefined : "mt-8"}
                 >
                   {block.type === "TEXT" ? (
@@ -1485,7 +1512,10 @@ export function PublicFormRunner({
                     </div>
                   ) : (
                     <div className="flex flex-col justify-center py-2">
-                      <h2 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">
+                      <h2
+                        id={`question-${block.id}`}
+                        className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl"
+                      >
                         {block.title}
                       </h2>
                       {block.description ? (
@@ -1500,9 +1530,20 @@ export function PublicFormRunner({
                         </p>
                       ) : null}
 
-                      <div className="mt-6 space-y-3">
+                      <div
+                        role="group"
+                        aria-labelledby={`question-${block.id}`}
+                        {...getFieldValidationProps(block.id)}
+                        className={cn(
+                          "mt-6 space-y-3",
+                          fieldErrors[block.id] &&
+                            "rounded-md outline-2 outline-offset-4 outline-[var(--danger-line)] [&_[aria-invalid=true]]:border-[var(--danger-ink)] [&_[aria-invalid=true]:focus]:ring-[var(--danger-soft)]",
+                        )}
+                      >
                         {block.type === "SHORT_TEXT" ? (
                           <Input
+                            {...getFieldValidationProps(block.id)}
+                            aria-labelledby={`question-${block.id}`}
                             ref={(node) => registerFieldNode(block.id, node)}
                             autoFocus={
                               hasResolvedDraft &&
@@ -1530,6 +1571,8 @@ export function PublicFormRunner({
 
                         {block.type === "LONG_TEXT" ? (
                           <Textarea
+                            {...getFieldValidationProps(block.id)}
+                            aria-labelledby={`question-${block.id}`}
                             ref={(node) => registerFieldNode(block.id, node)}
                             autoFocus={
                               hasResolvedDraft &&
@@ -1560,6 +1603,8 @@ export function PublicFormRunner({
                         {block.type === "NUMBER" ? (
                           <>
                             <Input
+                              {...getFieldValidationProps(block.id)}
+                              aria-labelledby={`question-${block.id}`}
                               ref={(node) => registerFieldNode(block.id, node)}
                               autoFocus={
                                 hasResolvedDraft &&
@@ -1602,6 +1647,8 @@ export function PublicFormRunner({
 
                         {block.type === "LINK" ? (
                           <Input
+                            {...getFieldValidationProps(block.id)}
+                            aria-labelledby={`question-${block.id}`}
                             ref={(node) => registerFieldNode(block.id, node)}
                             autoFocus={
                               hasResolvedDraft &&
@@ -1634,6 +1681,8 @@ export function PublicFormRunner({
 
                               return (
                                 <DatePickerInput
+                                  {...getFieldValidationProps(block.id)}
+                                  aria-labelledby={`question-${block.id}`}
                                   ref={(node) =>
                                     registerFieldNode(block.id, node)
                                   }
@@ -1676,6 +1725,7 @@ export function PublicFormRunner({
                                     key={option}
                                     type="button"
                                     data-runner-choice-control="true"
+                                    {...getFieldValidationProps(block.id)}
                                     aria-pressed={selected}
                                     aria-keyshortcuts={shortcut ?? undefined}
                                     className={cn(
@@ -1726,6 +1776,7 @@ export function PublicFormRunner({
                                     key={option}
                                     type="button"
                                     data-runner-choice-control="true"
+                                    {...getFieldValidationProps(block.id)}
                                     aria-pressed={selected}
                                     aria-keyshortcuts={shortcut ?? undefined}
                                     className={cn(
@@ -1786,6 +1837,7 @@ export function PublicFormRunner({
                                           key={value}
                                           type="button"
                                           data-runner-choice-control="true"
+                                          {...getFieldValidationProps(block.id)}
                                           aria-pressed={selected}
                                           aria-keyshortcuts={
                                             shortcut ?? undefined
@@ -1881,6 +1933,7 @@ export function PublicFormRunner({
                                       <input
                                         id={inputId}
                                         type="file"
+                                        {...getFieldValidationProps(block.id)}
                                         className="sr-only"
                                         accept={
                                           getAcceptAttribute(config.accept) ||
@@ -1923,6 +1976,7 @@ export function PublicFormRunner({
                                 <button
                                   type="button"
                                   data-runner-choice-control="true"
+                                  {...getFieldValidationProps(block.id)}
                                   aria-pressed={selected}
                                   aria-keyshortcuts="1"
                                   className={cn(
@@ -1952,6 +2006,19 @@ export function PublicFormRunner({
                           </div>
                         ) : null}
                       </div>
+                      {fieldErrors[block.id] ? (
+                        <p
+                          id={`error-${block.id}`}
+                          role="alert"
+                          className="mt-3 text-sm text-[var(--danger-ink)]"
+                        >
+                          {getBlockErrorMessage(
+                            block,
+                            fieldErrors[block.id],
+                            t,
+                          )}
+                        </p>
+                      ) : null}
                     </div>
                   )}
                 </div>

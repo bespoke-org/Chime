@@ -1259,6 +1259,142 @@ describe("PublicFormRunner", () => {
     await cleanupAndRestore(restoreDom);
   });
 
+  test("marks every invalid field inline, focuses the first, and clears corrected errors", async () => {
+    const restoreDom = installTestDom();
+    try {
+      const view = renderRunner(
+        createForm(
+          [
+            createBlock({
+              id: "name",
+              type: "SHORT_TEXT",
+              position: 0,
+              required: true,
+              pageId: "details",
+            }),
+            createBlock({
+              id: "notes",
+              type: "LONG_TEXT",
+              position: 1,
+              required: true,
+              pageId: "details",
+            }),
+            createBlock({
+              id: "optional",
+              type: "SHORT_TEXT",
+              position: 2,
+              pageId: "details",
+            }),
+          ],
+          { pages: [{ id: "details" }] },
+        ),
+      );
+      const name = view.getByRole("textbox", { name: "name" });
+      const notes = view.getByRole("textbox", { name: "notes" });
+      const optional = view.getByRole("textbox", { name: "optional" });
+      expect(view.queryAllByRole("alert").length).toBe(0);
+      fireEvent.click(view.getByRole("button", { name: "Submit" }));
+      expect(view.getAllByRole("alert").length).toBe(2);
+      expect(name.getAttribute("aria-invalid")).toBe("true");
+      expect(notes.getAttribute("aria-invalid")).toBe("true");
+      expect(optional.getAttribute("aria-invalid")).toBe("false");
+      expect(view.queryByRole("status")).toBe(null);
+      await waitFor(() => expect(document.activeElement).toBe(name));
+      expect(
+        document.getElementById(name.getAttribute("aria-describedby")!)
+          ?.textContent,
+      ).toBe("Please answer before continuing.");
+
+      typeIntoInput(name, "Ada");
+      expect(name.getAttribute("aria-invalid")).toBe("false");
+      expect(name.hasAttribute("aria-describedby")).toBe(false);
+      expect(view.getAllByRole("alert").length).toBe(1);
+      fireEvent.click(view.getByRole("button", { name: "Submit" }));
+      await waitFor(() => expect(document.activeElement).toBe(notes));
+      // The delayed initial autofocus must not take focus back from the error.
+      await new Promise((resolve) => setTimeout(resolve, 320));
+      expect(document.activeElement).toBe(notes);
+      typeIntoInput(notes, "Hello");
+      expect(view.queryAllByRole("alert").length).toBe(0);
+    } finally {
+      await cleanupAndRestore(restoreDom);
+    }
+  });
+
+  for (const type of [
+    "SHORT_TEXT",
+    "LONG_TEXT",
+    "NUMBER",
+    "LINK",
+    "DATE",
+    "SINGLE_CHOICE",
+    "MULTIPLE_CHOICE",
+    "RATING",
+    "AGREEMENT",
+    "FILE_UPLOAD",
+  ] as const) {
+    test(`an empty required ${type} has an inline error linked to its control`, async () => {
+      const restoreDom = installTestDom();
+      try {
+        const view = renderRunner(
+          createForm([
+            createBlock({ id: "question", type, position: 0, required: true }),
+          ]),
+        );
+        fireEvent.click(view.getByRole("button", { name: "Submit" }));
+        const group = view.getByRole("group", { name: "question" });
+        const error = view.getByRole("alert");
+        expect(group.getAttribute("aria-invalid")).toBe("true");
+        expect(group.getAttribute("aria-describedby")).toBe(error.id);
+        const control = group.querySelector("input, textarea, button")!;
+        expect(control.getAttribute("aria-invalid")).toBe("true");
+        expect(control.getAttribute("aria-describedby")).toBe(error.id);
+        expect(view.queryByRole("status")).toBe(null);
+        await waitFor(() => expect(document.activeElement).toBe(control));
+        if (
+          ["SINGLE_CHOICE", "MULTIPLE_CHOICE", "RATING", "AGREEMENT"].includes(
+            type,
+          )
+        ) {
+          fireEvent.click(control);
+          expect(view.queryByRole("alert")).toBe(null);
+          expect(control.getAttribute("aria-invalid")).toBe("false");
+        }
+      } finally {
+        await cleanupAndRestore(restoreDom);
+      }
+    });
+  }
+
+  test("format errors remain inline while editing and disappear only for a valid answer", async () => {
+    const restoreDom = installTestDom();
+    try {
+      const view = renderRunner(
+        createForm([
+          createBlock({
+            id: "number",
+            type: "NUMBER",
+            position: 0,
+            required: true,
+          }),
+        ]),
+      );
+      const input = view.getByRole("textbox", { name: "number" });
+      typeIntoInput(input, "abc");
+      fireEvent.click(view.getByRole("button", { name: "Submit" }));
+      expect(view.getByRole("alert")).not.toBe(null);
+      typeIntoInput(input, "def");
+      expect(input.getAttribute("aria-invalid")).toBe("true");
+      expect(view.getByRole("alert")).not.toBe(null);
+      typeIntoInput(input, "42");
+      expect(input.getAttribute("aria-invalid")).toBe("false");
+      expect(view.queryByRole("alert")).toBe(null);
+      expect(view.queryByRole("status")).toBe(null);
+    } finally {
+      await cleanupAndRestore(restoreDom);
+    }
+  });
+
   test("a page with a required empty block stays on screen with its error", async () => {
     const restoreDom = installTestDom();
     const previousFetch = globalThis.fetch;
@@ -1852,6 +1988,20 @@ describe("PublicFormRunner", () => {
     });
     expect(view.getByText("Instance 2 of 2") !== null).toBe(true);
     expect(requests.length).toBe(0);
+
+    expect(view.getByRole("textbox").getAttribute("aria-invalid")).toBe("true");
+    expect(view.queryByRole("status")).toBe(null);
+    fireEvent.click(view.getByRole("button", { name: /Back/ }));
+    await waitFor(() =>
+      expect(view.getByText("Instance 1 of 2")).not.toBe(null),
+    );
+    expect(view.queryByRole("alert")).toBe(null);
+    expect((view.getByRole("textbox") as HTMLInputElement).value).toBe("Ann");
+    fireEvent.click(view.getByRole("button", { name: "Continue" }));
+    await waitFor(() =>
+      expect(view.getByText("Instance 2 of 2")).not.toBe(null),
+    );
+    expect(view.queryByRole("alert")).toBe(null);
 
     typeIntoInput(view.getByRole("textbox"), "Bob");
     fireEvent.click(view.getByRole("button", { name: "Submit" }));
