@@ -366,25 +366,9 @@ function isChoiceShortcutBlock(block: PublicBlock) {
   );
 }
 
-// Text-like blocks carry the fields Enter walks through, in saved order.
+// Focus the first text-like field when a page opens.
 function getFirstFieldBlockId(page: ResolvedPage) {
   return page.blocks.find(isTextLikeBlock)?.id ?? null;
-}
-
-function getNextFieldBlockId(page: ResolvedPage, blockId: string) {
-  const currentIndex = page.blocks.findIndex((block) => block.id === blockId);
-
-  if (currentIndex < 0) {
-    return null;
-  }
-
-  for (let index = currentIndex + 1; index < page.blocks.length; index += 1) {
-    if (isTextLikeBlock(page.blocks[index])) {
-      return page.blocks[index].id;
-    }
-  }
-
-  return null;
 }
 
 // The runner's answer state: flat for blocks of non-repeating pages, one
@@ -626,9 +610,8 @@ export function PublicFormRunner({
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const startedAtRef = useRef(Date.now());
   const submitLockRef = useRef(false);
-  // The current step's text fields, keyed by block id: Enter walks them in
-  // saved order, and focus restore targets the first one. Steps of one page
-  // re-render the same block ids, so the nodes are replaced per instance.
+  // Current step's fields, keyed by block id for autofocus and validation.
+  // Repeating steps reuse block ids, so nodes are replaced per instance.
   const blockNodesRef = useRef(new Map<string, HTMLDivElement>());
   const fieldNodesRef = useRef(
     new Map<string, HTMLInputElement | HTMLTextAreaElement>(),
@@ -1256,11 +1239,10 @@ export function PublicFormRunner({
     [choiceShortcutBlock, instanceAnswers, setAnswer],
   );
 
-  // Enter in a text field moves the focus to the next field of the page and
-  // submits from the last one; long text keeps Shift+Enter for newlines.
+  // Enter validates and advances the page, just like Continue / Submit.
+  // Long text keeps Shift+Enter for newlines.
   function handleFieldKeyDown(
     event: ReactKeyboardEvent<HTMLElement>,
-    blockId: string,
     options?: { allowShiftEnter?: boolean },
   ) {
     if (
@@ -1277,17 +1259,8 @@ export function PublicFormRunner({
 
     event.preventDefault();
 
-    const nextFieldBlockId = currentPage
-      ? getNextFieldBlockId(currentPage, blockId)
-      : null;
-
-    if (nextFieldBlockId) {
-      pendingFocusStepKeyRef.current = null;
-      focusPageField(nextFieldBlockId);
-      return;
-    }
-
-    void handleContinue();
+    event.stopPropagation();
+    void handleContinue(answersRef.current);
   }
 
   function preventPointerFocusSteal(
@@ -1563,9 +1536,7 @@ export function PublicFormRunner({
                             onChange={(event) =>
                               setAnswer(block.id, event.target.value)
                             }
-                            onKeyDown={(event) =>
-                              handleFieldKeyDown(event, block.id)
-                            }
+                            onKeyDown={(event) => handleFieldKeyDown(event)}
                           />
                         ) : null}
 
@@ -1593,7 +1564,7 @@ export function PublicFormRunner({
                               setAnswer(block.id, event.target.value)
                             }
                             onKeyDown={(event) =>
-                              handleFieldKeyDown(event, block.id, {
+                              handleFieldKeyDown(event, {
                                 allowShiftEnter: true,
                               })
                             }
@@ -1635,9 +1606,7 @@ export function PublicFormRunner({
                               onChange={(event) =>
                                 setAnswer(block.id, event.target.value)
                               }
-                              onKeyDown={(event) =>
-                                handleFieldKeyDown(event, block.id)
-                              }
+                              onKeyDown={(event) => handleFieldKeyDown(event)}
                             />
                             <NumberRangeHint
                               config={block.config as NumberBlockConfig}
@@ -1669,9 +1638,7 @@ export function PublicFormRunner({
                             onChange={(event) =>
                               setAnswer(block.id, event.target.value)
                             }
-                            onKeyDown={(event) =>
-                              handleFieldKeyDown(event, block.id)
-                            }
+                            onKeyDown={(event) => handleFieldKeyDown(event)}
                           />
                         ) : null}
 
@@ -1702,7 +1669,7 @@ export function PublicFormRunner({
                                     setAnswer(block.id, value)
                                   }
                                   onKeyDown={(event) =>
-                                    handleFieldKeyDown(event, block.id)
+                                    handleFieldKeyDown(event)
                                   }
                                   openCalendarLabel={t(
                                     "publicRunner.openCalendar",
