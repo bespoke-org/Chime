@@ -4,6 +4,7 @@ import type { SerializedBlock } from "@/lib/blocks";
 import {
   buildResponseDetailData,
   buildResponseReviewData,
+  resolveStoredAnswerView,
 } from "@/lib/response-review";
 
 function createBlock(
@@ -19,6 +20,7 @@ function createBlock(
     description: overrides.description ?? "",
     required: overrides.required ?? false,
     position: overrides.position ?? 0,
+    pageId: overrides.pageId ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
     config:
@@ -190,6 +192,61 @@ describe("buildResponseReviewData", () => {
     expect(scoreSummary?.kind === "number" ? scoreSummary.average : null).toBe(
       15,
     );
+  });
+});
+
+describe("stored answer views of repeating blocks", () => {
+  test("reads the answered instances of a scalar block and drops holes", () => {
+    const block = createBlock({ id: "note", type: "SHORT_TEXT", position: 0 });
+    const view = resolveStoredAnswerView(block, ["first", null, "third"]);
+
+    expect(view.kind).toBe("instances");
+    expect(view.kind === "instances" ? JSON.stringify(view.entries) : "").toBe(
+      JSON.stringify([
+        { value: "first", instanceIndex: 0 },
+        { value: "third", instanceIndex: 2 },
+      ]),
+    );
+  });
+
+  test("keeps each multiple-choice instance's selections", () => {
+    const block = createBlock({
+      id: "toppings",
+      type: "MULTIPLE_CHOICE",
+      position: 0,
+    });
+    const view = resolveStoredAnswerView(block, [
+      ["olives", "cheese"],
+      null,
+      ["olives"],
+    ]);
+
+    expect(view.kind).toBe("instances");
+    expect(view.kind === "instances" ? JSON.stringify(view.entries) : "").toBe(
+      JSON.stringify([
+        { value: ["olives", "cheese"], instanceIndex: 0 },
+        { value: ["olives"], instanceIndex: 2 },
+      ]),
+    );
+  });
+
+  test("leaves flat answers and empty instance arrays alone", () => {
+    const choice = createBlock({
+      id: "toppings",
+      type: "MULTIPLE_CHOICE",
+      position: 0,
+    });
+    const text = createBlock({ id: "note", type: "SHORT_TEXT", position: 0 });
+
+    expect(resolveStoredAnswerView(choice, ["olives", "cheese"]).kind).toBe(
+      "flat",
+    );
+    expect(resolveStoredAnswerView(text, "Ada").kind).toBe("flat");
+    expect(resolveStoredAnswerView(text, undefined).kind).toBe("flat");
+
+    const empty = resolveStoredAnswerView(text, []);
+    expect(empty.kind).toBe("instances");
+    expect(empty.kind === "instances" ? empty.entries.length : -1).toBe(0);
   });
 });
 
@@ -512,5 +569,163 @@ describe("rating question summaries", () => {
     expect(summary?.kind === "number" ? typeof summary.distribution : "").toBe(
       "undefined",
     );
+  });
+});
+
+describe("repeating question summaries", () => {
+  const blocks = [
+    createBlock({
+      id: "dish",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      config: {
+        options: ["pasta", "salad"],
+        branchRules: [],
+        defaultNextBlockId: null,
+      },
+    }),
+    createBlock({
+      id: "toppings",
+      type: "MULTIPLE_CHOICE",
+      position: 1,
+      config: {
+        options: ["olives", "cheese"],
+        branchRules: [],
+        defaultNextBlockId: null,
+      },
+    }),
+    createBlock({ id: "score", type: "NUMBER", position: 2 }),
+    createBlock({ id: "note", type: "SHORT_TEXT", position: 3 }),
+  ];
+
+  function snapshotOf(ids: string[]) {
+    return ids.map((id) => ({
+      id,
+      type: "SHORT_TEXT" as const,
+      title: id,
+      description: "",
+      required: false,
+      position: 0,
+      config: {},
+    }));
+  }
+
+  function summarize(
+    responses: Array<{ id: string; answersJson: unknown; ids: string[] }>,
+  ) {
+    return buildResponseReviewData({
+      form: {
+        id: "form-1",
+        title: "Survey",
+        slug: "survey",
+        status: "PUBLISHED",
+        workspace: { kind: "personal", label: "Personal workspace" },
+        blocks,
+      },
+      responses: responses.map((response) => ({
+        id: response.id,
+        submittedAt: new Date("2026-04-14T10:00:00.000Z"),
+        answersJson: response.answersJson,
+        formSnapshotJson: snapshotOf(response.ids),
+      })),
+    }).questionSummaries;
+  }
+
+  test("counts every answered instance like a separate answer in the tallies", () => {
+    const summaries = summarize([
+      {
+        id: "response-1",
+        answersJson: {
+          dish: ["pasta", "salad"],
+          toppings: [["olives", "cheese"], ["olives"]],
+          score: ["10", "20"],
+          note: ["first", "second"],
+        },
+        ids: ["dish", "toppings", "score", "note"],
+      },
+      {
+        id: "response-2",
+        answersJson: { dish: ["pasta"], score: ["30"] },
+        ids: ["dish", "toppings", "score", "note"],
+      },
+      { id: "response-3", answersJson: {}, ids: [] },
+    ]);
+
+    const dish = summaries.find((summary) => summary.block.id === "dish");
+    expect(dish?.kind).toBe("choice");
+    expect(dish?.reachedCount).toBe(2);
+    expect(dish?.answeredCount).toBe(2);
+    expect(dish?.emptyCount).toBe(0);
+    expect(dish?.skippedCount).toBe(1);
+    expect(
+      dish?.kind === "choice" ? JSON.stringify(dish.optionCounts) : "",
+    ).toBe(
+      JSON.stringify([
+        { value: "pasta", count: 2 },
+        { value: "salad", count: 1 },
+      ]),
+    );
+
+    const toppings = summaries.find(
+      (summary) => summary.block.id === "toppings",
+    );
+    expect(toppings?.kind).toBe("choice");
+    expect(toppings?.reachedCount).toBe(2);
+    expect(toppings?.answeredCount).toBe(1);
+    expect(toppings?.emptyCount).toBe(1);
+    expect(
+      toppings?.kind === "choice" ? JSON.stringify(toppings.optionCounts) : "",
+    ).toBe(
+      JSON.stringify([
+        { value: "olives", count: 2 },
+        { value: "cheese", count: 1 },
+      ]),
+    );
+
+    const score = summaries.find((summary) => summary.block.id === "score");
+    expect(score?.kind).toBe("number");
+    expect(score?.reachedCount).toBe(2);
+    expect(score?.answeredCount).toBe(2);
+    expect(score?.kind === "number" ? score.min : null).toBe(10);
+    expect(score?.kind === "number" ? score.max : null).toBe(30);
+    expect(score?.kind === "number" ? score.average : null).toBe(20);
+
+    const note = summaries.find((summary) => summary.block.id === "note");
+    expect(note?.kind).toBe("freeform");
+    expect(note?.reachedCount).toBe(2);
+    expect(note?.answeredCount).toBe(1);
+    expect(note?.emptyCount).toBe(1);
+    expect(
+      note?.kind === "freeform"
+        ? JSON.stringify(
+            note.answers.map((answer) => ({
+              submissionNumber: answer.submissionNumber,
+              value: answer.value,
+            })),
+          )
+        : "",
+    ).toBe(
+      JSON.stringify([
+        { submissionNumber: 1, value: "second" },
+        { submissionNumber: 1, value: "first" },
+      ]),
+    );
+  });
+
+  test("keeps a repeating block with no answered instances empty but reached", () => {
+    const summaries = summarize([
+      {
+        id: "response-1",
+        answersJson: { note: [null] },
+        ids: ["note"],
+      },
+    ]);
+
+    const note = summaries.find((summary) => summary.block.id === "note");
+
+    expect(note?.reachedCount).toBe(1);
+    expect(note?.answeredCount).toBe(0);
+    expect(note?.emptyCount).toBe(1);
+    expect(note?.kind === "freeform" ? note.answers.length : -1).toBe(0);
   });
 });

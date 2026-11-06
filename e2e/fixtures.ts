@@ -1,12 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@prisma/client";
 import { test as base } from "@playwright/test";
 
 export { expect } from "@playwright/test";
 
-export const test = base.extend<{ publicForm: { id: string; slug: string } }>({
-  publicForm: async ({}, runTest) => {
+type FormLayout = Pick<
+  Prisma.FormCreateWithoutUserInput,
+  "pagesJson" | "blocks"
+>;
+
+export const test = base.extend<{
+  formLayout: FormLayout;
+  publicForm: {
+    id: string;
+    slug: string;
+    readAnswers: (responseId: string) => Promise<Prisma.JsonValue>;
+  };
+}>({
+  formLayout: [{}, { option: true }],
+  publicForm: async ({ formLayout }, runTest) => {
     // Require a separate, explicit connection so browser tests cannot silently
     // fall back to the developer's normal DATABASE_URL.
     const connectionString = process.env.E2E_DATABASE_URL;
@@ -59,13 +72,23 @@ export const test = base.extend<{ publicForm: { id: string; slug: string } }>({
                   },
                 ],
               },
+              ...formLayout,
             },
           },
         },
         include: { forms: true },
       });
 
-      await runTest(user.forms[0]!);
+      const form = user.forms[0]!;
+      await runTest({
+        ...form,
+        readAnswers: async (responseId) => {
+          const response = await db.response.findFirstOrThrow({
+            where: { id: responseId, formId: form.id },
+          });
+          return response.answersJson;
+        },
+      });
     } finally {
       try {
         // Cascades remove only this test's form, visits and responses.

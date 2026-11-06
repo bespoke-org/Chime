@@ -17,6 +17,7 @@ const blocks: SerializedBlock[] = [
     description: "",
     required: true,
     position: 0,
+    pageId: null,
     createdAt: now,
     updatedAt: now,
     config: {
@@ -35,6 +36,7 @@ const blocks: SerializedBlock[] = [
     description: "",
     required: false,
     position: 1,
+    pageId: null,
     createdAt: now,
     updatedAt: now,
     config: {
@@ -53,6 +55,7 @@ const blocks: SerializedBlock[] = [
     description: "",
     required: true,
     position: 2,
+    pageId: null,
     createdAt: now,
     updatedAt: now,
     config: {
@@ -70,6 +73,7 @@ const blocks: SerializedBlock[] = [
     description: "",
     required: false,
     position: 3,
+    pageId: null,
     createdAt: now,
     updatedAt: now,
     config: {
@@ -96,6 +100,7 @@ const form: PublicForm = {
   closedMessage: "",
   slug: "focus-demo",
   blocks,
+  pages: [],
 };
 
 export default function PublicRunnerFocusPage() {

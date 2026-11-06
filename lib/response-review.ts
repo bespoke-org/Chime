@@ -11,8 +11,10 @@ import {
   type SerializedBlock,
 } from "@/lib/blocks";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
+import { instanceAnswerEntries, type InstanceAnswerEntry } from "@/lib/repeat";
 import { collectResponseIdentity } from "@/lib/response-identity";
 import type {
+  AnswerValue,
   QuestionSummary,
   QuestionSummaryAnswer,
   ResponseDetail,
@@ -20,10 +22,9 @@ import type {
   ResponseListItem,
   ResponseReviewData,
   ResponseReviewFormSummary,
+  StoredAnswerValue,
   WorkspaceReference,
 } from "@/lib/form-types";
-
-type StoredAnswerValue = string | string[];
 
 type StoredResponseLike = {
   id: string;
@@ -52,6 +53,45 @@ export function parseStoredAnswers(
     : {};
 }
 
+// How review and export read a stored answer. A block of a repeating page
+// stores one entry per instance; every other block keeps its flat shape. A
+// response carries no page registry, so the nesting is read from the value
+// itself: a flat scalar answer is a string and a flat multiple-choice answer
+// holds only strings, so instance entries mark a repeating block (for multiple
+// choice: arrays among the entries, because an unanswered instance between
+// answered ones serializes as null).
+export type StoredAnswerView =
+  | { kind: "instances"; entries: InstanceAnswerEntry[] }
+  | { kind: "flat"; value: string | string[] | undefined };
+
+// A stored answer of a repeating block may carry null holes: JSON round-trips
+// an unanswered instance as null.
+export type StoredAnswerInput =
+  | StoredAnswerValue
+  | undefined
+  | (string | null)[]
+  | (string[] | null)[];
+
+export function resolveStoredAnswerView(
+  block: Pick<SerializedBlock, "type">,
+  value: StoredAnswerInput,
+): StoredAnswerView {
+  if (
+    Array.isArray(value) &&
+    (block.type !== "MULTIPLE_CHOICE" ||
+      value.some((instance) => Array.isArray(instance)))
+  ) {
+    return { kind: "instances", entries: instanceAnswerEntries(value) };
+  }
+
+  return {
+    kind: "flat",
+    value: Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === "string")
+      : value,
+  };
+}
+
 export function restoreVisitedBlocksFromSnapshot(
   formSnapshotJson: unknown,
   fallbackBlocks: SerializedBlock[],
@@ -75,6 +115,7 @@ export function restoreVisitedBlocksFromSnapshot(
           description: block.description,
           required: block.required,
           position: block.position,
+          pageId: null,
           formId,
           createdAt: submittedAt,
           updatedAt: submittedAt,
@@ -123,11 +164,34 @@ function aggregateQuestionSummaries(
       response.visitedBlockIds.has(block.id),
     );
     const skippedCount = responseSummaries.length - reachedResponses.length;
-    const answeredResponses = reachedResponses.filter((response) =>
-      hasRecordedAnswer(response.answers[block.id]),
-    );
-    const answeredCount = answeredResponses.length;
+
+    // Every answered instance of a repeating block counts like a separate
+    // answer in the tallies, while reached, answered and empty stay per
+    // response so the four counts keep their meaning.
+    const answeredEntries = reachedResponses
+      .map((response) => ({
+        response,
+        view: resolveStoredAnswerView(block, response.answers[block.id]),
+      }))
+      .filter(({ view }) =>
+        view.kind === "instances"
+          ? view.entries.length > 0
+          : hasRecordedAnswer(view.value),
+      );
+    const answeredCount = answeredEntries.length;
     const emptyCount = reachedResponses.length - answeredCount;
+
+    // What one answered response contributes to the tallies: the answered
+    // instances of a repeating block, its flat answer otherwise.
+    const answeredValues: AnswerValue[][] = answeredEntries.map(({ view }) =>
+      view.kind === "instances"
+        ? view.entries.map((entry) => entry.value)
+        : Array.isArray(view.value)
+          ? view.value
+          : typeof view.value === "string"
+            ? [view.value]
+            : [],
+    );
 
     if (
       block.type === "SINGLE_CHOICE" ||
@@ -140,16 +204,13 @@ function aggregateQuestionSummaries(
           : [...(block.config as ChoiceBlockConfig).options];
       const optionCounts = new Map(initialOptions.map((value) => [value, 0]));
 
-      for (const response of answeredResponses) {
-        const answer = response.answers[block.id];
-        const values = Array.isArray(answer)
-          ? answer
-          : typeof answer === "string"
-            ? [answer]
-            : [];
-
+      for (const values of answeredValues) {
         for (const value of values) {
-          optionCounts.set(value, (optionCounts.get(value) ?? 0) + 1);
+          const selections = Array.isArray(value) ? value : [value];
+
+          for (const selection of selections) {
+            optionCounts.set(selection, (optionCounts.get(selection) ?? 0) + 1);
+          }
         }
       }
 
@@ -168,10 +229,10 @@ function aggregateQuestionSummaries(
     }
 
     if (isNumericAnswerBlock(block.type)) {
-      const numericAnswers = answeredResponses
-        .map((response) => response.answers[block.id])
-        .filter((answer): answer is string => typeof answer === "string")
-        .map((answer) => Number(answer))
+      const numericAnswers = answeredValues
+        .flat()
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => Number(value))
         .filter((value) => Number.isFinite(value));
       const average = numericAnswers.length
         ? numericAnswers.reduce((sum, value) => sum + value, 0) /
@@ -199,33 +260,24 @@ function aggregateQuestionSummaries(
       } satisfies QuestionSummary;
     }
 
-    const answers = answeredResponses
-      .map((response) => ({
-        responseId: response.id,
-        submissionNumber: response.submissionNumber,
-        value: response.answers[block.id],
-      }))
-      .flatMap((response): QuestionSummaryAnswer[] => {
-        if (Array.isArray(response.value)) {
-          return response.value.map((value) => ({
-            responseId: response.responseId,
-            submissionNumber: response.submissionNumber,
-            value,
-          }));
-        }
-
-        if (typeof response.value === "string") {
-          return [
-            {
-              responseId: response.responseId,
-              submissionNumber: response.submissionNumber,
-              value: response.value,
-            },
-          ];
-        }
-
-        return [];
-      })
+    const answers = answeredEntries
+      .flatMap(({ response }, index) =>
+        answeredValues[index].flatMap((value): QuestionSummaryAnswer[] =>
+          Array.isArray(value)
+            ? value.map((entry) => ({
+                responseId: response.id,
+                submissionNumber: response.submissionNumber,
+                value: entry,
+              }))
+            : [
+                {
+                  responseId: response.id,
+                  submissionNumber: response.submissionNumber,
+                  value,
+                },
+              ],
+        ),
+      )
       .reverse();
 
     return {

@@ -1,4 +1,5 @@
 import type { FormBlockType as PrismaFormBlockType } from "@prisma/client";
+import { z } from "zod";
 
 import {
   AGREEMENT_ANSWER_VALUES,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/blocks";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
 import type { BuilderBlock } from "@/lib/form-types";
+import { parsePageRegistry, type PageDefinition } from "@/lib/pages";
 
 export type ChoiceOptionDraft = {
   id: string;
@@ -183,4 +185,121 @@ export function parseMaxResponsesDraft(value: string) {
   const trimmed = value.trim();
 
   return trimmed === "" ? null : Number(trimmed);
+}
+
+export const FORM_BUILDER_DRAFT_STORAGE_PREFIX = "chime-builder-draft";
+export const FORM_BUILDER_DRAFT_VERSION = 1;
+
+// A block as the builder edits it: the serialized block plus the page it
+// belongs to. pageId is absent while the block payload predates pages.
+export type BuilderDraftBlock = BuilderBlock & { pageId?: string | null };
+
+// The builder draft kept in localStorage. pages is absent in drafts saved
+// before pages existed; loading treats it as "no pages saved" and the blocks
+// resolve to single-block pages.
+export type StoredFormBuilderDraft = {
+  version: typeof FORM_BUILDER_DRAFT_VERSION;
+  formId: string;
+  savedAt: number;
+  blocks: BuilderDraftBlock[];
+  pages?: PageDefinition[];
+};
+
+export type StoredFormBuilderDraftReadResult =
+  | {
+      status: "missing" | "unavailable" | "invalid";
+    }
+  | {
+      status: "ok";
+      draft: StoredFormBuilderDraft;
+    };
+
+const storedFormBuilderDraftSchema = z.object({
+  version: z.literal(FORM_BUILDER_DRAFT_VERSION),
+  formId: z.string().min(1),
+  savedAt: z.number().int().nonnegative(),
+  // Only the envelope is checked: a stored block keeps whatever shape the
+  // builder saved (dates come back as ISO strings).
+  blocks: z.array(z.record(z.string(), z.unknown())),
+  pages: z.array(z.unknown()).optional(),
+});
+
+export function getFormBuilderDraftStorageKey(formId: string) {
+  return `${FORM_BUILDER_DRAFT_STORAGE_PREFIX}:${formId}`;
+}
+
+export function createFormBuilderDraft(args: {
+  formId: string;
+  blocks: BuilderDraftBlock[];
+  pages?: PageDefinition[];
+}): StoredFormBuilderDraft {
+  return {
+    version: FORM_BUILDER_DRAFT_VERSION,
+    formId: args.formId,
+    savedAt: Date.now(),
+    blocks: args.blocks,
+    ...(args.pages === undefined ? {} : { pages: args.pages }),
+  };
+}
+
+export function parseFormBuilderDraft(
+  value: unknown,
+): StoredFormBuilderDraft | null {
+  const parsed = storedFormBuilderDraftSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  return {
+    version: parsed.data.version,
+    formId: parsed.data.formId,
+    savedAt: parsed.data.savedAt,
+    blocks: parsed.data.blocks as BuilderDraftBlock[],
+    ...(parsed.data.pages === undefined
+      ? {}
+      : { pages: parsePageRegistry(parsed.data.pages) }),
+  };
+}
+
+export function readStoredFormBuilderDraft(
+  storageKey: string,
+): StoredFormBuilderDraftReadResult {
+  let rawDraft: string | null = null;
+
+  try {
+    rawDraft = window.localStorage.getItem(storageKey);
+  } catch {
+    return { status: "unavailable" };
+  }
+
+  if (!rawDraft) {
+    return { status: "missing" };
+  }
+
+  try {
+    const draft = parseFormBuilderDraft(JSON.parse(rawDraft));
+    return draft ? { status: "ok", draft } : { status: "invalid" };
+  } catch {
+    return { status: "invalid" };
+  }
+}
+
+export function writeStoredFormBuilderDraft(
+  storageKey: string,
+  draft: StoredFormBuilderDraft,
+) {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(draft));
+  } catch {
+    // ignore persistence failures
+  }
+}
+
+export function removeStoredFormBuilderDraft(storageKey: string) {
+  try {
+    window.localStorage.removeItem(storageKey);
+  } catch {
+    // ignore persistence failures
+  }
 }

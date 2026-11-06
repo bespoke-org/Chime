@@ -19,7 +19,11 @@ export function collectResponseIdentity(
     }
 
     const config = block.config as Partial<ShortTextBlockConfig>;
-    const value = answers[block.id];
+    const raw = answers[block.id];
+    // On a repeating page the block stores one string per instance; identity
+    // is the first instance.
+    const value =
+      typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
 
     if (!config.identity || typeof value !== "string" || !value) {
       return [];

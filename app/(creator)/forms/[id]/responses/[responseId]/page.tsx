@@ -10,9 +10,11 @@ import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { AGREEMENT_ANSWER_VALUES } from "@/lib/blocks";
 import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
+import type { AnswerValue } from "@/lib/form-types";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { formatResponseIdentity } from "@/lib/response-identity";
+import { resolveStoredAnswerView } from "@/lib/response-review";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 import { formatSizeMb } from "@/lib/uploads";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
@@ -64,6 +66,94 @@ export default async function ResponseDetailPage({
     date: formatDate(response.submittedAt, locale),
   });
 
+  // One answer value as the detail card shows it: a single selection list,
+  // link, date, agreement, upload or plain text.
+  const renderAnswerValue = (type: string, value: AnswerValue | undefined) => {
+    if (Array.isArray(value)) {
+      return (
+        <div className="flex flex-wrap gap-2">
+          {value.map((item) => (
+            <Badge
+              key={item}
+              className="bg-[var(--surface-strong)] text-[var(--ink)]"
+            >
+              {item}
+            </Badge>
+          ))}
+        </div>
+      );
+    }
+
+    if (!value) {
+      return (
+        <p className="text-sm text-[var(--muted)]">
+          {t("responseDetail.noAnswer")}
+        </p>
+      );
+    }
+
+    if (type === "LINK") {
+      return (
+        <Link
+          href={value}
+          target="_blank"
+          rel="noreferrer"
+          className="break-all text-base leading-8 text-[var(--accent)] hover:underline"
+        >
+          {value}
+        </Link>
+      );
+    }
+
+    if (type === "DATE") {
+      return (
+        <p className="whitespace-pre-wrap text-base leading-8">
+          {formatCalendarDate(value, locale)}
+        </p>
+      );
+    }
+
+    if (type === "AGREEMENT") {
+      return (
+        <p className="whitespace-pre-wrap text-base leading-8">
+          {value === AGREEMENT_ANSWER_VALUES.AGREED
+            ? t("publicRunner.agree")
+            : t("publicRunner.doNotAgree")}
+        </p>
+      );
+    }
+
+    if (type === "FILE_UPLOAD") {
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="break-all text-base leading-8">
+              {response.uploads[value]?.filename ??
+                t("responseDetail.noAnswer")}
+            </p>
+            {response.uploads[value] ? (
+              <p className="text-sm text-[var(--muted)]">
+                {t("responseDetail.fileSize", {
+                  size: formatSizeMb(response.uploads[value].size),
+                })}
+              </p>
+            ) : null}
+          </div>
+          {response.uploads[value] ? (
+            <a
+              href={`/api/forms/${id}/uploads/${value}`}
+              className="text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              {t("responseDetail.downloadFile")}
+            </a>
+          ) : null}
+        </div>
+      );
+    }
+
+    return <p className="whitespace-pre-wrap text-base leading-8">{value}</p>;
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -85,7 +175,10 @@ export default async function ResponseDetailPage({
 
       <div className="space-y-4">
         {response.blocks.map((block) => {
-          const answer = response.answers[block.id];
+          const answerView = resolveStoredAnswerView(
+            block,
+            response.answers[block.id],
+          );
 
           if (block.type === "TEXT") {
             return (
@@ -129,70 +222,31 @@ export default async function ResponseDetailPage({
                 />
               ) : null}
               <div className="mt-6 border-l-2 border-[var(--accent)] pl-4 text-[var(--ink)]/80">
-                {Array.isArray(answer) ? (
-                  <div className="flex flex-wrap gap-2">
-                    {answer.map((value) => (
-                      <Badge
-                        key={value}
-                        className="bg-[var(--surface-strong)] text-[var(--ink)]"
-                      >
-                        {value}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : answer ? (
-                  block.type === "LINK" ? (
-                    <Link
-                      href={answer}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="break-all text-base leading-8 text-[var(--accent)] hover:underline"
-                    >
-                      {answer}
-                    </Link>
-                  ) : block.type === "DATE" ? (
-                    <p className="whitespace-pre-wrap text-base leading-8">
-                      {formatCalendarDate(answer, locale)}
-                    </p>
-                  ) : block.type === "AGREEMENT" ? (
-                    <p className="whitespace-pre-wrap text-base leading-8">
-                      {answer === AGREEMENT_ANSWER_VALUES.AGREED
-                        ? t("publicRunner.agree")
-                        : t("publicRunner.doNotAgree")}
-                    </p>
-                  ) : block.type === "FILE_UPLOAD" ? (
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="break-all text-base leading-8">
-                          {response.uploads[answer]?.filename ??
-                            t("responseDetail.noAnswer")}
-                        </p>
-                        {response.uploads[answer] ? (
-                          <p className="text-sm text-[var(--muted)]">
-                            {t("responseDetail.fileSize", {
-                              size: formatSizeMb(response.uploads[answer].size),
+                {answerView.kind === "instances" ? (
+                  answerView.entries.length ? (
+                    // A repeating page leaves one entry per answered
+                    // instance, labeled by its instance number.
+                    <div className="space-y-5">
+                      {answerView.entries.map((entry) => (
+                        <div key={entry.instanceIndex}>
+                          <p className="text-sm font-medium text-[var(--muted)]">
+                            {t("formPages.instanceShortLabel", {
+                              number: entry.instanceIndex + 1,
                             })}
                           </p>
-                        ) : null}
-                      </div>
-                      {response.uploads[answer] ? (
-                        <a
-                          href={`/api/forms/${id}/uploads/${answer}`}
-                          className="text-sm font-medium text-[var(--accent)] hover:underline"
-                        >
-                          {t("responseDetail.downloadFile")}
-                        </a>
-                      ) : null}
+                          <div className="mt-2">
+                            {renderAnswerValue(block.type, entry.value)}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap text-base leading-8">
-                      {answer}
+                    <p className="text-sm text-[var(--muted)]">
+                      {t("responseDetail.noAnswer")}
                     </p>
                   )
                 ) : (
-                  <p className="text-sm text-[var(--muted)]">
-                    {t("responseDetail.noAnswer")}
-                  </p>
+                  renderAnswerValue(block.type, answerView.value)
                 )}
               </div>
             </Card>

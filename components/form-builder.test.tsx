@@ -1,10 +1,22 @@
 import { describe, expect, test } from "bun:test";
+import * as React from "react";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 
 import { I18nProvider } from "@/components/i18n-provider";
+import {
+  buildPageSections,
+  countBlockCandidates,
+  deletePageById,
+  movePageToAnchor,
+  insertionForGap,
+  pageIdAfterDrop,
+  pageIdForNewBlock,
+  splitPageAfter,
+} from "@/components/builder/block-creation";
 import { getDefaultBlockConfig } from "@/lib/blocks";
 import type { BuilderBlock, BuilderForm } from "@/lib/form-types";
 import type { TranslationTree } from "@/lib/i18n";
+import type { PageDefinition } from "@/lib/pages";
 import { installTestDom } from "@/test/install-dom";
 
 const routerPushCalls: string[] = [];
@@ -25,6 +37,82 @@ mock.module("next/navigation", () => ({
   usePathname: () => window.location.pathname,
 }));
 
+// Radix portals do not mount in the test DOM, so the popover here is an
+// inline stand-in: the trigger toggles, the content renders in place when
+// open. Tests then reach menu items the way a user does.
+mock.module("@/components/ui/popover", () => {
+  const context = React.createContext<{
+    isOpen: boolean;
+    toggle: () => void;
+  } | null>(null);
+
+  function Popover({
+    open,
+    onOpenChange,
+    children,
+  }: {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    children?: React.ReactNode;
+  }) {
+    const [uncontrolled, setUncontrolled] = React.useState(false);
+    const isOpen = open ?? uncontrolled;
+
+    return (
+      <context.Provider
+        value={{
+          isOpen,
+          toggle: () => {
+            onOpenChange?.(!isOpen);
+            if (open === undefined) {
+              setUncontrolled(!isOpen);
+            }
+          },
+        }}
+      >
+        {children}
+      </context.Provider>
+    );
+  }
+
+  function PopoverTrigger({
+    children,
+  }: {
+    asChild?: boolean;
+    children?: React.ReactNode;
+  }) {
+    const popover = React.useContext(context);
+
+    if (!popover || !React.isValidElement(children)) {
+      return null;
+    }
+
+    const child = children as React.ReactElement<{
+      onClick?: (event: unknown) => void;
+    }>;
+
+    return React.cloneElement(child, {
+      onClick: (event: unknown) => {
+        child.props.onClick?.(event);
+        popover.toggle();
+      },
+    });
+  }
+
+  function PopoverContent({
+    children,
+    ...props
+  }: {
+    children?: React.ReactNode;
+  }) {
+    const popover = React.useContext(context);
+
+    return popover?.isOpen ? <div {...props}>{children}</div> : null;
+  }
+
+  return { Popover, PopoverTrigger, PopoverContent };
+});
+
 const { FormBuilder } = await import("@/components/form-builder");
 
 function createBlock(
@@ -41,11 +129,15 @@ function createBlock(
     createdAt: now,
     updatedAt: now,
     config: getDefaultBlockConfig(overrides.type),
+    pageId: null,
     ...overrides,
   } as BuilderBlock;
 }
 
-function createForm(blocks: BuilderBlock[]): BuilderForm {
+function createForm(
+  blocks: BuilderBlock[],
+  pages?: PageDefinition[],
+): BuilderForm {
   return {
     id: "form-1",
     title: "Form title",
@@ -75,6 +167,7 @@ function createForm(blocks: BuilderBlock[]): BuilderForm {
       label: "Personal workspace",
     },
     blocks,
+    pages: pages ?? [],
   };
 }
 
@@ -1502,5 +1595,1255 @@ describe("FormBuilder", () => {
     });
 
     await cleanupAndRestore(restoreDom);
+  });
+
+  const pageMessages: TranslationTree = {
+    formPages: {
+      newPage: "New page",
+      pageLabel: "Page {number}",
+      deletePage: "Delete page",
+      deletePageMergeHint: "Its blocks move to the previous page",
+      repeatToggle: "Repeat this page",
+      repeatCountQuestion: "Count question",
+      repeatNoCandidates: "Add a number question on an earlier page",
+      repeatActive: 'Repeats by the answer to "{question}"',
+      repeatCountMissing: "The count question was deleted",
+      repeatCountNotNumber: "The count question must be a number question",
+      repeatCountOnPage: "The count question cannot be on this page",
+      repeatCountAfterPage: "The count question must come before this page",
+      repeatCountRepeats: "The count question cannot be on a repeating page",
+    },
+  };
+
+  test("renames a page and clears it back to the number label", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const pages: PageDefinition[] = [{ id: "p1" }];
+    const savedPagesBodies: PageDefinition[][] = [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      if (
+        String(url) === "/api/forms/form-1" &&
+        String(init?.method) === "PATCH"
+      ) {
+        const body = JSON.parse(String(init?.body)) as {
+          pages: PageDefinition[];
+        };
+        savedPagesBodies.push(body.pages);
+
+        return {
+          ok: true,
+          json: async () => ({ form: createForm([firstBlock], body.pages) }),
+        } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm([firstBlock], pages), undefined, {
+      ...pageMessages,
+      formPages: {
+        ...(pageMessages.formPages as TranslationTree),
+        renamePage: "Rename page",
+      },
+    } as TranslationTree);
+
+    fireEvent.click(view.getByRole("button", { name: "Rename page" }));
+    const input = view.getByRole("textbox", {
+      name: "Rename page",
+    }) as HTMLInputElement;
+    typeIntoInput(input, "Contacts");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(savedPagesBodies.length).toBe(1);
+    });
+    expect(savedPagesBodies[0]).toEqual([{ id: "p1", name: "Contacts" }]);
+    expect(view.getByText("Contacts") !== null).toBe(true);
+
+    fireEvent.click(view.getByRole("button", { name: "Rename page" }));
+    const clearInput = view.getByRole("textbox", {
+      name: "Rename page",
+    }) as HTMLInputElement;
+    typeIntoInput(clearInput, "");
+    fireEvent.keyDown(clearInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(savedPagesBodies.length).toBe(2);
+    });
+    expect(savedPagesBodies[1]).toEqual([{ id: "p1" }]);
+    expect(view.getByText("Page 1") !== null).toBe(true);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("renders no page headers for a form without a page registry", async () => {
+    const restoreDom = installTestDom();
+    const firstBlock = createBlock({
+      id: "block-1",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+    });
+    const secondBlock = createBlock({
+      id: "block-2",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+    });
+
+    const view = renderBuilder(
+      createForm([firstBlock, secondBlock]),
+      undefined,
+      pageMessages,
+    );
+
+    expect(view.queryByText("Page 1")).toBe(null);
+    expect(view.queryByText("Page 2")).toBe(null);
+    // One insertion point after each block, all inside the single run: the
+    // header plus button plus one divider per block gap.
+    expect(
+      view.getAllByRole("button", { name: "builder.newBlock" }).length,
+    ).toBe(3);
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("starts a page at an insertion point and materializes the registry", async () => {
+    const restoreDom = installTestDom();
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "SHORT_TEXT",
+        position: 0,
+        title: "First question",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Second question",
+      }),
+      createBlock({
+        id: "block-3",
+        type: "SHORT_TEXT",
+        position: 2,
+        title: "Third question",
+      }),
+    ];
+    const pageIdsByBlock = new Map<string, string | null>();
+    let savedPages: PageDefinition[] | null = null as PageDefinition[] | null;
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const urlValue = String(url);
+
+      if (urlValue.startsWith("/api/forms/form-1/blocks/block-")) {
+        const body = JSON.parse(String(init?.body)) as {
+          pageId: string | null;
+        };
+        pageIdsByBlock.set(urlValue.split("/").pop() as string, body.pageId);
+        return { ok: true, json: async () => ({}) } as Response;
+      }
+
+      if (urlValue === "/api/forms/form-1") {
+        const body = JSON.parse(String(init?.body)) as {
+          pages: PageDefinition[];
+        };
+        savedPages = body.pages;
+
+        return {
+          ok: true,
+          json: async () => ({
+            form: createForm(
+              blocks.map((block) => ({
+                ...block,
+                pageId: pageIdsByBlock.get(block.id) ?? null,
+              })),
+              body.pages,
+            ),
+          }),
+        } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(createForm(blocks), undefined, pageMessages);
+
+    // The divider plus opens the menu; "New page" sits below the block types.
+    fireEvent.click(
+      view.getAllByRole("button", { name: "builder.newBlock" })[1],
+    );
+    fireEvent.click(view.getByRole("button", { name: "New page" }));
+
+    await waitFor(() => {
+      expect(view.getByText("Page 1") !== null).toBe(true);
+      expect(view.getByText("Page 2") !== null).toBe(true);
+    });
+
+    expect(savedPages?.length).toBe(2);
+    const firstPageId = pageIdsByBlock.get("block-1");
+    const secondPageId = pageIdsByBlock.get("block-2");
+
+    expect(firstPageId).toBe(savedPages?.[0]?.id);
+    expect(secondPageId).toBe(savedPages?.[1]?.id);
+    expect(pageIdsByBlock.get("block-3")).toBe(secondPageId);
+    expect(firstPageId).not.toBe(secondPageId);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("merges a deleted page into the previous one", async () => {
+    const restoreDom = installTestDom();
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "SHORT_TEXT",
+        position: 0,
+        title: "First question",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Second question",
+        pageId: "page-2",
+      }),
+      createBlock({
+        id: "block-3",
+        type: "SHORT_TEXT",
+        position: 2,
+        title: "Third question",
+        pageId: "page-2",
+      }),
+    ];
+    const pages: PageDefinition[] = [{ id: "page-1" }, { id: "page-2" }];
+    const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> =
+      [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+        string,
+        unknown
+      >;
+      fetchCalls.push({ url: String(url), body });
+
+      if (String(url) === "/api/forms/form-1") {
+        return {
+          ok: true,
+          json: async () => ({
+            form: createForm(
+              blocks.map((block) => ({
+                ...block,
+                pageId: (body.pages as PageDefinition[])[0]?.id ?? null,
+              })),
+              body.pages as PageDefinition[],
+            ),
+          }),
+        } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+
+    // The first page is protected while the second one exists.
+    const deleteButtons = view.getAllByRole("button", {
+      name: "Delete page",
+    });
+
+    expect(deleteButtons.length).toBe(1);
+    expect(deleteButtons[0].getAttribute("title")).toBe(
+      "Its blocks move to the previous page",
+    );
+
+    fireEvent.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(view.queryByText("Page 2")).toBe(null);
+    });
+    expect(view.getByText("Page 1") !== null).toBe(true);
+
+    const blockPatches = fetchCalls.filter((call) =>
+      call.url.startsWith("/api/forms/form-1/blocks/block-"),
+    );
+
+    expect(blockPatches.length).toBe(2);
+    expect(blockPatches.map((call) => call.url).sort()).toEqual([
+      "/api/forms/form-1/blocks/block-2",
+      "/api/forms/form-1/blocks/block-3",
+    ]);
+    expect(blockPatches.every((call) => call.body.pageId === "page-1")).toBe(
+      true,
+    );
+
+    const metadataPatch = fetchCalls.find(
+      (call) => call.url === "/api/forms/form-1",
+    );
+
+    expect(metadataPatch?.body.pages).toEqual([{ id: "page-1" }]);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("keeps the header of a page whose only block is deleted", async () => {
+    const restoreDom = installTestDom();
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "SHORT_TEXT",
+        position: 0,
+        title: "First question",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Second question",
+        pageId: "page-2",
+      }),
+    ];
+    const pages: PageDefinition[] = [{ id: "page-1" }, { id: "page-2" }];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async () =>
+      ({ ok: true, json: async () => ({}) }) as Response) as typeof fetch;
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+
+    fireEvent.click(view.getByRole("button", { name: "Second question" }));
+    fireEvent.keyDown(document.body, { key: "Backspace" });
+
+    await waitFor(() => {
+      expect(view.getByText("builder.deleteBlockTitle") !== null).toBe(true);
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "ui.delete" }));
+
+    await waitFor(() => {
+      expect(view.queryByDisplayValue("Second question")).toBe(null);
+    });
+    expect(view.getByText("Page 1") !== null).toBe(true);
+    expect(view.getByText("Page 2") !== null).toBe(true);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  function repeatForm() {
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "NUMBER",
+        position: 0,
+        title: "How many guests?",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Guest name",
+        pageId: "page-2",
+      }),
+    ];
+
+    return { blocks, pages: [{ id: "page-1" }, { id: "page-2" }] };
+  }
+
+  function mockFetchCollector(
+    blocks: BuilderBlock[],
+    fetchCalls: Array<{ url: string; body: Record<string, unknown> }>,
+  ) {
+    return (async (url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+        string,
+        unknown
+      >;
+      fetchCalls.push({ url: String(url), body });
+
+      if (String(url) === "/api/forms/form-1") {
+        return {
+          ok: true,
+          json: async () => ({
+            form: createForm(blocks, body.pages as PageDefinition[]),
+          }),
+        } as Response;
+      }
+
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as typeof fetch;
+  }
+
+  test("sets a repeat from the page header and saves the registry entry", async () => {
+    const restoreDom = installTestDom();
+    const { blocks, pages } = repeatForm();
+    const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> =
+      [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = mockFetchCollector(blocks, fetchCalls);
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+    const toggles = view.getAllByRole("checkbox", {
+      name: "Repeat this page",
+    }) as HTMLInputElement[];
+
+    expect(toggles.length).toBe(2);
+    expect(toggles[1].checked).toBe(false);
+
+    // Turning the repeat on stores the first offered count question; picking
+    // another one from the select replaces it.
+    fireEvent.click(toggles[1]);
+
+    const metadataPatches = () =>
+      fetchCalls.filter((call) => call.url === "/api/forms/form-1");
+
+    await waitFor(() => {
+      expect(metadataPatches().length).toBe(1);
+    });
+    expect(metadataPatches()[0]?.body.pages).toEqual([
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-1" } },
+    ]);
+    expect(toggles[1].checked).toBe(true);
+    expect(
+      view.getByText('Repeats by the answer to "How many guests?"') !== null,
+    ).toBe(true);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("picking another count question from the select saves it", async () => {
+    const restoreDom = installTestDom();
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "NUMBER",
+        position: 0,
+        title: "How many guests?",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "NUMBER",
+        position: 1,
+        title: "Other count",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-3",
+        type: "SHORT_TEXT",
+        position: 2,
+        title: "Guest name",
+        pageId: "page-2",
+      }),
+    ];
+    const pages: PageDefinition[] = [
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-1" } },
+    ];
+    const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> =
+      [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = mockFetchCollector(blocks, fetchCalls);
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+
+    const select = view.getByLabelText("Count question") as HTMLSelectElement;
+    const optionValues = Array.from(select.options).map(
+      (option) => option.value,
+    );
+
+    expect(optionValues).toEqual(["block-1", "block-2"]);
+
+    fireEvent.change(select, { target: { value: "block-2" } });
+
+    const metadataPatches = () =>
+      fetchCalls.filter((call) => call.url === "/api/forms/form-1");
+
+    await waitFor(() => {
+      expect(metadataPatches().length).toBe(1);
+    });
+    expect(metadataPatches()[0]?.body.pages).toEqual([
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-2" } },
+    ]);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("clearing the repeat saves the registry entry without it", async () => {
+    const restoreDom = installTestDom();
+    const { blocks } = repeatForm();
+    const pages: PageDefinition[] = [
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-1" } },
+    ];
+    const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> =
+      [];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = mockFetchCollector(blocks, fetchCalls);
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+    const toggles = view.getAllByRole("checkbox", {
+      name: "Repeat this page",
+    }) as HTMLInputElement[];
+
+    expect(toggles[1].checked).toBe(true);
+
+    fireEvent.click(toggles[1]);
+
+    const metadataPatches = () =>
+      fetchCalls.filter((call) => call.url === "/api/forms/form-1");
+
+    await waitFor(() => {
+      expect(metadataPatches().length).toBe(1);
+    });
+    expect(metadataPatches()[0]?.body.pages).toEqual([
+      { id: "page-1" },
+      { id: "page-2" },
+    ]);
+    await waitFor(() => {
+      expect(toggles[1].checked).toBe(false);
+    });
+    expect(
+      view.queryByText('Repeats by the answer to "How many guests?"'),
+    ).toBe(null);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("the count question select offers only number blocks of earlier pages", async () => {
+    const restoreDom = installTestDom();
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "NUMBER",
+        position: 0,
+        title: "How many guests?",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Guest name",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-3",
+        type: "NUMBER",
+        position: 2,
+        title: "Later count",
+        pageId: "page-2",
+      }),
+    ];
+    const pages: PageDefinition[] = [
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-1" } },
+    ];
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+
+    const select = view.getByLabelText("Count question") as HTMLSelectElement;
+    const optionValues = Array.from(select.options).map(
+      (option) => option.value,
+    );
+
+    expect(optionValues).toEqual(["block-1"]);
+    expect(
+      view.queryByText("The count question must come before this page"),
+    ).toBe(null);
+
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("warns on the page header when the stored count block is deleted", async () => {
+    const restoreDom = installTestDom();
+    const { blocks } = repeatForm();
+    const pages: PageDefinition[] = [
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-1" } },
+    ];
+    const previousFetch = globalThis.fetch;
+
+    globalThis.fetch = (async () =>
+      ({ ok: true, json: async () => ({}) }) as Response) as typeof fetch;
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+
+    expect(view.queryByText("The count question was deleted")).toBe(null);
+
+    fireEvent.click(view.getByRole("button", { name: "How many guests?" }));
+    fireEvent.keyDown(document.body, { key: "Backspace" });
+
+    await waitFor(() => {
+      expect(view.getByText("builder.deleteBlockTitle") !== null).toBe(true);
+    });
+
+    fireEvent.click(view.getByRole("button", { name: "ui.delete" }));
+
+    // The stored countBlockId stays in place by design; the header of the
+    // repeating page reports that it no longer resolves.
+    await waitFor(() => {
+      expect(view.getByText("The count question was deleted") !== null).toBe(
+        true,
+      );
+    });
+    const toggles = view.getAllByRole("checkbox", {
+      name: "Repeat this page",
+    }) as HTMLInputElement[];
+
+    expect(toggles[1].checked).toBe(true);
+    expect(
+      view.getByText("Add a number question on an earlier page") !== null,
+    ).toBe(true);
+
+    globalThis.fetch = previousFetch;
+    await cleanupAndRestore(restoreDom);
+  });
+
+  test("warns on the page header when the count block sits on a later page", async () => {
+    const restoreDom = installTestDom();
+    const blocks = [
+      createBlock({
+        id: "block-1",
+        type: "SHORT_TEXT",
+        position: 0,
+        title: "Intro",
+        pageId: "page-1",
+      }),
+      createBlock({
+        id: "block-2",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Guest name",
+        pageId: "page-2",
+      }),
+      createBlock({
+        id: "block-3",
+        type: "NUMBER",
+        position: 2,
+        title: "Too late",
+        pageId: "page-3",
+      }),
+    ];
+    const pages: PageDefinition[] = [
+      { id: "page-1" },
+      { id: "page-2", repeat: { countBlockId: "block-3" } },
+      { id: "page-3" },
+    ];
+
+    const view = renderBuilder(
+      createForm(blocks, pages),
+      undefined,
+      pageMessages,
+    );
+
+    expect(
+      view.getByText("The count question must come before this page") !== null,
+    ).toBe(true);
+
+    await cleanupAndRestore(restoreDom);
+  });
+});
+
+describe("builder page structure helpers", () => {
+  function idFactory() {
+    let counter = 0;
+
+    return () => {
+      counter += 1;
+      return `fresh-page-${counter}`;
+    };
+  }
+
+  function blocksWithPages(
+    entries: Array<[id: string, pageId: string | null]>,
+  ) {
+    return entries.map(([id, pageId], index) =>
+      createBlock({
+        id,
+        type: "SHORT_TEXT",
+        position: index,
+        pageId,
+      }),
+    );
+  }
+
+  test("a form without a registry is one headerless run of blocks", () => {
+    const blocks = blocksWithPages([
+      ["b1", null],
+      ["b2", null],
+    ]);
+
+    expect(buildPageSections(blocks, [])).toEqual([
+      { id: "b1", definition: null, blocks },
+    ]);
+  });
+
+  test("pages group by pageId and empty registry pages keep their place", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p1"],
+      ["b3", "p3"],
+    ]);
+    const pages = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
+    const sections = buildPageSections(blocks, pages);
+
+    expect(sections.map((section) => section.id)).toEqual(["p1", "p2", "p3"]);
+    expect(sections[0]?.blocks.map((block) => block.id)).toEqual(["b1", "b2"]);
+    expect(sections[1]?.blocks).toEqual([]);
+    expect(sections[2]?.blocks.map((block) => block.id)).toEqual(["b3"]);
+  });
+
+  test("splitting a form without pages makes the first page cover the blocks above", () => {
+    const blocks = blocksWithPages([
+      ["b1", null],
+      ["b2", null],
+      ["b3", null],
+    ]);
+    const result = splitPageAfter({
+      blocks,
+      pages: [],
+      afterBlockId: "b1",
+      createPageId: idFactory(),
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "fresh-page-1" },
+      { id: "fresh-page-2" },
+    ]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual([
+      "fresh-page-1",
+      "fresh-page-2",
+      "fresh-page-2",
+    ]);
+  });
+
+  test("splitting inside a page moves only the blocks below the break", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p1"],
+      ["b3", "p1"],
+      ["b4", "p2"],
+    ]);
+    const result = splitPageAfter({
+      blocks,
+      pages: [{ id: "p1" }, { id: "p2" }],
+      afterBlockId: "b2",
+      createPageId: idFactory(),
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "p1" },
+      { id: "fresh-page-1" },
+      { id: "p2" },
+    ]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual([
+      "p1",
+      "p1",
+      "fresh-page-1",
+      "p2",
+    ]);
+  });
+
+  test("splitting at the end of a page starts an empty page", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+    ]);
+    const result = splitPageAfter({
+      blocks,
+      pages: [{ id: "p1" }, { id: "p2" }],
+      afterBlockId: "b2",
+      createPageId: idFactory(),
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "p1" },
+      { id: "p2" },
+      { id: "fresh-page-1" },
+    ]);
+    expect(
+      buildPageSections(result?.blocks ?? [], result?.pages ?? []).map(
+        (section) => [section.id, section.blocks.length],
+      ),
+    ).toEqual([
+      ["p1", 1],
+      ["p2", 1],
+      ["fresh-page-1", 0],
+    ]);
+  });
+
+  test("deleting a page merges its blocks into the previous one", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p2"],
+    ]);
+    const result = deletePageById({
+      blocks,
+      pages: [{ id: "p1" }, { id: "p2" }],
+      pageId: "p2",
+    });
+
+    expect(result?.pages).toEqual([{ id: "p1" }]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual([
+      "p1",
+      "p1",
+      "p1",
+    ]);
+  });
+
+  test("the first page is protected while later pages exist", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+    ]);
+
+    expect(
+      deletePageById({
+        blocks,
+        pages: [{ id: "p1" }, { id: "p2" }],
+        pageId: "p1",
+      }),
+    ).toBe(null);
+  });
+
+  test("deleting the only page clears the registry", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p1"],
+    ]);
+    const result = deletePageById({
+      blocks,
+      pages: [{ id: "p1" }],
+      pageId: "p1",
+    });
+
+    expect(result?.pages).toEqual([]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual(["p1", "p1"]);
+  });
+
+  test("moving a page down places it after the target with its blocks", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p2"],
+      ["b4", "p3"],
+    ]);
+    const result = movePageToAnchor({
+      blocks,
+      pages: [{ id: "p1" }, { id: "p2" }, { id: "p3" }],
+      draggedPageId: "p1",
+      targetPageId: "p2",
+    });
+
+    expect(result?.pages.map((page) => page.id)).toEqual(["p2", "p1", "p3"]);
+    expect(
+      result?.blocks.map((block) => [block.id, block.pageId, block.position]),
+    ).toEqual([
+      ["b2", "p2", 0],
+      ["b3", "p2", 1],
+      ["b1", "p1", 2],
+      ["b4", "p3", 3],
+    ]);
+  });
+
+  test("moving a page up places it before the target", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p3"],
+    ]);
+    const result = movePageToAnchor({
+      blocks,
+      pages: [{ id: "p1" }, { id: "p2" }, { id: "p3" }],
+      draggedPageId: "p3",
+      targetPageId: "p1",
+    });
+
+    expect(result?.pages.map((page) => page.id)).toEqual(["p3", "p1", "p2"]);
+    expect(result?.blocks.map((block) => block.id)).toEqual(["b3", "b1", "b2"]);
+  });
+
+  test("a moved page keeps its repeat settings", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p2"],
+    ]);
+    const result = movePageToAnchor({
+      blocks,
+      pages: [{ id: "p1" }, { id: "p2", repeat: { countBlockId: "b1" } }],
+      draggedPageId: "p2",
+      targetPageId: "p1",
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "p2", repeat: { countBlockId: "b1" } },
+      { id: "p1" },
+    ]);
+  });
+
+  test("moving past an empty page preserves its position in the registry", () => {
+    const result = movePageToAnchor({
+      blocks: blocksWithPages([
+        ["b1", "p1"],
+        ["b2", "p2"],
+      ]),
+      pages: [{ id: "p1" }, { id: "empty" }, { id: "p2" }],
+      draggedPageId: "p1",
+      targetPageId: "empty",
+    });
+    expect(result?.pages.map((page) => page.id)).toEqual(["empty", "p1", "p2"]);
+    expect(
+      buildPageSections(result!.blocks, result!.pages).map(
+        (section) => section.id,
+      ),
+    ).toEqual(["empty", "p1", "p2"]);
+  });
+
+  test("moving a page leaves standalone blocks outside the registry", () => {
+    const result = movePageToAnchor({
+      blocks: blocksWithPages([
+        ["b1", "p1"],
+        ["standalone", null],
+        ["b2", "p2"],
+      ]),
+      pages: [{ id: "p1" }, { id: "p2" }],
+      draggedPageId: "p2",
+      targetPageId: "p1",
+    });
+    expect(result?.pages.map((page) => page.id)).toEqual(["p2", "p1"]);
+    expect(result?.blocks.map((block) => [block.id, block.pageId])).toEqual([
+      ["b2", "p2"],
+      ["b1", "p1"],
+      ["standalone", null],
+    ]);
+  });
+
+  test("an unknown or coinciding page does not move", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+    ]);
+    const pages = [{ id: "p1" }, { id: "p2" }];
+
+    expect(
+      movePageToAnchor({
+        blocks,
+        pages,
+        draggedPageId: "p1",
+        targetPageId: "gone",
+      }),
+    ).toBe(null);
+    expect(
+      movePageToAnchor({
+        blocks,
+        pages,
+        draggedPageId: "p1",
+        targetPageId: "p1",
+      }),
+    ).toBe(null);
+  });
+
+  test("a drop onto another page returns that page, a drop inside keeps it", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p2"],
+    ]);
+    const pages = [{ id: "p1" }, { id: "p2" }];
+
+    expect(
+      pageIdAfterDrop({
+        blocks,
+        pages,
+        draggedBlockId: "b1",
+        overBlockId: "b3",
+      }),
+    ).toBe("p2");
+    expect(
+      pageIdAfterDrop({
+        blocks,
+        pages,
+        draggedBlockId: "b2",
+        overBlockId: "b3",
+      }),
+    ).toBe(undefined);
+    expect(
+      pageIdAfterDrop({
+        blocks,
+        pages: [],
+        draggedBlockId: "b1",
+        overBlockId: "b2",
+      }),
+    ).toBe(undefined);
+  });
+
+  test("a new block lands on the page of its anchor", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p2"],
+    ]);
+    const pages = [{ id: "p1" }, { id: "p2" }];
+
+    expect(pageIdForNewBlock({ blocks, pages, afterBlockId: "b1" })).toBe("p1");
+    expect(pageIdForNewBlock({ blocks, pages, afterBlockId: null })).toBe("p2");
+    expect(pageIdForNewBlock({ blocks, pages: [], afterBlockId: null })).toBe(
+      null,
+    );
+  });
+
+  test("a new block lands on a trailing empty page when appending", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+    ]);
+    const pages = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
+
+    expect(pageIdForNewBlock({ blocks, pages, afterBlockId: null })).toBe("p3");
+  });
+
+  test("a gap maps to the block that follows it, across empty pages", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p1"],
+      ["b3", "p3"],
+    ]);
+    const sections = buildPageSections(blocks, [
+      { id: "p1" },
+      { id: "p2" },
+      { id: "p3" },
+    ]);
+
+    expect(sections.map((section) => section.id)).toEqual(["p1", "p2", "p3"]);
+    expect(insertionForGap(sections, 0, 1)).toEqual({
+      kind: "before",
+      blockId: "b2",
+    });
+    expect(insertionForGap(sections, 0, 2)).toEqual({
+      kind: "before",
+      blockId: "b3",
+    });
+    expect(insertionForGap(sections, 2, 1)).toEqual({ kind: "end" });
+    expect(insertionForGap(sections, 9, 0)).toEqual({ kind: "end" });
+  });
+
+  test("sections carry the repeat of their registry entries", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+    ]);
+    const sections = buildPageSections(blocks, [
+      { id: "p1" },
+      { id: "p2", repeat: { countBlockId: "b1" } },
+    ]);
+
+    expect(sections[0]?.definition).toEqual({ id: "p1" });
+    expect(sections[1]?.definition).toEqual({
+      id: "p2",
+      repeat: { countBlockId: "b1" },
+    });
+  });
+
+  test("splitting a page preserves the repeat of the pages around it", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p1"],
+      ["b3", "p2"],
+    ]);
+    const result = splitPageAfter({
+      blocks,
+      pages: [
+        { id: "p1", repeat: { countBlockId: "b9" } },
+        { id: "p2", repeat: { countBlockId: "b1" } },
+      ],
+      afterBlockId: "b1",
+      createPageId: idFactory(),
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "p1", repeat: { countBlockId: "b9" } },
+      { id: "fresh-page-1" },
+      { id: "p2", repeat: { countBlockId: "b1" } },
+    ]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual([
+      "p1",
+      "fresh-page-1",
+      "p2",
+    ]);
+  });
+
+  test("deleting a page keeps the previous page's repeat and drops its own", () => {
+    const blocks = blocksWithPages([
+      ["b1", "p1"],
+      ["b2", "p2"],
+      ["b3", "p3"],
+    ]);
+    const result = deletePageById({
+      blocks,
+      pages: [
+        { id: "p1", repeat: { countBlockId: "b0" } },
+        { id: "p2", repeat: { countBlockId: "b1" } },
+        { id: "p3" },
+      ],
+      pageId: "p2",
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "p1", repeat: { countBlockId: "b0" } },
+      { id: "p3" },
+    ]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual([
+      "p1",
+      "p1",
+      "p3",
+    ]);
+  });
+
+  test("materializing a headerless run keeps the repeat of registry pages", () => {
+    const blocks = blocksWithPages([
+      ["b1", null],
+      ["b2", "p2"],
+      ["b3", null],
+    ]);
+    const result = splitPageAfter({
+      blocks,
+      pages: [{ id: "p2", repeat: { countBlockId: "b1" } }],
+      afterBlockId: "b1",
+      createPageId: idFactory(),
+    });
+
+    expect(result?.pages).toEqual([
+      { id: "fresh-page-1" },
+      { id: "p2", repeat: { countBlockId: "b1" } },
+      { id: "fresh-page-2" },
+      { id: "fresh-page-3" },
+    ]);
+    expect(result?.blocks.map((block) => block.pageId)).toEqual([
+      "fresh-page-1",
+      "p2",
+      "fresh-page-2",
+    ]);
+  });
+
+  test("repeat candidates are number blocks of earlier non-repeating pages", () => {
+    const blocks = [
+      createBlock({
+        id: "n1",
+        type: "NUMBER",
+        position: 0,
+        title: "How many?",
+        pageId: "p1",
+      }),
+      createBlock({
+        id: "s1",
+        type: "SHORT_TEXT",
+        position: 1,
+        title: "Name",
+        pageId: "p1",
+      }),
+      createBlock({
+        id: "n2",
+        type: "NUMBER",
+        position: 2,
+        title: "Count of a repeating page",
+        pageId: "p2",
+      }),
+      createBlock({
+        id: "n3",
+        type: "NUMBER",
+        position: 3,
+        title: "",
+        pageId: "p3",
+      }),
+      createBlock({
+        id: "s2",
+        type: "SHORT_TEXT",
+        position: 4,
+        title: "Detail",
+        pageId: "p4",
+      }),
+    ];
+    const sections = buildPageSections(blocks, [
+      { id: "p1" },
+      { id: "p2", repeat: { countBlockId: "n1" } },
+      { id: "p3" },
+      { id: "p4" },
+    ]);
+
+    expect(countBlockCandidates(sections, 1)).toEqual([
+      { id: "n1", title: "How many?" },
+    ]);
+    expect(countBlockCandidates(sections, 2)).toEqual([
+      { id: "n1", title: "How many?" },
+    ]);
+    // The number block of the repeating page p2 is not a candidate for p4.
+    expect(countBlockCandidates(sections, 3)).toEqual([
+      { id: "n1", title: "How many?" },
+      { id: "n3", title: "Question 4" },
+    ]);
+    expect(countBlockCandidates(sections, 0)).toEqual([]);
   });
 });

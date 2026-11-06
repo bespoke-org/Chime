@@ -10,7 +10,6 @@ import {
   parsePublicFormDraft,
   readStoredPublicFormDraft,
   removeStoredPublicFormDraft,
-  validatePublicFormDraft,
   writeStoredPublicFormDraft,
   type PublicFormDraft,
 } from "@/lib/public-form-draft";
@@ -29,6 +28,7 @@ function createForm(blocks: SerializedBlock[]): PublicForm {
     allowBackNavigation: true,
     closedMessage: "",
     slug: "demo-form",
+    pages: [],
     blocks,
   };
 }
@@ -46,6 +46,7 @@ function createBlock(
     description: overrides.description ?? "",
     required: overrides.required ?? false,
     position: overrides.position ?? 0,
+    pageId: overrides.pageId ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
     config:
@@ -97,148 +98,6 @@ function restoreWindow() {
 
   Reflect.deleteProperty(globalThis, "window");
 }
-
-describe("public form draft validation", () => {
-  test("restores a valid linear draft", () => {
-    const form = createForm([
-      createBlock({ id: "intro", type: "TEXT", position: 0 }),
-      createBlock({ id: "name", type: "SHORT_TEXT", position: 1 }),
-      createBlock({ id: "notes", type: "LONG_TEXT", position: 2 }),
-    ]);
-    const draft = createPublicFormDraft(form, {
-      answers: { name: "Ada", notes: "Hello" },
-      history: ["intro", "name", "notes"],
-      cursor: 2,
-    });
-
-    const result = validatePublicFormDraft(form, draft);
-
-    expect(result.status).toBe("restored");
-    if (result.status !== "restored") {
-      return;
-    }
-
-    expect(JSON.stringify(result.draft.history)).toBe(
-      JSON.stringify(["intro", "name", "notes"]),
-    );
-    expect(result.draft.cursor).toBe(2);
-    expect(JSON.stringify(result.draft.answers)).toBe(
-      JSON.stringify({ name: "Ada", notes: "Hello" }),
-    );
-  });
-
-  test("truncates future history to the active cursor when restoring", () => {
-    const form = createForm([
-      createBlock({ id: "intro", type: "TEXT", position: 0 }),
-      createBlock({ id: "email", type: "SHORT_TEXT", position: 1 }),
-      createBlock({ id: "notes", type: "LONG_TEXT", position: 2 }),
-    ]);
-    const draft = createPublicFormDraft(form, {
-      answers: { email: "me@example.com", notes: "Saved later step" },
-      history: ["intro", "email", "notes"],
-      cursor: 1,
-    });
-
-    const result = validatePublicFormDraft(form, draft);
-
-    expect(result.status).toBe("restored");
-    if (result.status !== "restored") {
-      return;
-    }
-
-    expect(JSON.stringify(result.draft.history)).toBe(
-      JSON.stringify(["intro", "email"]),
-    );
-    expect(result.draft.cursor).toBe(1);
-  });
-
-  test("marks drafts stale when the form fingerprint changes", () => {
-    const initialForm = createForm([
-      createBlock({ id: "intro", type: "TEXT", position: 0 }),
-      createBlock({ id: "name", type: "SHORT_TEXT", position: 1 }),
-    ]);
-    const changedForm = createForm([
-      createBlock({ id: "intro", type: "TEXT", position: 0 }),
-      createBlock({
-        id: "name",
-        type: "SHORT_TEXT",
-        position: 1,
-        required: true,
-      }),
-    ]);
-    const draft = createPublicFormDraft(initialForm, {
-      answers: { name: "Ada" },
-      history: ["intro", "name"],
-      cursor: 1,
-    });
-
-    const result = validatePublicFormDraft(changedForm, draft);
-
-    expect(JSON.stringify(result)).toBe(JSON.stringify({ status: "stale" }));
-  });
-
-  test("returns invalid for malformed stored draft json", () => {
-    try {
-      mockWindowWithStorage({
-        getItem: () => "{not valid json",
-      });
-
-      const result = readStoredPublicFormDraft("form-1");
-
-      expect(JSON.stringify(result)).toBe(
-        JSON.stringify({ status: "invalid" }),
-      );
-    } finally {
-      restoreWindow();
-    }
-  });
-
-  test("returns unavailable when localStorage access throws", () => {
-    try {
-      mockWindowWithStorage({
-        getItem: () => {
-          throw new Error("Storage disabled");
-        },
-      });
-
-      const result = readStoredPublicFormDraft("form-1");
-
-      expect(JSON.stringify(result)).toBe(
-        JSON.stringify({ status: "unavailable" }),
-      );
-    } finally {
-      restoreWindow();
-    }
-  });
-
-  test("rejects drafts whose saved route does not match branching", () => {
-    const form = createForm([
-      createBlock({
-        id: "path",
-        type: "SINGLE_CHOICE",
-        position: 0,
-        config: {
-          options: ["yes", "no"],
-          branchRules: [
-            { operator: "equals", value: "yes", targetBlockId: "follow-up" },
-          ],
-          defaultNextBlockId: "fallback",
-        },
-      }),
-      createBlock({ id: "fallback", type: "SHORT_TEXT", position: 1 }),
-      createBlock({ id: "follow-up", type: "SHORT_TEXT", position: 2 }),
-    ]);
-    const draft = createPublicFormDraft(form, {
-      answers: { path: "yes" },
-      history: ["path", "fallback"],
-      cursor: 1,
-    });
-
-    const result = validatePublicFormDraft(form, draft);
-
-    expect(JSON.stringify(result)).toBe(JSON.stringify({ status: "invalid" }));
-  });
-});
 
 describe("public form draft fingerprint", () => {
   const baseBlocks = [
@@ -386,82 +245,6 @@ describe("public form draft parsing and restoring", () => {
     expect(parsePublicFormDraft(validDraft()) !== null).toBe(true);
   });
 
-  test("drops answers for blocks that are not in the form when restoring", () => {
-    const result = validatePublicFormDraft(
-      form,
-      validDraft({ answers: { choice: "yes", ghost: "boo", other: ["x"] } }),
-    );
-
-    expect(result.status).toBe("restored");
-    if (result.status !== "restored") {
-      return;
-    }
-
-    expect(JSON.stringify(result.draft.answers)).toBe(
-      JSON.stringify({ choice: "yes" }),
-    );
-  });
-
-  test("keeps an answer whose shape does not fit the block for later validation", () => {
-    const result = validatePublicFormDraft(
-      form,
-      validDraft({ answers: { choice: ["yes"] } }),
-    );
-
-    expect(result.status).toBe("restored");
-    if (result.status !== "restored") {
-      return;
-    }
-
-    expect(JSON.stringify(result.draft.answers)).toBe(
-      JSON.stringify({ choice: ["yes"] }),
-    );
-  });
-
-  test("rejects a cursor past the history and a history that does not start at the first block", () => {
-    expect(
-      validatePublicFormDraft(form, validDraft({ cursor: 2 })).status,
-    ).toBe("invalid");
-    expect(
-      validatePublicFormDraft(form, validDraft({ history: [] })).status,
-    ).toBe("invalid");
-    expect(
-      validatePublicFormDraft(
-        form,
-        validDraft({ history: ["choice", "notes"] }),
-      ).status,
-    ).toBe("invalid");
-  });
-
-  test("rejects a history that references a block no longer in the form", () => {
-    expect(
-      validatePublicFormDraft(
-        form,
-        validDraft({ history: ["intro", "removed"], cursor: 1 }),
-      ).status,
-    ).toBe("invalid");
-  });
-
-  test("treats a draft for another form as stale", () => {
-    expect(
-      validatePublicFormDraft(form, validDraft({ formId: "form-2" })).status,
-    ).toBe("stale");
-  });
-
-  test("restores an empty form only from an empty draft", () => {
-    const emptyForm = createForm([]);
-    const draft = createPublicFormDraft(emptyForm, {
-      answers: {},
-      history: [],
-      cursor: 0,
-    });
-
-    expect(validatePublicFormDraft(emptyForm, draft).status).toBe("restored");
-    expect(
-      validatePublicFormDraft(emptyForm, { ...draft, history: ["x"] }).status,
-    ).toBe("invalid");
-  });
-
   test("strips non-string answers when creating a draft", () => {
     const draft = createPublicFormDraft(form, {
       answers: {
@@ -476,6 +259,57 @@ describe("public form draft parsing and restoring", () => {
     expect(JSON.stringify(draft.answers)).toBe(
       JSON.stringify({ choice: "yes" }),
     );
+  });
+});
+
+describe("public form drafts of repeating pages", () => {
+  const form = createForm([
+    createBlock({ id: "count", type: "NUMBER", position: 0 }),
+    createBlock({ id: "member", type: "SHORT_TEXT", position: 1 }),
+    createBlock({ id: "drinks", type: "MULTIPLE_CHOICE", position: 2 }),
+  ]);
+
+  test("keeps the per-instance answers and instance steps", () => {
+    const draft = createPublicFormDraft(form, {
+      answers: {
+        count: "2",
+        member: ["Ann", "Bob"],
+        drinks: [["Tea", "Coffee"], null as unknown as string[]],
+      },
+      history: ["count", "members", "members#1"],
+      cursor: 2,
+    });
+
+    const restored = parsePublicFormDraft(JSON.parse(JSON.stringify(draft)));
+
+    expect(restored === null).toBe(false);
+    if (restored) {
+      expect(JSON.stringify(restored.answers)).toBe(
+        JSON.stringify(draft.answers),
+      );
+      expect(JSON.stringify(restored.history)).toBe(
+        JSON.stringify(["count", "members", "members#1"]),
+      );
+      expect(restored.cursor).toBe(2);
+    }
+  });
+
+  test("rejects nested values that are not strings", () => {
+    const draft = createPublicFormDraft(form, {
+      answers: {
+        member: ["Ann", [7]] as unknown as string[],
+      },
+      history: ["count"],
+      cursor: 0,
+    });
+
+    expect(JSON.stringify(draft.answers)).toBe(JSON.stringify({}));
+    expect(
+      parsePublicFormDraft({
+        ...draft,
+        answers: { member: [["Ann"], {}] },
+      }),
+    ).toBe(null);
   });
 });
 

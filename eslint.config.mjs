@@ -7,8 +7,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
+    // Default ignores of eslint-config-next, plus the dev-server build
+    // directory written next to the production one:
     ".next/**",
+    ".next-dev/**",
     "out/**",
     "build/**",
     "test-results/**",

@@ -8,7 +8,7 @@ import type {
   SubmissionAnswers,
   SubmissionSnapshotBlock,
 } from "@/lib/form-submission";
-import type { AnswerValue } from "@/lib/form-types";
+import type { StoredAnswerValue } from "@/lib/form-types";
 import {
   collectResponseIdentity,
   type ResponseIdentityEntry,
@@ -174,7 +174,8 @@ export type WebhookAnswer = {
   blockId: string;
   type: SubmissionSnapshotBlock["type"];
   title: string;
-  value: AnswerValue;
+  // A block on a repeating page carries one entry per instance.
+  value: StoredAnswerValue | Array<string | null>;
 };
 
 export type WebhookPayload = {
@@ -217,7 +218,18 @@ export function buildWebhookPayload(
       value:
         block.type === "FILE_UPLOAD" && typeof value === "string"
           ? buildUploadDownloadUrl(baseUrl, form.id, value)
-          : value,
+          : block.type === "FILE_UPLOAD" &&
+              Array.isArray(value) &&
+              value.every(
+                (id) =>
+                  id === null || id === undefined || typeof id === "string",
+              )
+            ? value.map((id) =>
+                typeof id === "string"
+                  ? buildUploadDownloadUrl(baseUrl, form.id, id)
+                  : null,
+              )
+            : value,
     });
   }
 

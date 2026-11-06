@@ -1,12 +1,17 @@
 import type { FormStatus, OrganizationMemberRole } from "@prisma/client";
 
 import type { SerializedBlock } from "@/lib/blocks";
+import type { PageDefinition } from "@/lib/pages";
 import type { AppLocale } from "@/lib/i18n";
 import type { ResponseIdentityEntry } from "@/lib/response-identity";
 
 export type BuilderBlock = SerializedBlock;
 export type PublicBlock = SerializedBlock;
 export type AnswerValue = string | string[];
+
+// A stored answer: flat for blocks of non-repeating pages, one entry per
+// instance for blocks of a repeating page.
+export type StoredAnswerValue = string | string[] | string[][];
 
 export type WorkspaceReference =
   | {
@@ -107,6 +112,7 @@ export type BuilderForm = {
   responseCount: number;
   workspace: WorkspaceReference;
   blocks: BuilderBlock[];
+  pages: PageDefinition[];
 };
 
 export type PublicForm = {
@@ -123,6 +129,7 @@ export type PublicForm = {
   closedMessage: string;
   slug: string;
   blocks: PublicBlock[];
+  pages: PageDefinition[];
 };
 
 export type FormListItem = {
@@ -160,7 +167,7 @@ export type ResponseDetail = {
   formTitle: string;
   workspace: WorkspaceReference;
   identity: ResponseIdentityEntry[];
-  answers: Record<string, AnswerValue>;
+  answers: Record<string, StoredAnswerValue>;
   uploads: Record<string, ResponseDetailUpload>;
   blocks: SerializedBlock[];
 };

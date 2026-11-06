@@ -336,6 +336,7 @@ builder:
     shareUrlTaken: That share URL is already taken.
     deleteFormConfirm: Delete this form permanently? This will also delete all blocks and responses. This action cannot be undone.
     updatedBlockOrder: Updated block order
+    updatedPageOrder: Updated page order
     reorderError: Could not reorder blocks.
 blocks:
   types:
@@ -378,6 +379,9 @@ publicRunner:
   wholeNumberRequired: Enter a whole number before continuing.
   numberAtLeast: "Enter a number greater than or equal to {min}."
   numberAtMost: "Enter a number less than or equal to {max}."
+  numberRangeHint: "From {min} to {max}"
+  numberMinHint: "No less than {min}"
+  numberMaxHint: "No greater than {max}"
   ratingRequired: Choose a rating before continuing.
   fileRequired: Attach a file before continuing.
   fileInvalid: The attached file could not be verified. Attach it again.
@@ -472,3 +476,25 @@ ui:
   cancel: Cancel
   delete: Delete
   dismissNotification: Dismiss notification
+formPages:
+  newPage: New page
+  pageLabel: "Page {number}"
+  dragPage: Drag page
+  renamePage: Rename page
+  deletePage: Delete page
+  deletePageMergeHint: Its blocks move to the previous page
+  branchRulesIgnored: Branch rules on a block that is not last on its page are ignored
+  branchTargetIntoRepeat: A branch into a repeating page opens its first instance
+  repeatToggle: Repeat this page
+  repeatCountQuestion: Count question
+  repeatNoCandidates: Add a number question on an earlier page to repeat this page
+  repeatActive: "Repeats by the answer to “{question}”"
+  repeatCountMissing: The count question was deleted
+  repeatCountNotNumber: The count question must be a number question
+  repeatCountOnPage: The count question cannot be on the repeating page itself
+  repeatCountAfterPage: The count question must come before the repeating page
+  repeatCountRepeats: The count question cannot be on a repeating page
+  countMissing: "Answer “{question}” to continue"
+  countTooLarge: "Enter at most {max} for “{question}”"
+  instanceLabel: "Instance {number} of {count}"
+  instanceShortLabel: "Instance {number}"

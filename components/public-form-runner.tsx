@@ -31,7 +31,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ToastViewport } from "@/components/ui/toast";
 import { useI18n } from "@/components/i18n-provider";
 import { useLocalToasts } from "@/components/use-local-toasts";
-import { validateAndNormalizeAnswer } from "@/lib/answer-validation";
+import {
+  validateAndNormalizeAnswer,
+  type AnswerValidationError,
+} from "@/lib/answer-validation";
 import {
   AGREEMENT_ANSWER_VALUES,
   getRatingValues,
@@ -45,9 +48,51 @@ import {
   type ShortTextBlockConfig,
   type TextBlockConfig,
 } from "@/lib/blocks";
-import { resolveNextBlockId } from "@/lib/branching";
+import { getBlockDisplayLabel } from "@/lib/branching";
 import { sendFormVisitEvent } from "@/lib/form-visit-tracking";
-import type { AnswerValue, PublicForm, PublicBlock } from "@/lib/form-types";
+import type {
+  AnswerValue,
+  PublicForm,
+  PublicBlock,
+  StoredAnswerValue,
+} from "@/lib/form-types";
+import {
+  createPublicFormDraft,
+  createPublicFormDraftFingerprint,
+  getPublicFormDraftStorageKey,
+  readStoredPublicFormDraft,
+  removeStoredPublicFormDraft,
+  writeStoredPublicFormDraft,
+  type PublicFormDraft,
+} from "@/lib/public-form-draft";
+import {
+  advanceRunnerRoute,
+  createInitialRunnerRoute,
+  encodeRunnerRouteStep,
+  getCurrentRouteStep,
+  getExitProjectionIndex,
+  getRouteCursor,
+  getVisibleStepTotal,
+  hasRunnerProgress,
+  parseRunnerRouteStep,
+  planPageInstances,
+  resolveLandingPage,
+  resolveNextRouteStep,
+  retreatRunnerRoute,
+  type RunnerRouteStep,
+} from "@/lib/public-form-runner-state";
+import {
+  findPageByBlock,
+  resolvePages,
+  type PageDefinition,
+  type ResolvedPage,
+} from "@/lib/pages";
+import {
+  effectiveRepeatSettings,
+  isNestedRepeatingAnswer,
+  projectInstanceAnswers,
+  validateAndNormalizeRepeatingAnswer,
+} from "@/lib/repeat";
 import { SUBMISSION_HONEYPOT_FIELD } from "@/lib/submission-guard";
 import {
   BYTES_PER_MB,
@@ -59,23 +104,6 @@ import {
   isLegacyDefaultCompletionMessage,
   isLegacyDefaultCompletionTitle,
 } from "@/lib/form-defaults";
-import {
-  createPublicFormDraft,
-  getPublicFormDraftStorageKey,
-  readStoredPublicFormDraft,
-  removeStoredPublicFormDraft,
-  validatePublicFormDraft,
-  writeStoredPublicFormDraft,
-} from "@/lib/public-form-draft";
-import {
-  advanceRunnerRoute,
-  createInitialRunnerRoute,
-  getCurrentRouteBlockId,
-  getRouteCursor,
-  getVisibleRouteTotal,
-  hasRunnerProgress,
-  retreatRunnerRoute,
-} from "@/lib/public-form-runner-state";
 import { cn } from "@/lib/utils";
 
 const CHOICE_SHORTCUT_KEYS = [
@@ -103,7 +131,7 @@ class SubmitResponseError extends Error {
 
 async function submitResponse(
   slug: string,
-  answers: Record<string, AnswerValue>,
+  answers: Record<string, StoredAnswerValue>,
   guard: { honeypot: string; startedAt: number },
 ) {
   const response = await fetch(`/api/public/forms/${slug}/responses`, {
@@ -237,12 +265,7 @@ function getRatingShortcutKey(value: number, config: RatingBlockConfig) {
   return null;
 }
 
-function isTextLikeBlock(
-  block: PublicBlock | null,
-): block is Extract<
-  PublicBlock,
-  { type: "SHORT_TEXT" | "LONG_TEXT" | "NUMBER" | "LINK" | "DATE" }
-> {
+function isTextLikeBlock(block: PublicBlock | null): boolean {
   return (
     block?.type === "SHORT_TEXT" ||
     block?.type === "LONG_TEXT" ||
@@ -280,6 +303,260 @@ function isGlobalAdvanceBlockedTarget(target: EventTarget | null) {
   );
 }
 
+type RunnerTranslate = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+
+// The existing per-block error copy, reused for every block of a page: when a
+// page is submitted, each block is checked in saved order and the first
+// invalid one reports with its own message.
+function getBlockErrorMessage(
+  block: PublicBlock,
+  error: AnswerValidationError,
+  t: RunnerTranslate,
+) {
+  switch (error.code) {
+    case "answer_required":
+      return t(
+        block.type === "RATING"
+          ? "publicRunner.ratingRequired"
+          : block.type === "FILE_UPLOAD"
+            ? "publicRunner.fileRequired"
+            : "publicRunner.answerRequired",
+      );
+    case "invalid_file":
+      return t("publicRunner.fileInvalid");
+    case "single_choice_required":
+      return t("publicRunner.singleChoiceRequired");
+    case "multi_choice_required":
+      return t("publicRunner.multiChoiceRequired");
+    case "invalid_option":
+      return t(
+        block.type === "MULTIPLE_CHOICE"
+          ? "publicRunner.multiChoiceRequired"
+          : "publicRunner.singleChoiceRequired",
+      );
+    case "agreement_required":
+    case "invalid_agreement":
+      return t("publicRunner.agreementRequired");
+    case "invalid_text_format":
+      return t("publicRunner.invalidTextFormat");
+    case "invalid_number":
+      return t("publicRunner.invalidNumber");
+    case "whole_number_required":
+      return t("publicRunner.wholeNumberRequired");
+    case "number_below_min":
+      return t("publicRunner.numberAtLeast", { min: error.min });
+    case "number_above_max":
+      return t("publicRunner.numberAtMost", { max: error.max });
+    case "invalid_link":
+      return t("publicRunner.invalidLink");
+    case "invalid_date":
+      return t("publicRunner.invalidDate");
+  }
+}
+
+function isChoiceShortcutBlock(block: PublicBlock) {
+  return (
+    block.type === "SINGLE_CHOICE" ||
+    block.type === "MULTIPLE_CHOICE" ||
+    block.type === "AGREEMENT" ||
+    block.type === "RATING"
+  );
+}
+
+// Text-like blocks carry the fields Enter walks through, in saved order.
+function getFirstFieldBlockId(page: ResolvedPage) {
+  return page.blocks.find(isTextLikeBlock)?.id ?? null;
+}
+
+function getNextFieldBlockId(page: ResolvedPage, blockId: string) {
+  const currentIndex = page.blocks.findIndex((block) => block.id === blockId);
+
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  for (let index = currentIndex + 1; index < page.blocks.length; index += 1) {
+    if (isTextLikeBlock(page.blocks[index])) {
+      return page.blocks[index].id;
+    }
+  }
+
+  return null;
+}
+
+// The runner's answer state: flat for blocks of non-repeating pages, one
+// entry per instance for blocks of a repeating page.
+type RunnerAnswers = Record<string, StoredAnswerValue>;
+
+// A repeating block's stored value as the per-instance array. A value that is
+// still flat (a draft saved before the page was made repeating) keeps its
+// whole value as instance 0.
+function nestedInstances(
+  block: PublicBlock,
+  value: StoredAnswerValue | undefined,
+): Array<AnswerValue | undefined> {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!isNestedRepeatingAnswer(block, value)) {
+    return [value as AnswerValue];
+  }
+
+  return [...(value as Array<AnswerValue | undefined>)];
+}
+
+// The answers sent to the server and the draft: repeating blocks carry only
+// the instances below the current count, normalized and trimmed of trailing
+// unanswered ones; everything else stays as the respondent typed it.
+function buildTrimmedAnswers(
+  answerSet: RunnerAnswers,
+  pages: ResolvedPage[],
+): RunnerAnswers {
+  const payload: RunnerAnswers = {};
+
+  for (const [blockId, value] of Object.entries(answerSet)) {
+    const page = findPageByBlock(pages, blockId);
+    const block = page?.blocks.find((candidate) => candidate.id === blockId);
+
+    if (!page || !block || !effectiveRepeatSettings(page, pages)) {
+      payload[blockId] = value;
+      continue;
+    }
+
+    const plan = planPageInstances(page, pages, answerSet);
+    const result = validateAndNormalizeRepeatingAnswer(
+      block,
+      nestedInstances(block, value),
+      plan.kind === "instances" ? plan.count : 0,
+    );
+
+    payload[blockId] = result.ok ? (result.values as StoredAnswerValue) : value;
+  }
+
+  return payload;
+}
+
+type RestoredRunnerDraft = {
+  answers: RunnerAnswers;
+  history: string[];
+  cursor: number;
+};
+
+// Page-aware draft restore. The stored history holds route steps: the plain
+// page id for instance 0, "<pageId>#<instanceIndex>" for later instances. A
+// standalone block's page id EQUALS its block id (lib/pages.ts), so a draft
+// route of block ids saved by an older session keeps resolving: every stored
+// id is mapped to the page that contains it, and consecutive entries of one
+// page (a block-per-step route from before that page existed) collapse into
+// a single instance-0 step. Later instances must follow their predecessor and
+// stay below the count the restored answers resolve to; page transitions must
+// match a fresh walk, count-0 pages included.
+function restoreRunnerDraft(
+  form: PublicForm,
+  pages: ResolvedPage[],
+  draft: PublicFormDraft,
+): RestoredRunnerDraft | null {
+  if (
+    draft.formId !== form.id ||
+    draft.fingerprint !== createPublicFormDraftFingerprint(form)
+  ) {
+    return null;
+  }
+
+  const knownBlockIds = new Set(form.blocks.map((block) => block.id));
+  const answers = Object.fromEntries(
+    Object.entries(draft.answers).filter(([blockId]) =>
+      knownBlockIds.has(blockId),
+    ),
+  ) as RunnerAnswers;
+
+  if (!pages.length) {
+    return draft.history.length === 0 && draft.cursor === 0
+      ? { answers, history: [], cursor: 0 }
+      : null;
+  }
+
+  if (draft.history.length === 0 || draft.cursor >= draft.history.length) {
+    return null;
+  }
+
+  const activeHistory = draft.history.slice(0, draft.cursor + 1);
+  const stepHistory: string[] = [];
+
+  const resolveStepPage = (pageId: string) =>
+    pages.some((page) => page.id === pageId)
+      ? pageId
+      : (findPageByBlock(pages, pageId)?.id ?? null);
+
+  for (const entry of activeHistory) {
+    const parsed = parseRunnerRouteStep(entry);
+
+    if (!parsed) {
+      return null;
+    }
+
+    const pageId = resolveStepPage(parsed.pageId);
+
+    if (!pageId) {
+      return null;
+    }
+
+    const step: RunnerRouteStep = {
+      pageId,
+      instanceIndex: parsed.instanceIndex,
+    };
+    const previousEntry = stepHistory[stepHistory.length - 1] ?? null;
+    const previous = previousEntry ? parseRunnerRouteStep(previousEntry) : null;
+
+    if (step.instanceIndex > 0) {
+      const page = pages.find((candidate) => candidate.id === step.pageId);
+      const plan = page ? planPageInstances(page, pages, answers) : null;
+
+      if (
+        plan?.kind !== "instances" ||
+        step.instanceIndex >= plan.count ||
+        !previous ||
+        previous.pageId !== step.pageId ||
+        previous.instanceIndex !== step.instanceIndex - 1
+      ) {
+        return null;
+      }
+    } else if (previous) {
+      if (previous.pageId === step.pageId && previous.instanceIndex === 0) {
+        continue;
+      }
+
+      const landing = resolveLandingPage({
+        pages,
+        exitPageId: previous.pageId,
+        projectionIndex: getExitProjectionIndex({
+          route: { history: stepHistory, cursor: stepHistory.length - 1 },
+          pages,
+        }),
+        answers,
+      });
+
+      if (!landing || landing.pageId !== step.pageId) {
+        return null;
+      }
+    } else if (step.pageId !== pages[0].id) {
+      return null;
+    }
+
+    stepHistory.push(encodeRunnerRouteStep(step));
+  }
+
+  return {
+    answers,
+    history: stepHistory,
+    cursor: stepHistory.length - 1,
+  };
+}
+
 function ShortcutBadge({ shortcut }: { shortcut: string }) {
   return (
     <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)] px-2 text-xs font-semibold text-[var(--muted)]">
@@ -288,17 +565,52 @@ function ShortcutBadge({ shortcut }: { shortcut: string }) {
   );
 }
 
-export function PublicFormRunner({ form }: { form: PublicForm }) {
-  const initialRoute = useMemo(
-    () => createInitialRunnerRoute(form.blocks),
-    [form.blocks],
+// The number constraints the respondent should know before typing, shown
+// only for the ends the block actually constrains. Validation repeats the
+// same limits after Continue.
+function NumberRangeHint({ config }: { config: NumberBlockConfig }) {
+  const { t } = useI18n();
+  const { min, max } = config;
+  const text =
+    min !== null && max !== null
+      ? t("publicRunner.numberRangeHint", { min, max })
+      : min !== null
+        ? t("publicRunner.numberMinHint", { min })
+        : max !== null
+          ? t("publicRunner.numberMaxHint", { max })
+          : null;
+
+  if (text === null) {
+    return null;
+  }
+
+  return <p className="text-sm text-[var(--muted)]">{text}</p>;
+}
+
+export function PublicFormRunner({
+  form,
+}: {
+  // PublicForm gains `pages` with this change; forms without a page registry
+  // (older callers, dev fixtures) resolve to one page per block.
+  form: PublicForm & { pages?: PageDefinition[] };
+}) {
+  // Pages are resolved once per form version: blocks grouped by pageId in
+  // saved order, a standalone block forming its own page.
+  const pages = useMemo(
+    () => resolvePages(form.blocks, form.pages),
+    [form.blocks, form.pages],
   );
+  const pagesById = useMemo(
+    () => new Map(pages.map((page) => [page.id, page])),
+    [pages],
+  );
+  const initialRoute = useMemo(() => createInitialRunnerRoute(pages), [pages]);
   const storageKey = useMemo(
     () => getPublicFormDraftStorageKey(form.id),
     [form.id],
   );
   const { t } = useI18n();
-  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+  const [answers, setAnswers] = useState<RunnerAnswers>({});
   const [route, setRoute] = useState(initialRoute);
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -313,17 +625,18 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const startedAtRef = useRef(Date.now());
   const submitLockRef = useRef(false);
-  const activeInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(
-    null,
+  // The current step's text fields, keyed by block id: Enter walks them in
+  // saved order, and focus restore targets the first one. Steps of one page
+  // re-render the same block ids, so the nodes are replaced per instance.
+  const fieldNodesRef = useRef(
+    new Map<string, HTMLInputElement | HTMLTextAreaElement>(),
   );
-  const currentBlockIdRef = useRef<string | null>(null);
-  const currentBlockIsTextLikeRef = useRef(false);
-  const pendingFocusBlockIdRef = useRef<string | null>(null);
-  const focusInputNode = useCallback(
-    (node: HTMLInputElement | HTMLTextAreaElement | null) => {
-      activeInputRef.current = node;
-
-      if (!node || isComplete || isSubmitting) {
+  const currentStepKeyRef = useRef<string | null>(null);
+  const firstFieldBlockIdRef = useRef<string | null>(null);
+  const pendingFocusStepKeyRef = useRef<string | null>(null);
+  const focusPageField = useCallback(
+    (blockId: string) => {
+      if (isComplete || isSubmitting) {
         return;
       }
 
@@ -333,7 +646,9 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           window.setTimeout(() => callback(Date.now()), 0));
 
       requestFrame(() => {
-        if (activeInputRef.current !== node) {
+        const node = fieldNodesRef.current.get(blockId);
+
+        if (!node) {
           return;
         }
 
@@ -348,65 +663,114 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     },
     [isComplete, isSubmitting],
   );
-  const setActiveInputNode = useCallback(
-    (node: HTMLInputElement | null) => {
-      activeInputRef.current = node;
+  const registerFieldNode = useCallback(
+    (blockId: string, node: HTMLInputElement | HTMLTextAreaElement | null) => {
+      if (node) {
+        fieldNodesRef.current.set(blockId, node);
 
-      if (!node || !currentBlockIsTextLikeRef.current) {
+        // Inline ref callbacks re-run on every render, so an answer typed
+        // into a later field re-attaches them too; the owed focus is only
+        // for a step that just opened and must not take the focus back
+        // from a field the respondent is already typing in.
+        const active = document.activeElement;
+
+        if (
+          pendingFocusStepKeyRef.current === currentStepKeyRef.current &&
+          blockId === firstFieldBlockIdRef.current &&
+          (active === null || active === document.body)
+        ) {
+          focusPageField(blockId);
+        }
+
         return;
       }
 
-      if (pendingFocusBlockIdRef.current !== currentBlockIdRef.current) {
-        return;
-      }
-
-      focusInputNode(node);
+      fieldNodesRef.current.delete(blockId);
     },
-    [focusInputNode],
+    [focusPageField],
   );
-  const setActiveTextareaNode = useCallback(
-    (node: HTMLTextAreaElement | null) => {
-      activeInputRef.current = node;
+  const answersRef = useRef<RunnerAnswers>(answers);
 
-      if (!node || !currentBlockIsTextLikeRef.current) {
-        return;
-      }
-
-      if (pendingFocusBlockIdRef.current !== currentBlockIdRef.current) {
-        return;
-      }
-
-      focusInputNode(node);
-    },
-    [focusInputNode],
-  );
-  const answersRef = useRef<Record<string, AnswerValue>>(answers);
-
-  const blocksById = useMemo(
-    () => new Map(form.blocks.map((block) => [block.id, block])),
-    [form.blocks],
-  );
   const history = route.history;
   const cursor = getRouteCursor(route);
-  const currentBlockId = getCurrentRouteBlockId(route, form.blocks);
-  const currentBlock = currentBlockId
-    ? (blocksById.get(currentBlockId) ?? null)
+  const currentStep = getCurrentRouteStep(route, pages);
+  const currentPageId = currentStep?.pageId ?? null;
+  // The step as the route history and drafts encode it; instance 0 keeps the
+  // plain page id, so pages without repeats keep today's keys.
+  const currentStepKey = currentStep
+    ? encodeRunnerRouteStep(currentStep)
     : null;
-  const nextBlockId = currentBlock
-    ? resolveNextBlockId(form.blocks, currentBlock.id, answers)
+  const currentPage = currentPageId
+    ? (pagesById.get(currentPageId) ?? null)
     : null;
+  const currentInstanceIndex = currentStep?.instanceIndex ?? 0;
+  const currentPlan = currentPage
+    ? planPageInstances(currentPage, pages, answers)
+    : null;
+  const isRepeatingStep = currentPlan?.kind === "instances";
+  const instanceCount = isRepeatingStep ? currentPlan.count : 0;
+  // A named page shows its name as a small heading, so the respondent sees
+  // the form move forward; an unnamed page looks as it did before.
+  const pageName = currentPage?.definition?.name?.trim() || null;
+  // The instance on screen reads and writes through a flat single-instance
+  // view of the nested answers (lib/repeat.ts).
+  const instanceAnswers = useMemo(
+    () => projectInstanceAnswers(answers, pages, currentInstanceIndex),
+    [answers, currentInstanceIndex, pages],
+  );
+  const firstFieldBlockId = currentPage
+    ? getFirstFieldBlockId(currentPage)
+    : null;
+  // The count question's title names the blocked state; instances beyond a
+  // blocked page keep whatever the respondent already answered.
+  const blockedCountMessage = useMemo(() => {
+    if (currentPlan?.kind !== "blocked" || !currentPage) {
+      return null;
+    }
 
-  currentBlockIdRef.current = currentBlock?.id ?? null;
-  currentBlockIsTextLikeRef.current = isTextLikeBlock(currentBlock);
-  const visibleTotal = useMemo(
+    const settings = effectiveRepeatSettings(currentPage, pages);
+
+    if (!settings) {
+      return null;
+    }
+
+    const countBlock =
+      findPageByBlock(pages, settings.countBlockId)?.blocks.find(
+        (block) => block.id === settings.countBlockId,
+      ) ?? null;
+
+    if (!countBlock) {
+      return null;
+    }
+
+    const question = getBlockDisplayLabel(countBlock);
+
+    return currentPlan.status === "too_large"
+      ? t("formPages.countTooLarge", {
+          question,
+          max: currentPlan.max,
+        })
+      : t("formPages.countMissing", { question });
+  }, [currentPlan, currentPage, pages, t]);
+  const hasFollowingStep = useMemo(
     () =>
-      getVisibleRouteTotal({
-        blocks: form.blocks,
-        currentBlockId,
-        answers,
-        cursor,
-      }),
-    [answers, currentBlockId, cursor, form.blocks],
+      currentPage
+        ? resolveNextRouteStep({
+            pages,
+            pageId: currentPage.id,
+            instanceIndex: currentInstanceIndex,
+            projectionIndex: getExitProjectionIndex({ route, pages }),
+            answers,
+          }) !== null
+        : false,
+    [answers, currentInstanceIndex, currentPage, pages, route],
+  );
+
+  currentStepKeyRef.current = currentStepKey;
+  firstFieldBlockIdRef.current = firstFieldBlockId;
+  const visibleTotal = useMemo(
+    () => getVisibleStepTotal({ route, pages, answers }),
+    [answers, pages, route],
   );
   const progress = useMemo(
     () => ((cursor + 1) / visibleTotal) * 100,
@@ -428,12 +792,28 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     form.closedMessage.trim() || t("publicRunner.defaultClosedMessage");
   const allowBackNavigation = form.allowBackNavigation;
 
-  function setAnswer(blockId: string, value: AnswerValue) {
-    setAnswers((current) => ({
-      ...current,
-      [blockId]: value,
-    }));
-  }
+  // Answers of a repeating page land in the block's per-instance array at the
+  // instance on screen; instances beyond the current count stay in memory for
+  // the session, so lowering and raising the count loses nothing.
+  const setAnswer = useCallback(
+    (blockId: string, value: AnswerValue) => {
+      setAnswers((current) => {
+        if (!isRepeatingStep) {
+          return { ...current, [blockId]: value };
+        }
+
+        const block =
+          currentPage?.blocks.find((candidate) => candidate.id === blockId) ??
+          null;
+        const instances = block ? nestedInstances(block, current[blockId]) : [];
+
+        instances[currentInstanceIndex] = value;
+
+        return { ...current, [blockId]: instances as StoredAnswerValue };
+      });
+    },
+    [currentPage, currentInstanceIndex, isRepeatingStep],
+  );
 
   const hasDraftProgress = useMemo(
     () =>
@@ -459,19 +839,19 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       return;
     }
 
-    const validatedDraft = validatePublicFormDraft(form, storedDraft.draft);
+    const restoredDraft = restoreRunnerDraft(form, pages, storedDraft.draft);
 
-    if (validatedDraft.status === "restored") {
+    if (restoredDraft) {
       // The session began before this mount; otherwise a restored respondent
       // who finishes quickly looks like a bot to the minimum fill-time check.
       startedAtRef.current = Math.min(
         startedAtRef.current,
-        validatedDraft.draft.savedAt,
+        storedDraft.draft.savedAt,
       );
-      setAnswers(validatedDraft.draft.answers);
+      setAnswers(restoredDraft.answers);
       setRoute({
-        history: validatedDraft.draft.history,
-        cursor: validatedDraft.draft.cursor,
+        history: restoredDraft.history,
+        cursor: restoredDraft.cursor,
       });
       showToast(t("publicRunner.progressRestored"));
     } else {
@@ -480,7 +860,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }
 
     setHasResolvedDraft(true);
-  }, [form, showToast, storageKey, t]);
+  }, [form, pages, showToast, storageKey, t]);
 
   useEffect(() => {
     answersRef.current = answers;
@@ -517,7 +897,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       writeStoredPublicFormDraft(
         storageKey,
         createPublicFormDraft(form, {
-          answers,
+          answers: buildTrimmedAnswers(answers, pages),
           history,
           cursor,
         }),
@@ -533,136 +913,125 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     hasResolvedDraft,
     history,
     isComplete,
+    pages,
     storageKey,
   ]);
 
   useLayoutEffect(() => {
-    if (
-      !hasResolvedDraft ||
-      isComplete ||
-      isSubmitting ||
-      !isTextLikeBlock(currentBlock)
-    ) {
+    if (!hasResolvedDraft || isComplete || isSubmitting || !firstFieldBlockId) {
       return;
     }
 
-    if (currentBlockId) {
-      pendingFocusBlockIdRef.current = currentBlockId;
-    }
-    focusInputNode(activeInputRef.current);
+    pendingFocusStepKeyRef.current = currentStepKey;
+    focusPageField(firstFieldBlockId);
 
     const timeoutId = window.setTimeout(() => {
-      focusInputNode(activeInputRef.current);
-      pendingFocusBlockIdRef.current = null;
+      const owedFocusStepKey = pendingFocusStepKeyRef.current;
+      pendingFocusStepKeyRef.current = null;
+
+      if (owedFocusStepKey === currentStepKey) {
+        focusPageField(firstFieldBlockId);
+      }
     }, 280);
 
     return () => window.clearTimeout(timeoutId);
   }, [
-    currentBlock,
-    currentBlockId,
-    focusInputNode,
+    currentStepKey,
+    firstFieldBlockId,
+    focusPageField,
     hasResolvedDraft,
     isComplete,
     isSubmitting,
   ]);
 
-  const validateStep = useCallback(
-    (answerSet: Record<string, AnswerValue> = answers) => {
-      if (!currentBlock || currentBlock.type === "TEXT") {
+  // One forward action per step: every block of the instance on screen is
+  // validated with the existing per-block validation (per instance for a
+  // repeating page), and the first invalid block keeps the step on screen
+  // with its error message.
+  const validateCurrentStep = useCallback(
+    (answerSet: RunnerAnswers = answers) => {
+      if (!currentPage) {
         return true;
       }
 
-      const result = validateAndNormalizeAnswer(
-        currentBlock,
-        answerSet[currentBlock.id],
-      );
+      const plan = planPageInstances(currentPage, pages, answerSet);
 
-      if (result.ok) {
-        return true;
+      if (plan.kind === "blocked") {
+        return false;
       }
 
-      switch (result.error.code) {
-        case "answer_required":
-          showToast(
-            t(
-              currentBlock.type === "RATING"
-                ? "publicRunner.ratingRequired"
-                : currentBlock.type === "FILE_UPLOAD"
-                  ? "publicRunner.fileRequired"
-                  : "publicRunner.answerRequired",
-            ),
-            "error",
-          );
+      for (const block of currentPage.blocks) {
+        if (block.type === "TEXT") {
+          continue;
+        }
+
+        // Only the instance on screen is validated: earlier instances were
+        // checked when their own steps submitted.
+        const result =
+          plan.kind === "instances"
+            ? validateAndNormalizeAnswer(
+                block,
+                nestedInstances(block, answerSet[block.id])[
+                  currentInstanceIndex
+                ],
+              )
+            : validateAndNormalizeAnswer(block, answerSet[block.id]);
+
+        if (!result.ok) {
+          showToast(getBlockErrorMessage(block, result.error, t), "error");
+
+          // Point the respondent at the failing field without stealing focus
+          // from a field they are already in.
+          if (
+            fieldNodesRef.current.get(block.id) &&
+            fieldNodesRef.current.get(block.id) !== document.activeElement
+          ) {
+            focusPageField(block.id);
+          }
+
           return false;
-        case "invalid_file":
-          showToast(t("publicRunner.fileInvalid"), "error");
-          return false;
-        case "single_choice_required":
-          showToast(t("publicRunner.singleChoiceRequired"), "error");
-          return false;
-        case "multi_choice_required":
-          showToast(t("publicRunner.multiChoiceRequired"), "error");
-          return false;
-        case "invalid_option":
-          showToast(
-            t(
-              currentBlock.type === "MULTIPLE_CHOICE"
-                ? "publicRunner.multiChoiceRequired"
-                : "publicRunner.singleChoiceRequired",
-            ),
-            "error",
-          );
-          return false;
-        case "agreement_required":
-        case "invalid_agreement":
-          showToast(t("publicRunner.agreementRequired"), "error");
-          return false;
-        case "invalid_text_format":
-          showToast(t("publicRunner.invalidTextFormat"), "error");
-          return false;
-        case "invalid_number":
-          showToast(t("publicRunner.invalidNumber"), "error");
-          return false;
-        case "whole_number_required":
-          showToast(t("publicRunner.wholeNumberRequired"), "error");
-          return false;
-        case "number_below_min":
-          showToast(
-            t("publicRunner.numberAtLeast", { min: result.error.min }),
-            "error",
-          );
-          return false;
-        case "number_above_max":
-          showToast(
-            t("publicRunner.numberAtMost", { max: result.error.max }),
-            "error",
-          );
-          return false;
-        case "invalid_link":
-          showToast(t("publicRunner.invalidLink"), "error");
-          return false;
-        case "invalid_date":
-          showToast(t("publicRunner.invalidDate"), "error");
-          return false;
+        }
       }
+
+      return true;
     },
-    [answers, currentBlock, showToast, t],
+    [
+      answers,
+      currentPage,
+      currentInstanceIndex,
+      focusPageField,
+      pages,
+      showToast,
+      t,
+    ],
   );
 
   const handleContinue = useCallback(
-    async (answerSet: Record<string, AnswerValue> = answers) => {
-      if (!validateStep(answerSet) || !currentBlock) {
+    async (answerSet: RunnerAnswers = answers) => {
+      if (!currentPage || !currentStep) {
         return;
       }
 
-      const sourceBlockId = currentBlock.id;
-      const resolvedNextBlockId = resolveNextBlockId(
-        form.blocks,
-        sourceBlockId,
-        answerSet,
-      );
+      // A page whose count question has no usable answer shows its content
+      // but cannot move forward.
+      if (planPageInstances(currentPage, pages, answerSet).kind === "blocked") {
+        return;
+      }
 
-      if (!resolvedNextBlockId) {
+      if (!validateCurrentStep(answerSet)) {
+        return;
+      }
+
+      const sourceStepKey = encodeRunnerRouteStep(currentStep);
+      const nextStep = resolveNextRouteStep({
+        pages,
+        pageId: currentPage.id,
+        instanceIndex: currentStep.instanceIndex,
+        projectionIndex: getExitProjectionIndex({ route, pages }),
+        answers: answerSet,
+      });
+
+      if (!nextStep) {
         if (submitLockRef.current) {
           return;
         }
@@ -671,10 +1040,14 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
 
         try {
           setIsSubmitting(true);
-          await submitResponse(form.slug, answerSet, {
-            honeypot: honeypotValue,
-            startedAt: startedAtRef.current,
-          });
+          await submitResponse(
+            form.slug,
+            buildTrimmedAnswers(answerSet, pages),
+            {
+              honeypot: honeypotValue,
+              startedAt: startedAtRef.current,
+            },
+          );
           removeStoredPublicFormDraft(storageKey);
           sendFormVisitEvent(form.slug, "submit");
           setIsComplete(true);
@@ -699,27 +1072,31 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         return;
       }
 
-      pendingFocusBlockIdRef.current = resolvedNextBlockId;
+      const nextStepKey = encodeRunnerRouteStep(nextStep);
+
+      pendingFocusStepKeyRef.current = nextStepKey;
 
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
 
       setRoute((current) =>
-        advanceRunnerRoute(current, sourceBlockId, resolvedNextBlockId),
+        advanceRunnerRoute(current, sourceStepKey, nextStepKey),
       );
     },
     [
       answers,
       closedMessage,
-      currentBlock,
-      form.blocks,
+      currentPage,
+      currentStep,
       form.slug,
       honeypotValue,
+      pages,
+      route,
       showToast,
       storageKey,
       t,
-      validateStep,
+      validateCurrentStep,
     ],
   );
 
@@ -780,85 +1157,90 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         setUploadingBlockId(null);
       }
     },
-    [form.slug, showToast, t],
+    [form.slug, setAnswer, showToast, t],
   );
 
   const handleBack = useCallback(() => {
     setRoute((current) => retreatRunnerRoute(current, { allowBackNavigation }));
   }, [allowBackNavigation]);
 
+  // Digit shortcuts stay unambiguous: they drive the page's only choice
+  // block. A page with a single choice block (every single-block page) keeps
+  // exactly the old behavior; a page with several gets none. The shortcut
+  // answers the instance on screen through the single-instance view.
+  const choiceShortcutBlock = useMemo(() => {
+    if (!currentPage) {
+      return null;
+    }
+
+    const candidates = currentPage.blocks.filter(isChoiceShortcutBlock);
+
+    return candidates.length === 1 ? candidates[0] : null;
+  }, [currentPage]);
+
   const applyChoiceShortcut = useCallback(
     (shortcutIndex: number) => {
-      if (
-        !currentBlock ||
-        (currentBlock.type !== "SINGLE_CHOICE" &&
-          currentBlock.type !== "MULTIPLE_CHOICE" &&
-          currentBlock.type !== "AGREEMENT" &&
-          currentBlock.type !== "RATING")
-      ) {
-        return null;
+      const block = choiceShortcutBlock;
+
+      if (!block) {
+        return false;
       }
 
-      if (currentBlock.type === "RATING") {
+      if (block.type === "RATING") {
         const value = getRatingShortcutValue(
           shortcutIndex,
-          currentBlock.config as RatingBlockConfig,
+          block.config as RatingBlockConfig,
         );
 
         if (value === null) {
-          return null;
+          return false;
         }
 
-        return {
-          ...answers,
-          [currentBlock.id]: String(value),
-        };
+        setAnswer(block.id, String(value));
+        return true;
       }
 
-      if (currentBlock.type === "AGREEMENT") {
+      if (block.type === "AGREEMENT") {
         if (shortcutIndex !== 0) {
-          return null;
+          return false;
         }
 
         const isSelected =
-          answers[currentBlock.id] === AGREEMENT_ANSWER_VALUES.AGREED;
+          instanceAnswers[block.id] === AGREEMENT_ANSWER_VALUES.AGREED;
 
-        return {
-          ...answers,
-          [currentBlock.id]: isSelected ? "" : AGREEMENT_ANSWER_VALUES.AGREED,
-        };
+        setAnswer(block.id, isSelected ? "" : AGREEMENT_ANSWER_VALUES.AGREED);
+        return true;
       }
 
-      const options = (currentBlock.config as ChoiceBlockConfig).options;
+      const options = (block.config as ChoiceBlockConfig).options;
       const option = options[shortcutIndex];
 
       if (!option) {
-        return null;
+        return false;
       }
 
-      if (currentBlock.type === "SINGLE_CHOICE") {
-        return {
-          ...answers,
-          [currentBlock.id]: option,
-        };
+      if (block.type === "SINGLE_CHOICE") {
+        setAnswer(block.id, option);
+        return true;
       }
 
-      const rawValues = answers[currentBlock.id];
+      const rawValues = instanceAnswers[block.id];
       const currentValues = Array.isArray(rawValues) ? rawValues : [];
       const nextValues = currentValues.includes(option)
         ? currentValues.filter((value) => value !== option)
         : [...currentValues, option];
 
-      return {
-        ...answers,
-        [currentBlock.id]: nextValues,
-      };
+      setAnswer(block.id, nextValues);
+      return true;
     },
-    [answers, currentBlock],
+    [choiceShortcutBlock, instanceAnswers, setAnswer],
   );
 
-  function handleAdvanceKeyDown(
+  // Enter in a text field moves the focus to the next field of the page and
+  // submits from the last one; long text keeps Shift+Enter for newlines.
+  function handleFieldKeyDown(
     event: ReactKeyboardEvent<HTMLElement>,
+    blockId: string,
     options?: { allowShiftEnter?: boolean },
   ) {
     if (
@@ -874,6 +1256,17 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     }
 
     event.preventDefault();
+
+    const nextFieldBlockId = currentPage
+      ? getNextFieldBlockId(currentPage, blockId)
+      : null;
+
+    if (nextFieldBlockId) {
+      pendingFocusStepKeyRef.current = null;
+      focusPageField(nextFieldBlockId);
+      return;
+    }
+
     void handleContinue();
   }
 
@@ -900,7 +1293,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
   }
 
   useEffect(() => {
-    if (!hasResolvedDraft || isComplete || isSubmitting || !currentBlock) {
+    if (!hasResolvedDraft || isComplete || isSubmitting || !currentPage) {
       return;
     }
 
@@ -912,11 +1305,8 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
       const shortcutIndex = getShortcutIndex(event.key);
 
       if (shortcutIndex !== null && !isTextEntryTarget(event.target)) {
-        const nextAnswers = applyChoiceShortcut(shortcutIndex);
-
-        if (nextAnswers) {
+        if (applyChoiceShortcut(shortcutIndex)) {
           event.preventDefault();
-          setAnswers(nextAnswers);
         }
 
         return;
@@ -944,7 +1334,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     allowBackNavigation,
     applyChoiceShortcut,
     cursor,
-    currentBlock,
+    currentPage,
     handleBack,
     handleContinue,
     hasResolvedDraft,
@@ -959,7 +1349,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
           <p className="text-sm text-[var(--muted)]">
             {t("publicRunner.responseReceived")}
           </p>
-          <h2 className="mt-3 max-w-2xl font-display text-4xl leading-tight text-[var(--ink)] sm:text-5xl">
+          <h2 className="mt-3 max-w-2xl font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
             {completionTitle}
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)]">
@@ -985,7 +1375,7 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
     );
   }
 
-  if (!currentBlock) {
+  if (!currentPage) {
     return null;
   }
 
@@ -1043,467 +1433,529 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
         <div className="px-5 py-6 sm:px-6 sm:py-7">
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentBlock.id}
+              key={currentStepKey ?? currentPage.id}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.24, ease: "easeOut" }}
               onAnimationComplete={() => {
-                if (isTextLikeBlock(currentBlock) && currentBlockId) {
-                  pendingFocusBlockIdRef.current = currentBlockId;
-                  focusInputNode(activeInputRef.current);
+                if (firstFieldBlockId) {
+                  pendingFocusStepKeyRef.current = currentStepKey;
+                  focusPageField(firstFieldBlockId);
                 }
               }}
               className="min-h-[280px]"
             >
-              {currentBlock.type === "TEXT" ? (
-                <div className="flex min-h-[240px] flex-col justify-center py-4">
-                  <h2 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
-                    {currentBlock.title || t("publicRunner.defaultTextTitle")}
-                  </h2>
-                  <AuthoredMarkdown
-                    content={(currentBlock.config as TextBlockConfig).body}
-                    className="mt-4 text-base leading-7 text-[var(--ink)]/82"
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-[240px] flex-col justify-center py-2">
-                  <h2 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
-                    {currentBlock.title}
-                  </h2>
-                  {currentBlock.description ? (
-                    <AuthoredMarkdown
-                      content={currentBlock.description}
-                      className="mt-3 text-base leading-7 text-[var(--muted)]"
-                    />
-                  ) : null}
-                  {currentBlock.required ? (
-                    <p className="mt-2 text-sm text-[var(--muted)]">
-                      {t("publicRunner.required")}
-                    </p>
-                  ) : null}
-
-                  <div className="mt-6 space-y-3">
-                    {currentBlock.type === "SHORT_TEXT" ? (
-                      <Input
-                        ref={setActiveInputNode}
-                        autoFocus={
-                          hasResolvedDraft && !isSubmitting && !isComplete
-                        }
-                        className="h-12 text-base placeholder:text-[var(--muted)]/65"
-                        placeholder={
-                          (currentBlock.config as ShortTextBlockConfig)
-                            .placeholder
-                        }
-                        value={
-                          typeof answers[currentBlock.id] === "string"
-                            ? answers[currentBlock.id]
-                            : ""
-                        }
-                        onChange={(event) =>
-                          setAnswer(currentBlock.id, event.target.value)
-                        }
-                        onKeyDown={handleAdvanceKeyDown}
+              {pageName || isRepeatingStep ? (
+                <p className="mb-6">
+                  <span className="inline-flex items-center rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-sm font-medium text-[var(--accent-ink)]">
+                    {pageName}
+                    {pageName && isRepeatingStep ? " · " : null}
+                    {isRepeatingStep
+                      ? t("formPages.instanceLabel", {
+                          number: currentInstanceIndex + 1,
+                          count: instanceCount,
+                        })
+                      : null}
+                  </span>
+                </p>
+              ) : null}
+              {blockedCountMessage ? (
+                <p
+                  role="alert"
+                  className="mb-6 rounded-md border border-[color:var(--danger-line)] bg-[var(--danger-soft)] px-4 py-3 text-sm leading-6 text-[var(--danger-ink)]"
+                >
+                  {blockedCountMessage}
+                </p>
+              ) : null}
+              {currentPage.blocks.map((block, blockIndex) => (
+                <div
+                  key={block.id}
+                  className={blockIndex === 0 ? undefined : "mt-8"}
+                >
+                  {block.type === "TEXT" ? (
+                    <div className="flex flex-col justify-center py-4">
+                      <h2 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">
+                        {block.title || t("publicRunner.defaultTextTitle")}
+                      </h2>
+                      <AuthoredMarkdown
+                        content={(block.config as TextBlockConfig).body}
+                        className="mt-4 text-base leading-7 text-[var(--ink)]/82"
                       />
-                    ) : null}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col justify-center py-2">
+                      <h2 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">
+                        {block.title}
+                      </h2>
+                      {block.description ? (
+                        <AuthoredMarkdown
+                          content={block.description}
+                          className="mt-3 text-base leading-7 text-[var(--muted)]"
+                        />
+                      ) : null}
+                      {block.required ? (
+                        <p className="mt-2 text-sm text-[var(--muted)]">
+                          {t("publicRunner.required")}
+                        </p>
+                      ) : null}
 
-                    {currentBlock.type === "LONG_TEXT" ? (
-                      <Textarea
-                        ref={setActiveTextareaNode}
-                        autoFocus={
-                          hasResolvedDraft && !isSubmitting && !isComplete
-                        }
-                        className="min-h-[140px] text-base placeholder:text-[var(--muted)]/65"
-                        placeholder={
-                          (currentBlock.config as LongTextBlockConfig)
-                            .placeholder
-                        }
-                        value={
-                          typeof answers[currentBlock.id] === "string"
-                            ? answers[currentBlock.id]
-                            : ""
-                        }
-                        onChange={(event) =>
-                          setAnswer(currentBlock.id, event.target.value)
-                        }
-                        onKeyDown={(event) =>
-                          handleAdvanceKeyDown(event, { allowShiftEnter: true })
-                        }
-                      />
-                    ) : null}
+                      <div className="mt-6 space-y-3">
+                        {block.type === "SHORT_TEXT" ? (
+                          <Input
+                            ref={(node) => registerFieldNode(block.id, node)}
+                            autoFocus={
+                              hasResolvedDraft &&
+                              !isSubmitting &&
+                              !isComplete &&
+                              block.id === firstFieldBlockId
+                            }
+                            className="h-12 text-base placeholder:text-[var(--muted)]/65"
+                            placeholder={
+                              (block.config as ShortTextBlockConfig).placeholder
+                            }
+                            value={
+                              typeof instanceAnswers[block.id] === "string"
+                                ? instanceAnswers[block.id]
+                                : ""
+                            }
+                            onChange={(event) =>
+                              setAnswer(block.id, event.target.value)
+                            }
+                            onKeyDown={(event) =>
+                              handleFieldKeyDown(event, block.id)
+                            }
+                          />
+                        ) : null}
 
-                    {currentBlock.type === "NUMBER" ? (
-                      <Input
-                        ref={setActiveInputNode}
-                        autoFocus={
-                          hasResolvedDraft && !isSubmitting && !isComplete
-                        }
-                        type="number"
-                        step={
-                          (currentBlock.config as NumberBlockConfig).allowFloat
-                            ? "any"
-                            : "1"
-                        }
-                        className="h-12 text-base placeholder:text-[var(--muted)]/65"
-                        placeholder={
-                          (currentBlock.config as NumberBlockConfig).placeholder
-                        }
-                        value={
-                          typeof answers[currentBlock.id] === "string"
-                            ? answers[currentBlock.id]
-                            : ""
-                        }
-                        onChange={(event) =>
-                          setAnswer(currentBlock.id, event.target.value)
-                        }
-                        onKeyDown={handleAdvanceKeyDown}
-                      />
-                    ) : null}
+                        {block.type === "LONG_TEXT" ? (
+                          <Textarea
+                            ref={(node) => registerFieldNode(block.id, node)}
+                            autoFocus={
+                              hasResolvedDraft &&
+                              !isSubmitting &&
+                              !isComplete &&
+                              block.id === firstFieldBlockId
+                            }
+                            className="min-h-[140px] text-base placeholder:text-[var(--muted)]/65"
+                            placeholder={
+                              (block.config as LongTextBlockConfig).placeholder
+                            }
+                            value={
+                              typeof instanceAnswers[block.id] === "string"
+                                ? instanceAnswers[block.id]
+                                : ""
+                            }
+                            onChange={(event) =>
+                              setAnswer(block.id, event.target.value)
+                            }
+                            onKeyDown={(event) =>
+                              handleFieldKeyDown(event, block.id, {
+                                allowShiftEnter: true,
+                              })
+                            }
+                          />
+                        ) : null}
 
-                    {currentBlock.type === "LINK" ? (
-                      <Input
-                        ref={setActiveInputNode}
-                        autoFocus={
-                          hasResolvedDraft && !isSubmitting && !isComplete
-                        }
-                        type="url"
-                        className="h-12 text-base placeholder:text-[var(--muted)]/65"
-                        placeholder={
-                          (currentBlock.config as LinkBlockConfig).placeholder
-                        }
-                        value={
-                          typeof answers[currentBlock.id] === "string"
-                            ? answers[currentBlock.id]
-                            : ""
-                        }
-                        onChange={(event) =>
-                          setAnswer(currentBlock.id, event.target.value)
-                        }
-                        onKeyDown={handleAdvanceKeyDown}
-                      />
-                    ) : null}
-
-                    {currentBlock.type === "DATE"
-                      ? (() => {
-                          const currentValue = answers[currentBlock.id];
-
-                          return (
-                            <DatePickerInput
-                              ref={setActiveInputNode}
+                        {block.type === "NUMBER" ? (
+                          <>
+                            <Input
+                              ref={(node) => registerFieldNode(block.id, node)}
                               autoFocus={
-                                hasResolvedDraft && !isSubmitting && !isComplete
+                                hasResolvedDraft &&
+                                !isSubmitting &&
+                                !isComplete &&
+                                block.id === firstFieldBlockId
                               }
-                              className="text-base"
+                              // A number input swallows any non-numeric
+                              // keystrokes: the browser keeps them out of
+                              // value, the runner sees an empty answer and
+                              // reports the wrong error. Text input passes
+                              // the raw value to validation.
+                              type="text"
+                              inputMode={
+                                (block.config as NumberBlockConfig).allowFloat
+                                  ? "decimal"
+                                  : "numeric"
+                              }
+                              className="h-12 text-base placeholder:text-[var(--muted)]/65"
+                              placeholder={
+                                (block.config as NumberBlockConfig).placeholder
+                              }
                               value={
-                                typeof currentValue === "string"
-                                  ? currentValue
+                                typeof instanceAnswers[block.id] === "string"
+                                  ? instanceAnswers[block.id]
                                   : ""
                               }
-                              onChange={(value) =>
-                                setAnswer(currentBlock.id, value)
+                              onChange={(event) =>
+                                setAnswer(block.id, event.target.value)
                               }
-                              onKeyDown={handleAdvanceKeyDown}
-                              openCalendarLabel={t("publicRunner.openCalendar")}
+                              onKeyDown={(event) =>
+                                handleFieldKeyDown(event, block.id)
+                              }
                             />
-                          );
-                        })()
-                      : null}
+                            <NumberRangeHint
+                              config={block.config as NumberBlockConfig}
+                            />
+                          </>
+                        ) : null}
 
-                    {currentBlock.type === "SINGLE_CHOICE" ? (
-                      <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
-                        {(currentBlock.config as ChoiceBlockConfig).options.map(
-                          (option, index) => {
-                            const selected =
-                              answers[currentBlock.id] === option;
-                            const shortcut = getShortcutKey(index);
+                        {block.type === "LINK" ? (
+                          <Input
+                            ref={(node) => registerFieldNode(block.id, node)}
+                            autoFocus={
+                              hasResolvedDraft &&
+                              !isSubmitting &&
+                              !isComplete &&
+                              block.id === firstFieldBlockId
+                            }
+                            type="url"
+                            className="h-12 text-base placeholder:text-[var(--muted)]/65"
+                            placeholder={
+                              (block.config as LinkBlockConfig).placeholder
+                            }
+                            value={
+                              typeof instanceAnswers[block.id] === "string"
+                                ? instanceAnswers[block.id]
+                                : ""
+                            }
+                            onChange={(event) =>
+                              setAnswer(block.id, event.target.value)
+                            }
+                            onKeyDown={(event) =>
+                              handleFieldKeyDown(event, block.id)
+                            }
+                          />
+                        ) : null}
 
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                data-runner-choice-control="true"
-                                aria-pressed={selected}
-                                aria-keyshortcuts={shortcut ?? undefined}
-                                className={cn(
-                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
-                                  selected
-                                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                                    : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
-                                )}
-                                onPointerDown={preventPointerFocusSteal}
-                                onClick={() =>
-                                  setAnswer(currentBlock.id, option)
-                                }
-                                onKeyDown={handleChoiceControlKeyDown}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className="inline-flex size-5 items-center justify-center rounded-full border border-[color:var(--line)] bg-[var(--surface)]">
-                                    {selected ? (
-                                      <Check className="size-3.5 text-[var(--accent)]" />
-                                    ) : (
-                                      <Circle className="size-3.5 text-[var(--muted)]/55" />
-                                    )}
-                                  </span>
-                                  <span>{option}</span>
-                                </div>
-                                {shortcut ? (
-                                  <ShortcutBadge shortcut={shortcut} />
-                                ) : null}
-                              </button>
-                            );
-                          },
-                        )}
-                      </div>
-                    ) : null}
+                        {block.type === "DATE"
+                          ? (() => {
+                              const currentValue = instanceAnswers[block.id];
 
-                    {currentBlock.type === "MULTIPLE_CHOICE" ? (
-                      <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
-                        {(currentBlock.config as ChoiceBlockConfig).options.map(
-                          (option, index) => {
-                            const rawValues = answers[currentBlock.id];
-                            const currentValues: string[] = Array.isArray(
-                              rawValues,
-                            )
-                              ? rawValues
-                              : [];
-                            const selected = currentValues.includes(option);
-                            const shortcut = getShortcutKey(index);
+                              return (
+                                <DatePickerInput
+                                  ref={(node) =>
+                                    registerFieldNode(block.id, node)
+                                  }
+                                  autoFocus={
+                                    hasResolvedDraft &&
+                                    !isSubmitting &&
+                                    !isComplete &&
+                                    block.id === firstFieldBlockId
+                                  }
+                                  className="text-base"
+                                  value={
+                                    typeof currentValue === "string"
+                                      ? currentValue
+                                      : ""
+                                  }
+                                  onChange={(value) =>
+                                    setAnswer(block.id, value)
+                                  }
+                                  onKeyDown={(event) =>
+                                    handleFieldKeyDown(event, block.id)
+                                  }
+                                  openCalendarLabel={t(
+                                    "publicRunner.openCalendar",
+                                  )}
+                                />
+                              );
+                            })()
+                          : null}
 
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                data-runner-choice-control="true"
-                                aria-pressed={selected}
-                                aria-keyshortcuts={shortcut ?? undefined}
-                                className={cn(
-                                  "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
-                                  selected
-                                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                                    : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
-                                )}
-                                onPointerDown={preventPointerFocusSteal}
-                                onClick={() => {
-                                  const nextValues = selected
-                                    ? currentValues.filter(
-                                        (value) => value !== option,
-                                      )
-                                    : [...currentValues, option];
-                                  setAnswer(currentBlock.id, nextValues);
-                                }}
-                                onKeyDown={handleChoiceControlKeyDown}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className="inline-flex size-5 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)]">
-                                    {selected ? (
-                                      <Check className="size-3.5 text-[var(--accent)]" />
-                                    ) : (
-                                      <Square className="size-3.5 text-[var(--muted)]/55" />
-                                    )}
-                                  </span>
-                                  <span>{option}</span>
-                                </div>
-                                {shortcut ? (
-                                  <ShortcutBadge shortcut={shortcut} />
-                                ) : null}
-                              </button>
-                            );
-                          },
-                        )}
-                      </div>
-                    ) : null}
+                        {block.type === "SINGLE_CHOICE" ? (
+                          <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
+                            {(block.config as ChoiceBlockConfig).options.map(
+                              (option, index) => {
+                                const selected =
+                                  instanceAnswers[block.id] === option;
+                                const shortcut = getShortcutKey(index);
 
-                    {currentBlock.type === "RATING"
-                      ? (() => {
-                          const config =
-                            currentBlock.config as RatingBlockConfig;
-                          const currentValue = answers[currentBlock.id];
-
-                          return (
-                            <div className="grid gap-2 px-2">
-                              <div className="flex flex-wrap gap-2">
-                                {getRatingValues(config).map((value) => {
-                                  const selected =
-                                    currentValue === String(value);
-                                  const shortcut = getRatingShortcutKey(
-                                    value,
-                                    config,
-                                  );
-
-                                  return (
-                                    <button
-                                      key={value}
-                                      type="button"
-                                      data-runner-choice-control="true"
-                                      aria-pressed={selected}
-                                      aria-keyshortcuts={shortcut ?? undefined}
-                                      className={cn(
-                                        "flex h-12 min-w-12 items-center justify-center rounded-md border px-3 text-base font-semibold transition",
-                                        selected
-                                          ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                                          : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
-                                      )}
-                                      onPointerDown={preventPointerFocusSteal}
-                                      onClick={() =>
-                                        setAnswer(
-                                          currentBlock.id,
-                                          selected ? "" : String(value),
-                                        )
-                                      }
-                                      onKeyDown={handleChoiceControlKeyDown}
-                                    >
-                                      {value}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {config.minLabel || config.maxLabel ? (
-                                <div className="flex justify-between gap-4 text-xs text-[var(--muted)]">
-                                  <span>{config.minLabel}</span>
-                                  <span className="text-right">
-                                    {config.maxLabel}
-                                  </span>
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })()
-                      : null}
-
-                    {currentBlock.type === "FILE_UPLOAD"
-                      ? (() => {
-                          const config =
-                            currentBlock.config as FileUploadBlockConfig;
-                          const currentValue = answers[currentBlock.id];
-                          const attached =
-                            typeof currentValue === "string" && currentValue;
-                          const isUploading =
-                            uploadingBlockId === currentBlock.id;
-                          const inputId = `file-${currentBlock.id}`;
-
-                          return (
-                            <div className="grid gap-3 px-2">
-                              {attached ? (
-                                <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--ink)]">
-                                  <div className="flex min-w-0 items-center gap-3">
-                                    <Paperclip className="size-4 shrink-0 text-[var(--accent)]" />
-                                    <span className="truncate text-base">
-                                      {attachedFilenames[currentBlock.id] ??
-                                        t("publicRunner.fileAttached")}
-                                    </span>
-                                  </div>
+                                return (
                                   <button
+                                    key={option}
                                     type="button"
-                                    aria-label={t("publicRunner.fileRemove")}
-                                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+                                    data-runner-choice-control="true"
+                                    aria-pressed={selected}
+                                    aria-keyshortcuts={shortcut ?? undefined}
+                                    className={cn(
+                                      "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
+                                      selected
+                                        ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
+                                        : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
+                                    )}
                                     onPointerDown={preventPointerFocusSteal}
-                                    onClick={() =>
-                                      setAnswer(currentBlock.id, "")
-                                    }
+                                    onClick={() => setAnswer(block.id, option)}
+                                    onKeyDown={handleChoiceControlKeyDown}
                                   >
-                                    <X className="size-4" />
+                                    <div className="flex items-center gap-3">
+                                      <span className="inline-flex size-5 items-center justify-center rounded-full border border-[color:var(--line)] bg-[var(--surface)]">
+                                        {selected ? (
+                                          <Check className="size-3.5 text-[var(--accent)]" />
+                                        ) : (
+                                          <Circle className="size-3.5 text-[var(--muted)]/55" />
+                                        )}
+                                      </span>
+                                      <span>{option}</span>
+                                    </div>
+                                    {shortcut ? (
+                                      <ShortcutBadge shortcut={shortcut} />
+                                    ) : null}
                                   </button>
-                                </div>
-                              ) : (
-                                <label
-                                  htmlFor={inputId}
-                                  className={cn(
-                                    "flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-[color:var(--line)] bg-[var(--surface-strong)] px-4 py-4 text-base text-[var(--ink)] transition hover:bg-[var(--surface)]",
-                                    isUploading &&
-                                      "pointer-events-none opacity-70",
-                                  )}
-                                >
-                                  {isUploading ? (
-                                    <LoaderCircle className="size-4 animate-spin text-[var(--accent)]" />
-                                  ) : (
-                                    <Paperclip className="size-4 text-[var(--accent)]" />
-                                  )}
-                                  <span>
-                                    {isUploading
-                                      ? t("publicRunner.fileUploading")
-                                      : t("publicRunner.chooseFile")}
-                                  </span>
-                                  <input
-                                    id={inputId}
-                                    type="file"
-                                    className="sr-only"
-                                    accept={
-                                      getAcceptAttribute(config.accept) ||
-                                      undefined
-                                    }
-                                    disabled={isUploading}
-                                    onChange={(event) => {
-                                      const file =
-                                        event.target.files?.[0] ?? null;
-                                      event.target.value = "";
-                                      void handleFileSelected(
-                                        currentBlock,
-                                        file,
-                                      );
+                                );
+                              },
+                            )}
+                          </div>
+                        ) : null}
+
+                        {block.type === "MULTIPLE_CHOICE" ? (
+                          <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
+                            {(block.config as ChoiceBlockConfig).options.map(
+                              (option, index) => {
+                                const rawValues = instanceAnswers[block.id];
+                                const currentValues: string[] = Array.isArray(
+                                  rawValues,
+                                )
+                                  ? rawValues
+                                  : [];
+                                const selected = currentValues.includes(option);
+                                const shortcut = getShortcutKey(index);
+
+                                return (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    data-runner-choice-control="true"
+                                    aria-pressed={selected}
+                                    aria-keyshortcuts={shortcut ?? undefined}
+                                    className={cn(
+                                      "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
+                                      selected
+                                        ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
+                                        : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
+                                    )}
+                                    onPointerDown={preventPointerFocusSteal}
+                                    onClick={() => {
+                                      const nextValues = selected
+                                        ? currentValues.filter(
+                                            (value) => value !== option,
+                                          )
+                                        : [...currentValues, option];
+                                      setAnswer(block.id, nextValues);
                                     }}
-                                  />
-                                </label>
-                              )}
-                              <p className="text-xs text-[var(--muted)]">
-                                {t(fileHintKeys[config.accept], {
-                                  size: config.maxSizeMb,
-                                })}
-                              </p>
-                            </div>
-                          );
-                        })()
-                      : null}
+                                    onKeyDown={handleChoiceControlKeyDown}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <span className="inline-flex size-5 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)]">
+                                        {selected ? (
+                                          <Check className="size-3.5 text-[var(--accent)]" />
+                                        ) : (
+                                          <Square className="size-3.5 text-[var(--muted)]/55" />
+                                        )}
+                                      </span>
+                                      <span>{option}</span>
+                                    </div>
+                                    {shortcut ? (
+                                      <ShortcutBadge shortcut={shortcut} />
+                                    ) : null}
+                                  </button>
+                                );
+                              },
+                            )}
+                          </div>
+                        ) : null}
 
-                    {currentBlock.type === "AGREEMENT" ? (
-                      <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
-                        {(() => {
-                          const selected =
-                            answers[currentBlock.id] ===
-                            AGREEMENT_ANSWER_VALUES.AGREED;
-                          const label =
-                            (currentBlock.config as AgreementBlockConfig)
-                              .label ?? t("publicRunner.agree");
-                          const nextValue = selected
-                            ? ""
-                            : AGREEMENT_ANSWER_VALUES.AGREED;
+                        {block.type === "RATING"
+                          ? (() => {
+                              const config = block.config as RatingBlockConfig;
+                              const currentValue = instanceAnswers[block.id];
 
-                          return (
-                            <button
-                              type="button"
-                              data-runner-choice-control="true"
-                              aria-pressed={selected}
-                              aria-keyshortcuts="1"
-                              className={cn(
-                                "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
-                                selected
-                                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
-                                  : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
-                              )}
-                              onPointerDown={preventPointerFocusSteal}
-                              onClick={() =>
-                                setAnswer(currentBlock.id, nextValue)
-                              }
-                              onKeyDown={handleChoiceControlKeyDown}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="inline-flex size-5 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)]">
-                                  {selected ? (
-                                    <Check className="size-3.5 text-[var(--accent)]" />
+                              return (
+                                <div className="grid gap-2 px-2">
+                                  <div className="flex flex-wrap gap-2">
+                                    {getRatingValues(config).map((value) => {
+                                      const selected =
+                                        currentValue === String(value);
+                                      const shortcut = getRatingShortcutKey(
+                                        value,
+                                        config,
+                                      );
+
+                                      return (
+                                        <button
+                                          key={value}
+                                          type="button"
+                                          data-runner-choice-control="true"
+                                          aria-pressed={selected}
+                                          aria-keyshortcuts={
+                                            shortcut ?? undefined
+                                          }
+                                          className={cn(
+                                            "flex h-12 min-w-12 items-center justify-center rounded-md border px-3 text-base font-semibold transition",
+                                            selected
+                                              ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
+                                              : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
+                                          )}
+                                          onPointerDown={
+                                            preventPointerFocusSteal
+                                          }
+                                          onClick={() =>
+                                            setAnswer(
+                                              block.id,
+                                              selected ? "" : String(value),
+                                            )
+                                          }
+                                          onKeyDown={handleChoiceControlKeyDown}
+                                        >
+                                          {value}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {config.minLabel || config.maxLabel ? (
+                                    <div className="flex justify-between gap-4 text-xs text-[var(--muted)]">
+                                      <span>{config.minLabel}</span>
+                                      <span className="text-right">
+                                        {config.maxLabel}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })()
+                          : null}
+
+                        {block.type === "FILE_UPLOAD"
+                          ? (() => {
+                              const config =
+                                block.config as FileUploadBlockConfig;
+                              const currentValue = instanceAnswers[block.id];
+                              const attached =
+                                typeof currentValue === "string" &&
+                                currentValue;
+                              const isUploading = uploadingBlockId === block.id;
+                              const inputId = `file-${block.id}`;
+
+                              return (
+                                <div className="grid gap-3 px-2">
+                                  {attached ? (
+                                    <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-[var(--ink)]">
+                                      <div className="flex min-w-0 items-center gap-3">
+                                        <Paperclip className="size-4 shrink-0 text-[var(--accent)]" />
+                                        <span className="truncate text-base">
+                                          {attachedFilenames[block.id] ??
+                                            t("publicRunner.fileAttached")}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        aria-label={t(
+                                          "publicRunner.fileRemove",
+                                        )}
+                                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+                                        onPointerDown={preventPointerFocusSteal}
+                                        onClick={() => setAnswer(block.id, "")}
+                                      >
+                                        <X className="size-4" />
+                                      </button>
+                                    </div>
                                   ) : (
-                                    <Square className="size-3.5 text-[var(--muted)]/55" />
+                                    <label
+                                      htmlFor={inputId}
+                                      className={cn(
+                                        "flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-[color:var(--line)] bg-[var(--surface-strong)] px-4 py-4 text-base text-[var(--ink)] transition hover:bg-[var(--surface)]",
+                                        isUploading &&
+                                          "pointer-events-none opacity-70",
+                                      )}
+                                    >
+                                      {isUploading ? (
+                                        <LoaderCircle className="size-4 animate-spin text-[var(--accent)]" />
+                                      ) : (
+                                        <Paperclip className="size-4 text-[var(--accent)]" />
+                                      )}
+                                      <span>
+                                        {isUploading
+                                          ? t("publicRunner.fileUploading")
+                                          : t("publicRunner.chooseFile")}
+                                      </span>
+                                      <input
+                                        id={inputId}
+                                        type="file"
+                                        className="sr-only"
+                                        accept={
+                                          getAcceptAttribute(config.accept) ||
+                                          undefined
+                                        }
+                                        disabled={isUploading}
+                                        onChange={(event) => {
+                                          const file =
+                                            event.target.files?.[0] ?? null;
+                                          event.target.value = "";
+                                          void handleFileSelected(block, file);
+                                        }}
+                                      />
+                                    </label>
                                   )}
-                                </span>
-                                <span>{label}</span>
-                              </div>
-                              <ShortcutBadge shortcut="1" />
-                            </button>
-                          );
-                        })()}
+                                  <p className="text-xs text-[var(--muted)]">
+                                    {t(fileHintKeys[config.accept], {
+                                      size: config.maxSizeMb,
+                                    })}
+                                  </p>
+                                </div>
+                              );
+                            })()
+                          : null}
+
+                        {block.type === "AGREEMENT" ? (
+                          <div className="inline-grid min-w-[33%] max-w-full gap-3 px-2 max-md:min-w-full">
+                            {(() => {
+                              const selected =
+                                instanceAnswers[block.id] ===
+                                AGREEMENT_ANSWER_VALUES.AGREED;
+                              const label =
+                                (block.config as AgreementBlockConfig).label ??
+                                t("publicRunner.agree");
+                              const nextValue = selected
+                                ? ""
+                                : AGREEMENT_ANSWER_VALUES.AGREED;
+
+                              return (
+                                <button
+                                  type="button"
+                                  data-runner-choice-control="true"
+                                  aria-pressed={selected}
+                                  aria-keyshortcuts="1"
+                                  className={cn(
+                                    "flex w-full max-w-full items-center justify-between gap-3 rounded-[10px] border px-4 py-3 text-left transition",
+                                    selected
+                                      ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
+                                      : "border-[color:var(--line)] bg-[var(--surface-strong)] text-[var(--ink)] hover:bg-[var(--surface)]",
+                                  )}
+                                  onPointerDown={preventPointerFocusSteal}
+                                  onClick={() => setAnswer(block.id, nextValue)}
+                                  onKeyDown={handleChoiceControlKeyDown}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className="inline-flex size-5 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)]">
+                                      {selected ? (
+                                        <Check className="size-3.5 text-[var(--accent)]" />
+                                      ) : (
+                                        <Square className="size-3.5 text-[var(--muted)]/55" />
+                                      )}
+                                    </span>
+                                    <span>{label}</span>
+                                  </div>
+                                  <ShortcutBadge shortcut="1" />
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </motion.div>
           </AnimatePresence>
 
@@ -1526,12 +1978,12 @@ export function PublicFormRunner({ form }: { form: PublicForm }) {
             <Button
               onPointerDown={preventPointerFocusSteal}
               onClick={() => void handleContinue()}
-              disabled={isSubmitting}
+              disabled={isSubmitting || blockedCountMessage !== null}
             >
               {isSubmitting ? (
                 <LoaderCircle className="size-4 animate-spin" />
               ) : null}
-              {!nextBlockId
+              {!hasFollowingStep
                 ? t("publicRunner.submit")
                 : t("publicRunner.continue")}
               {!isSubmitting ? (
