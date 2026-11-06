@@ -48,8 +48,17 @@ test.describe("Grouped pages", () => {
     await name.fill("Ada");
     await page.getByRole("button", { name: /^Submit$/ }).click();
     await expect(notes).toBeFocused();
+    await expect(notes).toHaveAttribute("aria-invalid", "true");
+    await expect(notes).toHaveAccessibleDescription(
+      "Please answer before continuing.",
+    );
+    await expect(page.locator("p[role=alert]")).toBeVisible();
+    await expect(page.getByRole("status")).toHaveCount(0);
+    await expect(name).toHaveAttribute("aria-invalid", "false");
     await expect(name).toHaveValue("Ada");
     await notes.fill("Hello");
+    await expect(notes).toHaveAttribute("aria-invalid", "false");
+    await expect(page.locator("p[role=alert]")).toHaveCount(0);
 
     // Let the real minimum-fill guard expire so a successful response must
     // come from persistence rather than the guard's honeypot response.
