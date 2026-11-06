@@ -115,7 +115,6 @@ test.describe("Repeating pages", () => {
   }) => {
     await page.goto(`/f/${publicForm.slug}`);
     await expect(page.getByPlaceholder("Member count")).toBeVisible();
-    const openedAt = Date.now();
     await page.getByPlaceholder("Member count").fill("2");
     await page.getByRole("button", { name: /^Continue$/ }).click();
     await page.getByPlaceholder("Member name").fill("Ada");
@@ -124,9 +123,10 @@ test.describe("Repeating pages", () => {
 
     await page.reload();
     await expect(page.getByText("Saved progress restored.")).toBeVisible();
+    const restoredAt = Date.now();
     await expect(page.getByPlaceholder("Member name")).toHaveValue("");
     await page.getByPlaceholder("Member name").fill("Grace");
-    await expect.poll(() => Date.now() - openedAt).toBeGreaterThan(3500);
+    await expect.poll(() => Date.now() - restoredAt).toBeGreaterThan(3500);
     const submitted = page.waitForResponse(
       (response) =>
         response
