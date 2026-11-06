@@ -336,6 +336,7 @@ builder:
     shareUrlTaken: Этот публичный URL уже занят.
     deleteFormConfirm: Удалить эту форму навсегда? Вместе с ней будут удалены все блоки и ответы. Это действие нельзя отменить.
     updatedBlockOrder: Порядок блоков обновлён
+    updatedPageOrder: Порядок страниц обновлён
     reorderError: Не удалось изменить порядок блоков.
 blocks:
   types:
@@ -378,6 +379,9 @@ publicRunner:
   wholeNumberRequired: Введите целое число перед продолжением.
   numberAtLeast: "Введите число не меньше {min}."
   numberAtMost: "Введите число не больше {max}."
+  numberRangeHint: От {min} до {max}
+  numberMinHint: Не меньше {min}
+  numberMaxHint: Не больше {max}
   ratingRequired: Выберите оценку перед продолжением.
   fileRequired: Приложите файл перед продолжением.
   fileInvalid: Приложенный файл не удалось проверить. Приложите его ещё раз.
@@ -472,3 +476,25 @@ ui:
   cancel: Отмена
   delete: Удалить
   dismissNotification: Закрыть уведомление
+formPages:
+  newPage: Новая страница
+  pageLabel: "Страница {number}"
+  dragPage: Перетащить страницу
+  renamePage: Переименовать страницу
+  deletePage: Удалить страницу
+  deletePageMergeHint: Блоки страницы перейдут на предыдущую
+  branchRulesIgnored: Условия перехода на блоке не в конце страницы не применяются
+  branchTargetIntoRepeat: Переход в повторяемую страницу открывает её первый экземпляр
+  repeatToggle: Повторять страницу
+  repeatCountQuestion: Вопрос с количеством
+  repeatNoCandidates: Добавьте числовой вопрос на более ранней странице, чтобы повторять эту
+  repeatActive: "Повторяется по ответу на «{question}»"
+  repeatCountMissing: Вопрос с количеством удалён
+  repeatCountNotNumber: Вопрос с количеством должен быть числовым
+  repeatCountOnPage: Вопрос с количеством не может быть на самой повторяемой странице
+  repeatCountAfterPage: Вопрос с количеством должен идти до повторяемой страницы
+  repeatCountRepeats: Вопрос с количеством не может быть на повторяемой странице
+  countMissing: "Ответьте на «{question}», чтобы продолжить"
+  countTooLarge: "В ответе на «{question}» укажите не больше {max}"
+  instanceLabel: "Экземпляр {number} из {count}"
+  instanceShortLabel: "Экземпляр {number}"

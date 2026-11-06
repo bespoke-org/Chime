@@ -17,6 +17,14 @@ The Chime release changes the default names of services, containers, the databas
 
 Browser storage and the active-workspace cookie use the `chime` namespace. Previously saved respondent progress, graph positions, theme preferences and workspace selection are not restored automatically. Visitor IDs are regenerated, so returning browsers may count as new visitors. Stored forms, submitted responses and uploaded files are unaffected when the existing database and bucket are retained.
 
+### Pages and repeating pages
+
+The page migrations add nullable `Form.pagesJson`, `FormBlock.pageId` and `Upload.instanceIndex` fields. Existing forms receive one page per block in their current order, preserving their one-question-at-a-time flow. Forms without blocks receive an empty page registry. Existing answers and uploaded files are retained; old clients that omit page fields leave the stored page settings unchanged.
+
+Creators can group questions on the same page, name and reorder pages, and repeat a page using the answer to a number question on an earlier non-repeating page. Counts must be whole numbers from 0 to 50; zero skips the repeating page. Only the last block of a page controls branching after that page, and a repeating page branches after its last instance.
+
+Repeating answers introduce a nested value shape in stored responses and webhook payloads, described below. Update webhook consumers before enabling repeating pages. Rolling the app back retains the added columns and data, but older versions do not understand grouped pages or repeated answers.
+
 ## Required environment variables
 
 Copy `.env.example` to `.env` and provide values for:
@@ -360,7 +368,9 @@ A `responses.batch` body with two responses:
 }
 ```
 
-`answers` lists the question blocks the respondent reached, in form order; skipped branches and text blocks are left out. `value` is a string, or an array of strings for multiple choice; a file answer is the authenticated download URL. `responses` are ordered by `submittedAt` and the period is `(periodStart, periodEnd]`. A batch holds at most 200 responses; a longer period is sent as several requests in the same run with `part` counting up to `parts` and the same period bounds.
+`answers` lists the question blocks the respondent reached, in form order; skipped branches and text blocks are left out. For non-repeating pages, `value` is a string, or an array of strings for multiple choice; a file answer is the authenticated download URL. On a repeating page, `value` contains one entry per instance: an array of strings for scalar questions or an array of string arrays for multiple choice. An unanswered middle instance is `null`, trailing unanswered instances are omitted, and repeating file answers contain authenticated download URLs. Identity fields use the first instance. Response details preserve the original instance numbers when an answer is missing; CSV and XLSX exports join answered instances with `; `.
+
+`responses` are ordered by `submittedAt` and the period is `(periodStart, periodEnd]`. A batch holds at most 200 responses; a longer period is sent as several requests in the same run with `part` counting up to `parts` and the same period bounds.
 
 Request headers:
 

@@ -1,15 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  FORM_BUILDER_DRAFT_STORAGE_PREFIX,
+  FORM_BUILDER_DRAFT_VERSION,
   createBranchRuleDrafts,
   createChoiceOptionDrafts,
   createDefaultBranchRuleDraft,
+  createFormBuilderDraft,
   fromDateTimeLocalValue,
+  getFormBuilderDraftStorageKey,
   hasBuilderBlockDraftChanges,
   parseMaxResponsesDraft,
+  readStoredFormBuilderDraft,
+  removeStoredFormBuilderDraft,
   serializeBranchRuleDrafts,
   serializeChoiceOptionDrafts,
   toDateTimeLocalValue,
+  writeStoredFormBuilderDraft,
 } from "@/lib/form-builder-drafts";
 import { getDefaultBlockConfig } from "@/lib/blocks";
 import type { BuilderBlock } from "@/lib/form-types";
@@ -194,5 +201,221 @@ describe("closing draft helpers", () => {
     expect(parseMaxResponsesDraft("")).toBe(null);
     expect(parseMaxResponsesDraft(" 25 ")).toBe(25);
     expect(Number.isNaN(parseMaxResponsesDraft("abc") as number)).toBe(true);
+  });
+});
+
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "window",
+);
+
+function mockWindowWithStorage(storage: {
+  getItem: (key: string) => string | null;
+  setItem?: (key: string, value: string) => void;
+  removeItem?: (key: string) => void;
+}) {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: storage.getItem,
+        setItem: storage.setItem ?? (() => undefined),
+        removeItem: storage.removeItem ?? (() => undefined),
+      },
+    },
+  });
+}
+
+function restoreWindow() {
+  if (originalWindowDescriptor) {
+    Object.defineProperty(globalThis, "window", originalWindowDescriptor);
+    return;
+  }
+
+  Reflect.deleteProperty(globalThis, "window");
+}
+
+describe("local builder draft persistence", () => {
+  test("round-trips blocks with their pages through localStorage", () => {
+    try {
+      const store = new Map<string, string>();
+      mockWindowWithStorage({
+        getItem: (key) => store.get(key) ?? null,
+        setItem: (key, value) => void store.set(key, value),
+        removeItem: (key) => void store.delete(key),
+      });
+
+      expect(getFormBuilderDraftStorageKey("form-1")).toBe(
+        `${FORM_BUILDER_DRAFT_STORAGE_PREFIX}:form-1`,
+      );
+
+      writeStoredFormBuilderDraft(
+        getFormBuilderDraftStorageKey("form-1"),
+        createFormBuilderDraft({
+          formId: "form-1",
+          blocks: [
+            {
+              ...createBlock({
+                id: "name",
+                type: "SHORT_TEXT",
+                position: 0,
+              }),
+              pageId: "page-1",
+            },
+          ],
+          pages: [{ id: "page-1" }, { id: "page-2" }],
+        }),
+      );
+
+      const result = readStoredFormBuilderDraft(
+        getFormBuilderDraftStorageKey("form-1"),
+      );
+
+      expect(result.status).toBe("ok");
+      if (result.status !== "ok") {
+        return;
+      }
+
+      expect(result.draft.version).toBe(FORM_BUILDER_DRAFT_VERSION);
+      expect(result.draft.formId).toBe("form-1");
+      expect(result.draft.blocks[0]?.pageId).toBe("page-1");
+      expect(JSON.stringify(result.draft.pages)).toBe(
+        JSON.stringify([{ id: "page-1" }, { id: "page-2" }]),
+      );
+    } finally {
+      restoreWindow();
+    }
+  });
+
+  test("loads a draft saved before pages existed as a draft without pages", () => {
+    try {
+      const legacyDraft = createFormBuilderDraft({
+        formId: "form-1",
+        blocks: [
+          createBlock({ id: "name", type: "SHORT_TEXT", position: 0 }),
+          createBlock({ id: "notes", type: "LONG_TEXT", position: 1 }),
+        ],
+      });
+      mockWindowWithStorage({
+        getItem: () => JSON.stringify(legacyDraft),
+      });
+
+      const result = readStoredFormBuilderDraft(
+        getFormBuilderDraftStorageKey("form-1"),
+      );
+
+      expect(result.status).toBe("ok");
+      if (result.status !== "ok") {
+        return;
+      }
+
+      expect("pages" in result.draft).toBe(false);
+      expect(result.draft.blocks.map((block) => block.id)).toEqual([
+        "name",
+        "notes",
+      ]);
+    } finally {
+      restoreWindow();
+    }
+  });
+
+  test("drops malformed page entries but keeps the draft", () => {
+    try {
+      mockWindowWithStorage({
+        getItem: () =>
+          JSON.stringify({
+            version: FORM_BUILDER_DRAFT_VERSION,
+            formId: "form-1",
+            savedAt: 1000,
+            blocks: [{ id: "name" }],
+            pages: [{ id: "page-1" }, "junk", {}],
+          }),
+      });
+
+      const result = readStoredFormBuilderDraft(
+        getFormBuilderDraftStorageKey("form-1"),
+      );
+
+      expect(result.status).toBe("ok");
+      if (result.status !== "ok") {
+        return;
+      }
+
+      expect(JSON.stringify(result.draft.pages)).toBe(
+        JSON.stringify([{ id: "page-1" }]),
+      );
+    } finally {
+      restoreWindow();
+    }
+  });
+
+  test("reports a missing, invalid or unavailable draft", () => {
+    try {
+      mockWindowWithStorage({ getItem: () => null });
+      expect(readStoredFormBuilderDraft("k").status).toBe("missing");
+
+      mockWindowWithStorage({ getItem: () => "{not valid json" });
+      expect(readStoredFormBuilderDraft("k").status).toBe("invalid");
+
+      mockWindowWithStorage({
+        getItem: () =>
+          JSON.stringify({
+            version: FORM_BUILDER_DRAFT_VERSION + 1,
+            formId: "form-1",
+            savedAt: 1000,
+            blocks: [],
+          }),
+      });
+      expect(readStoredFormBuilderDraft("k").status).toBe("invalid");
+
+      mockWindowWithStorage({
+        getItem: () =>
+          JSON.stringify({
+            version: FORM_BUILDER_DRAFT_VERSION,
+            formId: "form-1",
+            savedAt: 1000,
+            blocks: "not-an-array",
+          }),
+      });
+      expect(readStoredFormBuilderDraft("k").status).toBe("invalid");
+
+      mockWindowWithStorage({
+        getItem: () => {
+          throw new Error("Storage disabled");
+        },
+      });
+      expect(readStoredFormBuilderDraft("k").status).toBe("unavailable");
+    } finally {
+      restoreWindow();
+    }
+  });
+
+  test("ignores write and remove failures", () => {
+    try {
+      mockWindowWithStorage({
+        getItem: () => null,
+        setItem: () => {
+          throw new Error("Storage disabled");
+        },
+        removeItem: () => {
+          throw new Error("Storage disabled");
+        },
+      });
+
+      let threw = false;
+      try {
+        writeStoredFormBuilderDraft(
+          "k",
+          createFormBuilderDraft({ formId: "form-1", blocks: [] }),
+        );
+        removeStoredFormBuilderDraft("k");
+      } catch {
+        threw = true;
+      }
+
+      expect(threw).toBe(false);
+    } finally {
+      restoreWindow();
+    }
   });
 });

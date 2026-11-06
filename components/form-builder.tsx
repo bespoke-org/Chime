@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -22,13 +22,24 @@ import {
   LoaderCircle,
   Plus,
   GitBranch,
+  SquareSplitVertical,
+  Trash2,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
 import {
   blockCreationOrder,
   blockIcons,
+  buildPageSections,
+  countBlockCandidates,
+  deletePageById,
+  insertionForGap,
+  movePageToAnchor,
+  pageIdAfterDrop,
+  pageIdForNewBlock,
+  splitPageAfter,
   type BlockType,
+  type BuilderPageSection,
 } from "@/components/builder/block-creation";
 import { BranchingGraphWorkspace } from "@/components/builder/branching-graph-workspace";
 import {
@@ -41,6 +52,7 @@ import {
 import { useI18n } from "@/components/i18n-provider";
 import { useLocalToasts } from "@/components/use-local-toasts";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Popover,
@@ -57,6 +69,7 @@ import {
 } from "@/lib/blocks";
 import {
   analyzeBranchingGraph,
+  getBlockDisplayLabel,
   getBranchValidationIssueI18n,
 } from "@/lib/branching";
 import {
@@ -76,11 +89,54 @@ import type {
   FormWebhookInput,
   FormWebhookSummary,
 } from "@/lib/form-types";
+import {
+  resolvePages,
+  type PageDefinition,
+  type PageRepeatSettings,
+} from "@/lib/pages";
+import {
+  validateRepeatSettings,
+  type RepeatValidationIssueCode,
+} from "@/lib/repeat";
 import { cn } from "@/lib/utils";
+
+// Where the repeat placement warnings of lib/repeat.ts live: one line on the
+// header of the page whose stored settings do not resolve. The branch
+// warnings have their own panel above the builder; these sit next to their
+// cause.
+const repeatIssueMessageKeys: Record<RepeatValidationIssueCode, string> = {
+  repeat_count_block_missing: "formPages.repeatCountMissing",
+  repeat_count_block_not_number: "formPages.repeatCountNotNumber",
+  repeat_count_block_on_page: "formPages.repeatCountOnPage",
+  repeat_count_block_after_page: "formPages.repeatCountAfterPage",
+  repeat_count_block_repeats: "formPages.repeatCountRepeats",
+};
+
+// The repeat control edits one registry entry: a present repeat replaces the
+// stored one, null removes the field. The rest of the entry passes through.
+function withPageRepeat(
+  definition: PageDefinition,
+  repeat: PageRepeatSettings | null,
+): PageDefinition {
+  if (!repeat) {
+    const next = { ...definition };
+    delete next.repeat;
+    return next;
+  }
+
+  return { ...definition, repeat };
+}
 
 type BuilderMode = "standard" | "graph";
 
 type Selection = { kind: "form" } | { kind: "block"; blockId: string };
+
+// Where a block created from the sidebar lands in the flat block order.
+type BlockInsertion =
+  | { kind: "end" }
+  | { kind: "after"; blockId: string }
+  | { kind: "before"; blockId: string };
+
 type PendingNavigation =
   | { kind: "form"; nextBuilderMode?: BuilderMode }
   | {
@@ -95,6 +151,13 @@ type PendingNavigation =
       kind: "add-block-after";
       blockId: string;
       blockType: BlockType;
+      nextBuilderMode?: BuilderMode;
+    }
+  | {
+      kind: "insert-block";
+      blockType: BlockType;
+      pageId: string | null;
+      insertion: BlockInsertion;
       nextBuilderMode?: BuilderMode;
     };
 
@@ -238,6 +301,357 @@ function StaticBlockRow({
   );
 }
 
+// The block type list shared by the header menu and the insertion points.
+function BlockTypeMenu({
+  busy,
+  onSelect,
+}: {
+  busy: string | null;
+  onSelect: (type: BlockType) => void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="grid gap-1">
+      {blockCreationOrder.map((type) => {
+        const Icon = blockIcons[type];
+
+        return (
+          <button
+            key={type}
+            type="button"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+            onClick={() => onSelect(type)}
+          >
+            {busy === `add-${type}` ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <Icon className="size-4" />
+            )}
+            {t(blockTypeTranslationKeys[type])}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// The clickable page name in the header. Unnamed pages show the number
+// label; committing an empty string resets the page to that label.
+function PageNameLabel({
+  fallbackLabel,
+  name,
+  onRename,
+}: {
+  fallbackLabel: string;
+  name: string | null;
+  onRename: (name: string) => void;
+}) {
+  const { t } = useI18n();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(name ?? "");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
+
+  function commit() {
+    setIsEditing(false);
+
+    if (draft.trim() !== (name ?? "")) {
+      onRename(draft.trim());
+    }
+  }
+
+  function cancel() {
+    setIsEditing(false);
+    setDraft(name ?? "");
+  }
+
+  if (!isEditing) {
+    return (
+      <button
+        type="button"
+        aria-label={t("formPages.renamePage")}
+        title={t("formPages.renamePage")}
+        className="min-w-0 truncate rounded text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] transition hover:text-[var(--ink)]"
+        onClick={() => {
+          setDraft(name ?? "");
+          setIsEditing(true);
+        }}
+      >
+        {name || fallbackLabel}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      autoFocus
+      aria-label={t("formPages.renamePage")}
+      maxLength={100}
+      className="min-w-0 max-w-full rounded border-b border-[color:var(--line-strong)] bg-transparent text-[11px] font-semibold uppercase tracking-wider text-[var(--ink)] outline-none"
+      value={draft}
+      placeholder={fallbackLabel}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commit();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          cancel();
+        }
+      }}
+    />
+  );
+}
+
+// The page header above a page's blocks. Deleting moves the blocks to the
+// previous page, which the hint next to the delete action spells out. The
+// repeat row under the title edits the registry entry's repeat: the toggle
+// turns it on with the first offered count question and off again, the select
+// moves it to another one.
+function PageHeaderRow({
+  label,
+  name,
+  canDelete,
+  hasBlocks,
+  onDelete,
+  onRenamePage,
+  repeat,
+  candidates,
+  countBlockTitle,
+  warning,
+  onToggleRepeat,
+  onPickCountBlock,
+  dragHandle,
+}: {
+  label: string;
+  name: string | null;
+  canDelete: boolean;
+  hasBlocks: boolean;
+  onDelete: () => void;
+  onRenamePage: (name: string) => void;
+  repeat: PageRepeatSettings | null;
+  candidates: Array<{ id: string; title: string }>;
+  countBlockTitle: string | null;
+  warning: string | null;
+  onToggleRepeat: (enabled: boolean) => void;
+  onPickCountBlock: (blockId: string) => void;
+  dragHandle?: React.ReactNode;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="px-2.5 pb-0.5 pt-2">
+      <div className="flex items-center gap-2">
+        {dragHandle}
+        <PageNameLabel
+          fallbackLabel={label}
+          name={name}
+          onRename={onRenamePage}
+        />
+        <span className="h-px flex-1 bg-[color:var(--line)]" />
+        {canDelete ? (
+          <button
+            type="button"
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-[var(--danger-hover)] hover:text-[var(--danger-contrast)]"
+            aria-label={t("formPages.deletePage")}
+            title={
+              hasBlocks
+                ? t("formPages.deletePageMergeHint")
+                : t("formPages.deletePage")
+            }
+            onClick={onDelete}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <label
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--muted)]"
+          title={
+            candidates.length === 0
+              ? t("formPages.repeatNoCandidates")
+              : undefined
+          }
+        >
+          <Checkbox
+            checked={Boolean(repeat)}
+            disabled={candidates.length === 0}
+            onChange={(event) => onToggleRepeat(event.target.checked)}
+          />
+          {t("formPages.repeatToggle")}
+        </label>
+        {repeat && candidates.length > 0 ? (
+          <label className="inline-flex min-w-0 items-center gap-1.5 text-xs text-[var(--muted)]">
+            {t("formPages.repeatCountQuestion")}
+            <select
+              className="max-w-[9.5rem] truncate rounded-md border border-[color:var(--line)] bg-[var(--surface-strong)] px-1.5 py-0.5 text-xs font-medium text-[var(--ink)]"
+              value={
+                candidates.some(
+                  (candidate) => candidate.id === repeat.countBlockId,
+                )
+                  ? repeat.countBlockId
+                  : ""
+              }
+              onChange={(event) => onPickCountBlock(event.target.value)}
+            >
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {repeat && candidates.length === 0 ? (
+          <span className="text-xs text-[var(--muted)]">
+            {t("formPages.repeatNoCandidates")}
+          </span>
+        ) : null}
+        {repeat && countBlockTitle ? (
+          <span className="min-w-0 truncate text-xs text-[var(--muted)]">
+            {t("formPages.repeatActive", { question: countBlockTitle })}
+          </span>
+        ) : null}
+      </div>
+      {warning ? (
+        <p className="mt-1 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-xs leading-4 text-[var(--ink)]">
+          {warning}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// A page header that drags its whole page: the run of blocks below travels
+// with the registry entry, see handleDragEnd.
+function SortablePageHeaderRow({
+  pageId,
+  headerProps,
+}: {
+  pageId: string;
+  headerProps: Parameters<typeof PageHeaderRow>[0];
+}) {
+  const { t } = useI18n();
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: `page:${pageId}` });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className="group/page"
+    >
+      <PageHeaderRow
+        {...headerProps}
+        dragHandle={
+          <button
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[var(--muted)] opacity-0 transition hover:bg-[var(--accent-soft)] group-hover/page:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+            type="button"
+            aria-label={t("formPages.dragPage")}
+            title={t("formPages.dragPage")}
+            onClick={(event) => event.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-3.5" />
+          </button>
+        }
+      />
+    </div>
+  );
+}
+
+// The hover affordance between blocks: a thin rule across the gap with a
+// small plus on it. The whole gap row is the hover zone, so nothing floats
+// over the neighbouring rows. The plus opens the block type menu; when a new
+// page may start at this point, the menu offers it below the types.
+function BlockInsertionDivider({
+  busy,
+  onAddBlock,
+  onNewPage,
+}: {
+  busy: string | null;
+  onAddBlock: (type: BlockType) => void;
+  onNewPage: (() => void) | null;
+}) {
+  const { t } = useI18n();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  return (
+    <div
+      className="group/divider relative h-3"
+      // The list separates rows with margins, and the gap row must not grow
+      // beyond its own height.
+      style={{ marginBottom: 0 }}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[color:var(--line-strong)] transition-opacity",
+          isMenuOpen
+            ? "opacity-100"
+            : "opacity-0 group-hover/divider:opacity-100",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity",
+          isMenuOpen
+            ? "opacity-100"
+            : "opacity-0 group-hover/divider:opacity-100 focus-within:opacity-100",
+        )}
+      >
+        <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex size-5 items-center justify-center rounded-full border border-[color:var(--line)] bg-[var(--bg-strong)] text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
+              aria-label={t("builder.newBlock")}
+              title={t("builder.newBlock")}
+            >
+              <Plus size={12} strokeWidth={2.5} />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="center"
+            className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[10px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
+          >
+            <BlockTypeMenu busy={busy} onSelect={onAddBlock} />
+            {onNewPage ? (
+              <>
+                <div className="my-1 h-px bg-[color:var(--line)]" />
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onNewPage();
+                  }}
+                >
+                  <SquareSplitVertical className="size-4" />
+                  {t("formPages.newPage")}
+                </button>
+              </>
+            ) : null}
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
+
 export function FormBuilder({
   initialForm,
   initialMode = "standard",
@@ -345,10 +759,32 @@ export function FormBuilder({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
+  // Page-aware validation needs the registry: without it every block is a
+  // single-block page and the ignored-rules warning never fires.
   const branchingAnalysis = useMemo(
-    () => analyzeBranchingGraph(form.blocks),
-    [form.blocks],
+    () => analyzeBranchingGraph(form.blocks, form.pages ?? []),
+    [form.blocks, form.pages],
   );
+  // The resolved pages feed the repeat placement warnings shown on the page
+  // headers.
+  const repeatIssues = useMemo(
+    () => validateRepeatSettings(resolvePages(form.blocks, form.pages ?? [])),
+    [form.blocks, form.pages],
+  );
+
+  // Sections the sidebar renders. A form without a page registry is one
+  // headerless run of blocks, so it looks exactly as it did before pages.
+  const sections = useMemo<BuilderPageSection[]>(() => {
+    const pages = form.pages ?? [];
+
+    if (pages.length === 0) {
+      return form.blocks.length
+        ? [{ id: "__unpaged__", definition: null, blocks: form.blocks }]
+        : [];
+    }
+
+    return buildPageSections(form.blocks, pages);
+  }, [form.blocks, form.pages]);
 
   // Back and forward between /edit and /graph change only the URL, since
   // switchBuilderMode moves between them without a server navigation.
@@ -480,13 +916,16 @@ export function FormBuilder({
     }
   }
 
-  function patchMetadata(draft: FormMetadataDraft) {
+  function patchMetadata(draft: FormMetadataDraft, pages?: PageDefinition[]) {
     return fetchJson<{ form: BuilderForm }>(`/api/forms/${form.id}`, {
       method: "PATCH",
       body: JSON.stringify({
         ...draft,
         closesAt: fromDateTimeLocalValue(draft.closesAt),
         maxResponses: parseMaxResponsesDraft(draft.maxResponses),
+        // The page registry travels with the form payload: present replaces
+        // the stored registry, an empty array clears it, absent leaves it.
+        ...(pages ? { pages } : {}),
       }),
     });
   }
@@ -579,21 +1018,91 @@ export function FormBuilder({
     }
   }
 
-  async function addBlockNow(type: BlockType) {
-    return withTask(`add-${type}`, async () => {
-      const payload = await fetchJson<{ block: BuilderBlock }>(
-        `/api/forms/${form.id}/blocks`,
+  // Creates a block on the server and places it in the flat order: "end"
+  // keeps the position the server assigned, any other placement is saved
+  // through the reorder endpoint exactly as the graph insertion does. The
+  // block lands on the page it is created under.
+  async function createBlockAt(args: {
+    type: BlockType;
+    pageId: string | null;
+    insertion: BlockInsertion;
+  }): Promise<BuilderBlock> {
+    const payload = await fetchJson<{ block: BuilderBlock }>(
+      `/api/forms/${form.id}/blocks`,
+      {
+        method: "POST",
+        body: JSON.stringify({ type: args.type, pageId: args.pageId }),
+      },
+    );
+    // A payload that predates pages may not echo the page back; keep the
+    // intended one until the next save.
+    const created = {
+      ...payload.block,
+      pageId: payload.block.pageId ?? args.pageId,
+    };
+
+    if (args.insertion.kind === "end") {
+      setForm((current) => ({
+        ...current,
+        blocks: [...current.blocks, created],
+      }));
+
+      return created;
+    }
+
+    const previous = form.blocks;
+    const appended = [...previous, created];
+    // Hoisted so the findIndex callback keeps the narrowed insertion type.
+    const anchorBlockId = args.insertion.blockId;
+    const anchorIndex = previous.findIndex(
+      (block) => block.id === anchorBlockId,
+    );
+    const targetIndex =
+      anchorIndex < 0
+        ? appended.length - 1
+        : args.insertion.kind === "before"
+          ? anchorIndex
+          : anchorIndex + 1;
+    const reordered = arrayMove(appended, appended.length - 1, targetIndex).map(
+      (block, index) => ({ ...block, position: index }),
+    );
+
+    setForm((current) => ({ ...current, blocks: reordered }));
+
+    try {
+      const reorderPayload = await fetchJson<{ form: BuilderForm }>(
+        `/api/forms/${form.id}/blocks/reorder`,
         {
           method: "POST",
-          body: JSON.stringify({ type }),
+          body: JSON.stringify({
+            blockIds: reordered.map((block) => block.id),
+          }),
         },
       );
 
-      setForm((current) => ({
-        ...current,
-        blocks: [...current.blocks, payload.block],
-      }));
-      setSelection({ kind: "block", blockId: payload.block.id });
+      setForm(reorderPayload.form);
+    } catch (caughtError) {
+      // The block exists on the server at the end of the form; show it there.
+      setForm((current) => ({ ...current, blocks: appended }));
+      throw caughtError;
+    }
+
+    return created;
+  }
+
+  async function addBlockNow(type: BlockType) {
+    return withTask(`add-${type}`, async () => {
+      const created = await createBlockAt({
+        type,
+        pageId: pageIdForNewBlock({
+          pages: form.pages ?? [],
+          blocks: form.blocks,
+          afterBlockId: null,
+        }),
+        insertion: { kind: "end" },
+      });
+
+      setSelection({ kind: "block", blockId: created.id });
       setIsBlockMenuOpen(false);
       showToast(
         t("builder.toasts.addedBlock", {
@@ -605,26 +1114,17 @@ export function FormBuilder({
 
   async function addBlockAfter(afterBlockId: string, type: BlockType) {
     return withTask(`add-${type}`, async () => {
-      const previous = form.blocks;
-      const payload = await fetchJson<{ block: BuilderBlock }>(
-        `/api/forms/${form.id}/blocks`,
-        {
-          method: "POST",
-          body: JSON.stringify({ type }),
-        },
-      );
-      const appended = [...previous, payload.block];
-      const afterIndex = previous.findIndex(
-        (block) => block.id === afterBlockId,
-      );
-      const reordered = arrayMove(
-        appended,
-        appended.length - 1,
-        afterIndex < 0 ? appended.length - 1 : afterIndex + 1,
-      ).map((block, index) => ({ ...block, position: index }));
+      const created = await createBlockAt({
+        type,
+        pageId: pageIdForNewBlock({
+          pages: form.pages ?? [],
+          blocks: form.blocks,
+          afterBlockId,
+        }),
+        insertion: { kind: "after", blockId: afterBlockId },
+      });
 
-      setForm((current) => ({ ...current, blocks: reordered }));
-      setSelection({ kind: "block", blockId: payload.block.id });
+      setSelection({ kind: "block", blockId: created.id });
       setHasExplicitGraphSelection(true);
       setSelectedGraphEdgeId(null);
       showToast(
@@ -632,24 +1132,203 @@ export function FormBuilder({
           type: t(blockTypeTranslationKeys[type]),
         }),
       );
+    });
+  }
 
-      try {
-        const reorderPayload = await fetchJson<{ form: BuilderForm }>(
-          `/api/forms/${form.id}/blocks/reorder`,
-          {
-            method: "POST",
+  async function insertBlockFromSidebar(args: {
+    type: BlockType;
+    pageId: string | null;
+    insertion: BlockInsertion;
+  }) {
+    return withTask(`add-${args.type}`, async () => {
+      const created = await createBlockAt(args);
+
+      setSelection({ kind: "block", blockId: created.id });
+      showToast(
+        t("builder.toasts.addedBlock", {
+          type: t(blockTypeTranslationKeys[args.type]),
+        }),
+      );
+    });
+  }
+
+  // Applies a page structure change optimistically and persists it: block
+  // pageIds go through their own update endpoint, the registry with the form
+  // metadata. On failure the previous structure returns.
+  async function applyPageStructure(next: {
+    blocks: BuilderBlock[];
+    pages: PageDefinition[];
+  }) {
+    const previousBlocks = form.blocks;
+    const previousPages = form.pages ?? [];
+    const previousById = new Map(
+      previousBlocks.map((block) => [block.id, block]),
+    );
+    const changedBlocks = next.blocks.filter((block) => {
+      const before = previousById.get(block.id);
+
+      return before
+        ? (before.pageId ?? null) !== (block.pageId ?? null)
+        : false;
+    });
+
+    setForm((current) => ({
+      ...current,
+      blocks: next.blocks,
+      pages: next.pages,
+    }));
+
+    try {
+      await Promise.all(
+        changedBlocks.map((block) =>
+          fetchJson(`/api/forms/${form.id}/blocks/${block.id}`, {
+            method: "PATCH",
             body: JSON.stringify({
-              blockIds: reordered.map((block) => block.id),
+              title: block.title,
+              description: block.description,
+              required: block.required,
+              config: block.config,
+              pageId: block.pageId ?? null,
             }),
-          },
-        );
+          }),
+        ),
+      );
 
-        setForm(reorderPayload.form);
-      } catch (caughtError) {
-        // The block exists on the server at the end of the form; show it there.
-        setForm((current) => ({ ...current, blocks: appended }));
-        throw caughtError;
+      if (JSON.stringify(next.pages) !== JSON.stringify(previousPages)) {
+        const payload = await patchMetadata(metadataDraft, next.pages);
+
+        setForm(payload.form);
       }
+
+      return true;
+    } catch (caughtError) {
+      setForm((current) => ({
+        ...current,
+        blocks: previousBlocks,
+        pages: previousPages,
+      }));
+      showToast(
+        caughtError instanceof Error
+          ? caughtError.message
+          : t("builder.toasts.genericError"),
+        "error",
+      );
+
+      return false;
+    }
+  }
+
+  // Persist page order and the registry together, including empty pages.
+  async function applyPageMove(next: {
+    blocks: BuilderBlock[];
+    pages: PageDefinition[];
+  }) {
+    const previousBlocks = form.blocks;
+    const previousPages = form.pages ?? [];
+
+    setForm((current) => ({
+      ...current,
+      blocks: next.blocks,
+      pages: next.pages,
+    }));
+
+    setBusy("reorder-pages");
+
+    try {
+      const payload = await fetchJson<{ form: BuilderForm }>(
+        `/api/forms/${form.id}/blocks/reorder`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            blockIds: next.blocks.map((block) => block.id),
+            pages: next.pages,
+          }),
+        },
+      );
+
+      setForm(payload.form);
+
+      showToast(t("builder.toasts.updatedPageOrder"));
+    } catch (caughtError) {
+      setForm((current) => ({
+        ...current,
+        blocks: previousBlocks,
+        pages: previousPages,
+      }));
+      showToast(
+        caughtError instanceof Error
+          ? caughtError.message
+          : t("builder.toasts.reorderError"),
+        "error",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function requestNewPageAfter(afterBlockId: string) {
+    const next = splitPageAfter({
+      blocks: form.blocks,
+      pages: form.pages ?? [],
+      afterBlockId,
+    });
+
+    if (next) {
+      void applyPageStructure(next);
+    }
+  }
+
+  function requestDeletePage(pageId: string) {
+    const next = deletePageById({
+      blocks: form.blocks,
+      pages: form.pages ?? [],
+      pageId,
+    });
+
+    if (next) {
+      void applyPageStructure(next);
+    }
+  }
+
+  // The repeat control edits one registry entry through the same save path
+  // as the other page operations: the blocks are untouched, the registry
+  // travels with the form metadata.
+  function requestSetPageRepeat(
+    pageId: string,
+    repeat: PageRepeatSettings | null,
+  ) {
+    const pages = form.pages ?? [];
+
+    if (!pages.some((definition) => definition.id === pageId)) {
+      return;
+    }
+
+    void applyPageStructure({
+      blocks: form.blocks,
+      pages: pages.map((definition) =>
+        definition.id === pageId
+          ? withPageRepeat(definition, repeat)
+          : definition,
+      ),
+    });
+  }
+
+  // An empty name clears the page name: the header falls back to the number
+  // label and the runner shows no heading.
+  function requestRenamePage(pageId: string, name: string) {
+    const pages = form.pages ?? [];
+
+    if (!pages.some((definition) => definition.id === pageId)) {
+      return;
+    }
+
+    void applyPageStructure({
+      blocks: form.blocks,
+      pages: pages.map((definition) =>
+        definition.id === pageId
+          ? { ...definition, name: name || undefined }
+          : definition,
+      ),
     });
   }
 
@@ -723,6 +1402,14 @@ export function FormBuilder({
       }
       case "add-block-after": {
         await addBlockAfter(navigation.blockId, navigation.blockType);
+        break;
+      }
+      case "insert-block": {
+        await insertBlockFromSidebar({
+          type: navigation.blockType,
+          pageId: navigation.pageId,
+          insertion: navigation.insertion,
+        });
         break;
       }
     }
@@ -920,7 +1607,35 @@ export function FormBuilder({
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) {
+    if (busy || !over || active.id === over.id) {
+      return;
+    }
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // A dragged page header moves its whole page; everything else is the
+    // block drag that follows.
+    if (activeId.startsWith("page:")) {
+      const targetPageId = overId.startsWith("page:")
+        ? overId.slice("page:".length)
+        : (sections.find((section) =>
+            section.blocks.some((block) => block.id === overId),
+          )?.definition?.id ?? null);
+
+      const next = targetPageId
+        ? movePageToAnchor({
+            blocks: form.blocks,
+            pages: form.pages ?? [],
+            draggedPageId: activeId.slice("page:".length),
+            targetPageId,
+          })
+        : null;
+
+      if (next) {
+        void applyPageMove(next);
+      }
+
       return;
     }
 
@@ -935,9 +1650,39 @@ export function FormBuilder({
     const reordered = arrayMove(previous, oldIndex, newIndex).map(
       (block, index) => ({ ...block, position: index }),
     );
-    setForm((current) => ({ ...current, blocks: reordered }));
+    // A drop onto a block of another page moves the block to that page; a
+    // drop inside its own page keeps the page it has.
+    const droppedPageId = pageIdAfterDrop({
+      blocks: previous,
+      pages: form.pages ?? [],
+      draggedBlockId: String(active.id),
+      overBlockId: String(over.id),
+    });
+    const movedBlock = droppedPageId === undefined ? null : previous[oldIndex];
+    const finalBlocks = movedBlock
+      ? reordered.map((block) =>
+          block.id === movedBlock.id
+            ? { ...block, pageId: droppedPageId ?? null }
+            : block,
+        )
+      : reordered;
+
+    setForm((current) => ({ ...current, blocks: finalBlocks }));
 
     try {
+      if (movedBlock) {
+        await fetchJson(`/api/forms/${form.id}/blocks/${movedBlock.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: movedBlock.title,
+            description: movedBlock.description,
+            required: movedBlock.required,
+            config: movedBlock.config,
+            pageId: droppedPageId,
+          }),
+        });
+      }
+
       const payload = await fetchJson<{ form: BuilderForm }>(
         `/api/forms/${form.id}/blocks/reorder`,
         {
@@ -959,6 +1704,157 @@ export function FormBuilder({
         "error",
       );
     }
+  }
+
+  // The sidebar list: a header above each page's blocks, an insertion point
+  // after every block and under an empty page's header. "New page" sits at
+  // the insertion points, except at page boundaries where a break exists.
+  function renderBlockList(sortable: boolean) {
+    let headerNumber = 0;
+
+    return sections.map((section, sectionIndex) => {
+      const { definition } = section;
+      const number = definition ? (headerNumber += 1) : null;
+      const isLastSection = sectionIndex === sections.length - 1;
+      const otherPagesExist = sections.some(
+        (other, index) => index !== sectionIndex && other.definition,
+      );
+      const insertAtGap =
+        (gapIndex: number) =>
+        (type: BlockType): void =>
+          requestPendingNavigation({
+            kind: "insert-block",
+            blockType: type,
+            pageId: definition?.id ?? null,
+            insertion: insertionForGap(sections, sectionIndex, gapIndex),
+          });
+      const repeatCandidates = countBlockCandidates(sections, sectionIndex);
+      const repeatIssue = definition
+        ? (repeatIssues.find((issue) => issue.pageId === definition.id) ?? null)
+        : null;
+      const countBlock = definition?.repeat
+        ? (form.blocks.find(
+            (block) => block.id === definition.repeat?.countBlockId,
+          ) ?? null)
+        : null;
+
+      return (
+        <Fragment key={definition ? definition.id : section.id}>
+          {definition ? (
+            sortable ? (
+              <SortablePageHeaderRow
+                pageId={definition.id}
+                headerProps={{
+                  label: t("formPages.pageLabel", { number: number ?? 0 }),
+                  name: definition.name ?? null,
+                  canDelete: sectionIndex > 0 || !otherPagesExist,
+                  hasBlocks: section.blocks.length > 0,
+                  onDelete: () => requestDeletePage(definition.id),
+                  onRenamePage: (name) =>
+                    requestRenamePage(definition.id, name),
+                  repeat: definition.repeat ?? null,
+                  candidates: repeatCandidates,
+                  countBlockTitle: countBlock
+                    ? getBlockDisplayLabel(countBlock)
+                    : null,
+                  warning: repeatIssue
+                    ? t(repeatIssueMessageKeys[repeatIssue.code])
+                    : null,
+                  onToggleRepeat: (enabled) =>
+                    requestSetPageRepeat(
+                      definition.id,
+                      enabled && repeatCandidates.length > 0
+                        ? { countBlockId: repeatCandidates[0].id }
+                        : null,
+                    ),
+                  onPickCountBlock: (blockId) =>
+                    requestSetPageRepeat(definition.id, {
+                      countBlockId: blockId,
+                    }),
+                }}
+              />
+            ) : (
+              <PageHeaderRow
+                label={t("formPages.pageLabel", { number: number ?? 0 })}
+                name={definition.name ?? null}
+                canDelete={sectionIndex > 0 || !otherPagesExist}
+                hasBlocks={section.blocks.length > 0}
+                onDelete={() => requestDeletePage(definition.id)}
+                onRenamePage={(name) => requestRenamePage(definition.id, name)}
+                repeat={definition.repeat ?? null}
+                candidates={repeatCandidates}
+                countBlockTitle={
+                  countBlock ? getBlockDisplayLabel(countBlock) : null
+                }
+                warning={
+                  repeatIssue
+                    ? t(repeatIssueMessageKeys[repeatIssue.code])
+                    : null
+                }
+                onToggleRepeat={(enabled) =>
+                  requestSetPageRepeat(
+                    definition.id,
+                    enabled && repeatCandidates.length > 0
+                      ? { countBlockId: repeatCandidates[0].id }
+                      : null,
+                  )
+                }
+                onPickCountBlock={(blockId) =>
+                  requestSetPageRepeat(definition.id, { countBlockId: blockId })
+                }
+              />
+            )
+          ) : null}
+          {section.blocks.length === 0 ? (
+            <BlockInsertionDivider
+              busy={busy}
+              onAddBlock={insertAtGap(0)}
+              onNewPage={null}
+            />
+          ) : (
+            section.blocks.map((block, blockIndex) => (
+              <Fragment key={block.id}>
+                {sortable ? (
+                  <SortableBlockRow
+                    block={block}
+                    selected={
+                      selection.kind === "block" &&
+                      selection.blockId === block.id
+                    }
+                    onSelect={(blockId) =>
+                      requestPendingNavigation({
+                        kind: "block",
+                        blockId,
+                      })
+                    }
+                  />
+                ) : (
+                  <StaticBlockRow
+                    block={block}
+                    selected={
+                      selection.kind === "block" &&
+                      selection.blockId === block.id
+                    }
+                    onSelect={(blockId) =>
+                      requestPendingNavigation({ kind: "block", blockId })
+                    }
+                  />
+                )}
+                <BlockInsertionDivider
+                  busy={busy}
+                  onAddBlock={insertAtGap(blockIndex + 1)}
+                  onNewPage={
+                    blockIndex < section.blocks.length - 1 || isLastSection
+                      ? () => requestNewPageAfter(block.id)
+                      : null
+                  }
+                />
+              </Fragment>
+            ))
+          )}
+        </Fragment>
+      );
+    });
   }
 
   const shareHref = `/f/${form.slug}`;
@@ -1198,32 +2094,15 @@ export function FormBuilder({
                       align="end"
                       className="max-h-[var(--radix-popover-content-available-height)] w-auto min-w-[220px] overflow-y-auto rounded-[10px] bg-[var(--bg-strong)] p-2 shadow-[var(--shadow-elevated)]"
                     >
-                      <div className="grid gap-1">
-                        {blockCreationOrder.map((type) => {
-                          const Icon = blockIcons[type];
-
-                          return (
-                            <button
-                              key={type}
-                              type="button"
-                              className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--surface)]"
-                              onClick={() =>
-                                requestPendingNavigation({
-                                  kind: "add-block",
-                                  blockType: type,
-                                })
-                              }
-                            >
-                              {busy === `add-${type}` ? (
-                                <LoaderCircle className="size-4 animate-spin" />
-                              ) : (
-                                <Icon className="size-4" />
-                              )}
-                              {t(blockTypeTranslationKeys[type])}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <BlockTypeMenu
+                        busy={busy}
+                        onSelect={(type) =>
+                          requestPendingNavigation({
+                            kind: "add-block",
+                            blockType: type,
+                          })
+                        }
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -1238,41 +2117,19 @@ export function FormBuilder({
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
-                        items={form.blocks.map((block) => block.id)}
+                        items={sections.flatMap((section) => [
+                          ...(section.definition
+                            ? [`page:${section.definition.id}`]
+                            : []),
+                          ...section.blocks.map((block) => block.id),
+                        ])}
                         strategy={verticalListSortingStrategy}
                       >
-                        {form.blocks.map((block) => (
-                          <SortableBlockRow
-                            key={block.id}
-                            block={block}
-                            selected={
-                              selection.kind === "block" &&
-                              selection.blockId === block.id
-                            }
-                            onSelect={(blockId) =>
-                              requestPendingNavigation({
-                                kind: "block",
-                                blockId,
-                              })
-                            }
-                          />
-                        ))}
+                        {renderBlockList(true)}
                       </SortableContext>
                     </DndContext>
                   ) : (
-                    form.blocks.map((block) => (
-                      <StaticBlockRow
-                        key={block.id}
-                        block={block}
-                        selected={
-                          selection.kind === "block" &&
-                          selection.blockId === block.id
-                        }
-                        onSelect={(blockId) =>
-                          requestPendingNavigation({ kind: "block", blockId })
-                        }
-                      />
-                    ))
+                    renderBlockList(false)
                   )}
                 </div>
               </div>

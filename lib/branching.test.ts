@@ -4,9 +4,12 @@ import { parseBlockConfig, type SerializedBlock } from "@/lib/blocks";
 import {
   analyzeBranchingGraph,
   branchRuleMatches,
+  getBranchValidationIssueI18n,
   resolveNextBlockId,
+  resolveNextPageId,
   resolveVisitedBlockIds,
 } from "@/lib/branching";
+import { resolvePages } from "@/lib/pages";
 
 function createBlock(
   overrides: Partial<SerializedBlock> & Pick<SerializedBlock, "id" | "type">,
@@ -21,6 +24,7 @@ function createBlock(
     description: overrides.description ?? "",
     required: overrides.required ?? false,
     position: overrides.position ?? 0,
+    pageId: overrides.pageId ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
     config:
@@ -74,8 +78,8 @@ function createBlock(
   };
 }
 
-function getIssueCodes(blocks: SerializedBlock[]) {
-  const analysis = analyzeBranchingGraph(blocks);
+function getIssueCodes(blocks: SerializedBlock[], pagesJson?: unknown) {
+  const analysis = analyzeBranchingGraph(blocks, pagesJson);
 
   return {
     blockers: analysis.blockers.map((issue) => issue.code),
@@ -1341,5 +1345,465 @@ describe("rating branch rules", () => {
         createBlock({ id: "finish", type: "SHORT_TEXT", position: 1 }),
       ]).blockers,
     ).toContain("unsupported-operator");
+  });
+});
+
+function pageBlock(
+  pageId: string | null,
+  overrides: Partial<SerializedBlock> & Pick<SerializedBlock, "id" | "type">,
+) {
+  return { ...createBlock(overrides), pageId };
+}
+
+describe("page navigation", () => {
+  const pages = resolvePages(
+    [
+      pageBlock("intro-page", { id: "intro", type: "TEXT", position: 0 }),
+      pageBlock("intro-page", {
+        id: "audience",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          options: ["student", "professional"],
+          branchRules: [rule("equals", "student", "student-follow-up")],
+          defaultNextBlockId: null,
+        },
+      }),
+      pageBlock("general-page", {
+        id: "general",
+        type: "SHORT_TEXT",
+        position: 2,
+      }),
+      pageBlock("student-page", {
+        id: "student-follow-up",
+        type: "SHORT_TEXT",
+        position: 3,
+      }),
+    ],
+    [{ id: "intro-page" }, { id: "general-page" }, { id: "student-page" }],
+  );
+
+  test("exits a page through its last block and lets the answer choose the target page", () => {
+    expect(
+      resolveNextPageId(pages, "intro-page", { audience: "student" }),
+    ).toBe("student-page");
+    expect(
+      resolveNextPageId(pages, "intro-page", { audience: "professional" }),
+    ).toBe("general-page");
+  });
+
+  test("takes the configured default target to its page when no rule matches", () => {
+    const defaultPages = resolvePages(
+      [
+        pageBlock("start-page", {
+          id: "gate",
+          type: "SINGLE_CHOICE",
+          position: 0,
+          config: {
+            options: ["yes", "no"],
+            branchRules: [rule("equals", "yes", "skip-mark")],
+            defaultNextBlockId: "far-tail",
+          },
+        }),
+        pageBlock("middle-page", {
+          id: "skip-mark",
+          type: "SHORT_TEXT",
+          position: 1,
+        }),
+        pageBlock("end-page", {
+          id: "far-tail",
+          type: "SHORT_TEXT",
+          position: 2,
+        }),
+      ],
+      [{ id: "start-page" }, { id: "middle-page" }, { id: "end-page" }],
+    );
+
+    expect(resolveNextPageId(defaultPages, "start-page", { gate: "no" })).toBe(
+      "end-page",
+    );
+  });
+
+  test("snaps a mid-page target to the page that contains it", () => {
+    const snapPages = resolvePages(
+      [
+        pageBlock("ask-page", {
+          id: "gate",
+          type: "SINGLE_CHOICE",
+          position: 0,
+          config: {
+            options: ["yes", "no"],
+            branchRules: [rule("equals", "yes", "detail")],
+            defaultNextBlockId: null,
+          },
+        }),
+        pageBlock("detail-page", {
+          id: "detail",
+          type: "SHORT_TEXT",
+          position: 1,
+        }),
+        pageBlock("detail-page", {
+          id: "detail-notes",
+          type: "SHORT_TEXT",
+          position: 2,
+        }),
+      ],
+      [{ id: "ask-page" }, { id: "detail-page" }],
+    );
+
+    expect(resolveNextPageId(snapPages, "ask-page", { gate: "yes" })).toBe(
+      "detail-page",
+    );
+  });
+
+  test("ends the form when the last block of the page is terminal", () => {
+    const endPages = resolvePages(
+      [
+        pageBlock("gate-page", {
+          id: "gate",
+          type: "SINGLE_CHOICE",
+          position: 0,
+          config: {
+            options: ["yes", "no"],
+            branchRules: [rule("equals", "yes", "after")],
+            defaultNextBlockId: "after",
+            endForm: true,
+          },
+        }),
+        pageBlock("tail-page", {
+          id: "after",
+          type: "SHORT_TEXT",
+          position: 1,
+        }),
+      ],
+      [{ id: "gate-page" }, { id: "tail-page" }],
+    );
+
+    expect(resolveNextPageId(endPages, "gate-page", { gate: "yes" })).toBe(
+      null,
+    );
+  });
+
+  test("returns null for an unknown page and for the last page of the form", () => {
+    expect(resolveNextPageId(pages, "ghost", {})).toBe(null);
+    expect(resolveNextPageId(pages, "student-page", {})).toBe(null);
+  });
+});
+
+describe("ignored page rules warning", () => {
+  test("warns for a non-last block with rules and not for the last block of the page", () => {
+    const blocks = [
+      pageBlock("first-page", {
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "finish")],
+          defaultNextBlockId: null,
+        },
+      }),
+      pageBlock("first-page", {
+        id: "gate-two",
+        type: "SINGLE_CHOICE",
+        position: 1,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "finish")],
+          defaultNextBlockId: null,
+        },
+      }),
+      pageBlock("last-page", {
+        id: "finish",
+        type: "SHORT_TEXT",
+        position: 2,
+      }),
+    ];
+
+    const analysis = analyzeBranchingGraph(blocks, [
+      { id: "first-page" },
+      { id: "last-page" },
+    ]);
+
+    const warnedBlockIds = analysis.warnings
+      .filter((issue) => issue.code === "ignored-page-rules")
+      .map((issue) => issue.blockId);
+
+    expect(JSON.stringify(warnedBlockIds)).toBe(JSON.stringify(["gate"]));
+    expect(analysis.blockers.length).toBe(0);
+  });
+
+  test("warns for a mid-page default route as well", () => {
+    const blocks = [
+      pageBlock("first-page", { id: "intro", type: "TEXT", position: 0 }),
+      pageBlock("first-page", {
+        id: "middle",
+        type: "SHORT_TEXT",
+        position: 1,
+        config: {
+          placeholder: "",
+          validationRegex: null,
+          branchRules: [],
+          defaultNextBlockId: "finish",
+        },
+      }),
+      pageBlock("first-page", { id: "outro", type: "TEXT", position: 2 }),
+      pageBlock("last-page", {
+        id: "finish",
+        type: "SHORT_TEXT",
+        position: 3,
+      }),
+    ];
+
+    expect(
+      getIssueCodes(blocks, [{ id: "first-page" }, { id: "last-page" }])
+        .warnings,
+    ).toContain("ignored-page-rules");
+  });
+
+  test("does not warn when every page holds a single block", () => {
+    const blocks = [
+      pageBlock(null, {
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "finish")],
+          defaultNextBlockId: "finish",
+        },
+      }),
+      pageBlock(null, { id: "after", type: "SHORT_TEXT", position: 1 }),
+      pageBlock(null, { id: "finish", type: "SHORT_TEXT", position: 2 }),
+    ];
+
+    expect(getIssueCodes(blocks, []).warnings).not.toContain(
+      "ignored-page-rules",
+    );
+  });
+
+  test("renders through the formPages copy key", () => {
+    const blocks = [
+      pageBlock("first-page", {
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        position: 0,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "trailing")],
+          defaultNextBlockId: null,
+        },
+      }),
+      pageBlock("first-page", {
+        id: "trailing",
+        type: "SHORT_TEXT",
+        position: 1,
+      }),
+    ];
+
+    const analysis = analyzeBranchingGraph(blocks, [{ id: "first-page" }]);
+    const issue = analysis.warnings.find(
+      (candidate) => candidate.code === "ignored-page-rules",
+    );
+
+    if (!issue) {
+      throw new Error("expected an ignored-page-rules warning");
+    }
+
+    expect(getBranchValidationIssueI18n(issue, blocks).key).toBe(
+      "formPages.branchRulesIgnored",
+    );
+  });
+});
+
+describe("repeat target warnings", () => {
+  const countBlock = pageBlock("count-page", {
+    id: "count",
+    type: "NUMBER",
+    position: 1,
+  });
+  const plainTail = pageBlock("plain-page", {
+    id: "plain-tail",
+    type: "SHORT_TEXT",
+    position: 3,
+  });
+
+  function repeatGate(gateConfig: {
+    branchRules?: Array<ReturnType<typeof rule>>;
+    defaultNextBlockId?: string | null;
+  }) {
+    return pageBlock("gate-page", {
+      id: "gate",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      config: {
+        options: ["yes", "no"],
+        branchRules: [],
+        defaultNextBlockId: null,
+        ...gateConfig,
+      },
+    });
+  }
+
+  function repeatForm(repeatSettings: Record<string, unknown> | null) {
+    return {
+      blocks: [
+        repeatGate({
+          branchRules: [rule("equals", "yes", "repeat-note")],
+          defaultNextBlockId: null,
+        }),
+        countBlock,
+        pageBlock("repeat-page", {
+          id: "repeat-note",
+          type: "SHORT_TEXT",
+          position: 2,
+        }),
+        plainTail,
+      ],
+      pages: [
+        { id: "gate-page" },
+        { id: "count-page" },
+        {
+          id: "repeat-page",
+          ...(repeatSettings ?? {}),
+        },
+        { id: "plain-page" },
+      ],
+    };
+  }
+
+  test("warns when a branch rule points into a repeating page", () => {
+    const { blocks, pages } = repeatForm({ repeat: { countBlockId: "count" } });
+    const analysis = analyzeBranchingGraph(blocks, pages);
+    const issue = analysis.warnings.find(
+      (candidate) => candidate.code === "ignored-repeat-target",
+    );
+
+    expect(issue?.blockId).toBe("gate");
+    expect(issue?.targetBlockId).toBe("repeat-note");
+    expect(issue?.ruleIndex).toBe(0);
+    expect(analysis.blockers.length).toBe(0);
+  });
+
+  test("warns when the explicit default target points into a repeating page", () => {
+    const { pages } = repeatForm({ repeat: { countBlockId: "count" } });
+    const blocks = [
+      repeatGate({
+        branchRules: [],
+        defaultNextBlockId: "repeat-note",
+      }),
+      countBlock,
+      pageBlock("repeat-page", {
+        id: "repeat-note",
+        type: "SHORT_TEXT",
+        position: 2,
+      }),
+      plainTail,
+    ];
+
+    expect(getIssueCodes(blocks, pages).warnings).toContain(
+      "ignored-repeat-target",
+    );
+  });
+
+  test("does not warn for targets into plain pages or without repeat settings", () => {
+    const plainTargetBlocks = [
+      repeatGate({
+        branchRules: [rule("equals", "yes", "plain-tail")],
+        defaultNextBlockId: null,
+      }),
+      countBlock,
+      pageBlock("repeat-page", {
+        id: "repeat-note",
+        type: "SHORT_TEXT",
+        position: 2,
+      }),
+      plainTail,
+    ];
+
+    expect(
+      getIssueCodes(plainTargetBlocks, [
+        { id: "gate-page" },
+        { id: "count-page" },
+        { id: "repeat-page", repeat: { countBlockId: "count" } },
+        { id: "plain-page" },
+      ]).warnings,
+    ).not.toContain("ignored-repeat-target");
+
+    const noRepeat = repeatForm(null);
+    expect(
+      getIssueCodes(noRepeat.blocks, noRepeat.pages).warnings,
+    ).not.toContain("ignored-repeat-target");
+    expect(getIssueCodes(noRepeat.blocks, []).warnings).not.toContain(
+      "ignored-repeat-target",
+    );
+  });
+
+  test("warns from stored repeat settings even when they do not resolve", () => {
+    const { blocks } = repeatForm({ repeat: { countBlockId: "ghost" } });
+    const withoutCountBlock = blocks.filter((block) => block.id !== "count");
+
+    expect(
+      getIssueCodes(withoutCountBlock, [
+        { id: "gate-page" },
+        { id: "repeat-page", repeat: { countBlockId: "ghost" } },
+        { id: "plain-page" },
+      ]).warnings,
+    ).toContain("ignored-repeat-target");
+  });
+
+  test("single-block repeating pages behave sanely", () => {
+    const blocks = [
+      repeatGate({
+        branchRules: [rule("equals", "yes", "repeat-note")],
+        defaultNextBlockId: null,
+      }),
+      countBlock,
+      // The only block of the repeating page; its own exit rule points at a
+      // plain page and runs on every instance without warning.
+      pageBlock("repeat-page", {
+        id: "repeat-note",
+        type: "SINGLE_CHOICE",
+        position: 2,
+        config: {
+          options: ["yes", "no"],
+          branchRules: [rule("equals", "yes", "plain-tail")],
+          defaultNextBlockId: null,
+        },
+      }),
+      plainTail,
+    ];
+    const analysis = analyzeBranchingGraph(blocks, [
+      { id: "gate-page" },
+      { id: "count-page" },
+      { id: "repeat-page", repeat: { countBlockId: "count" } },
+      { id: "plain-page" },
+    ]);
+    const repeatTargetIssues = analysis.warnings.filter(
+      (issue) => issue.code === "ignored-repeat-target",
+    );
+
+    expect(repeatTargetIssues.length).toBe(1);
+    expect(repeatTargetIssues[0]?.blockId).toBe("gate");
+    expect(analysis.warnings.map((warning) => warning.code)).not.toContain(
+      "ignored-page-rules",
+    );
+    expect(analysis.blockers.length).toBe(0);
+  });
+
+  test("renders through the formPages copy key", () => {
+    const { blocks, pages } = repeatForm({ repeat: { countBlockId: "count" } });
+    const analysis = analyzeBranchingGraph(blocks, pages);
+    const issue = analysis.warnings.find(
+      (candidate) => candidate.code === "ignored-repeat-target",
+    );
+
+    if (!issue) {
+      throw new Error("expected an ignored-repeat-target warning");
+    }
+
+    expect(getBranchValidationIssueI18n(issue, blocks).key).toBe(
+      "formPages.branchTargetIntoRepeat",
+    );
   });
 });

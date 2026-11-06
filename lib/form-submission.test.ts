@@ -21,6 +21,7 @@ function createBlock(
     description: overrides.description ?? "",
     required: overrides.required ?? false,
     position: overrides.position ?? 0,
+    pageId: overrides.pageId ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
     config:
@@ -385,6 +386,17 @@ describe("parseSubmissionPayload", () => {
     expect(json(parsed)).toBe(json({ a: "x", b: ["y", "z"], c: [] }));
   });
 
+  test("accepts null entries of instance arrays", () => {
+    const parsed = parseSubmissionPayload({
+      note: ["first", null, "third"],
+      toppings: [["olives"], null],
+    });
+
+    expect(json(parsed)).toBe(
+      json({ note: ["first", null, "third"], toppings: [["olives"], null] }),
+    );
+  });
+
   test("rejects payloads that are not plain objects with a 422 app error", () => {
     for (const payload of [null, undefined, [], "answers", 42, true]) {
       const error = captureError(() => parseSubmissionPayload(payload));
@@ -395,7 +407,16 @@ describe("parseSubmissionPayload", () => {
   });
 
   test("rejects answer values that are not strings or string arrays", () => {
-    for (const value of [42, { v: "x" }, null, [1, 2], ["ok", 3], true]) {
+    for (const value of [
+      42,
+      { v: "x" },
+      null,
+      [1, 2],
+      ["ok", 3],
+      true,
+      [["ok"], {}],
+      [null, "ok", 3],
+    ]) {
       expect(
         appErrorStatus(
           captureError(() => parseSubmissionPayload({ q: value })),
@@ -522,5 +543,267 @@ describe("buildSubmission file upload blocks", () => {
     expect(
       JSON.stringify(buildSubmission(blocks, { cv: "up1" }).normalizedAnswers),
     ).toBe(JSON.stringify({ cv: "up1" }));
+  });
+});
+
+describe("buildSubmission page walk", () => {
+  test("processes every block of a page even when an earlier block carries a rule", () => {
+    const blocks = positioned([
+      createBlock({
+        id: "gate",
+        type: "SINGLE_CHOICE",
+        pageId: "first-page",
+        config: {
+          options: ["yes", "no"],
+          branchRules: [
+            { operator: "equals", value: "yes", targetBlockId: "far" },
+          ],
+          defaultNextBlockId: null,
+        },
+      }),
+      createBlock({
+        id: "detail",
+        type: "SHORT_TEXT",
+        pageId: "first-page",
+        required: true,
+      }),
+      createBlock({ id: "far", type: "SHORT_TEXT", pageId: "second-page" }),
+    ]);
+
+    const result = buildSubmission(
+      blocks,
+      { gate: "yes", detail: "kept", far: "also kept" },
+      [{ id: "first-page" }, { id: "second-page" }],
+    );
+
+    expect(json(result.snapshot.map((block) => block.id))).toBe(
+      json(["gate", "detail", "far"]),
+    );
+    expect(json(result.normalizedAnswers)).toBe(
+      json({ gate: "yes", detail: "kept", far: "also kept" }),
+    );
+  });
+
+  test("keeps non-repeating blocks flat when a pages registry is present", () => {
+    const blocks = positioned([
+      createBlock({ id: "name", type: "SHORT_TEXT", pageId: "p1" }),
+      createBlock({
+        id: "colors",
+        type: "MULTIPLE_CHOICE",
+        pageId: "p2",
+      }),
+    ]);
+
+    const result = buildSubmission(
+      blocks,
+      { name: "Ada", colors: ["red", "blue"] },
+      [{ id: "p1" }, { id: "p2" }],
+    );
+
+    expect(json(result.normalizedAnswers)).toBe(
+      json({ name: "Ada", colors: ["red", "blue"] }),
+    );
+  });
+});
+
+describe("buildSubmission repeating pages", () => {
+  function guestBlocks(
+    memberOverrides: Partial<SerializedBlock> = {},
+    extraBlocks: SerializedBlock[] = [],
+  ) {
+    return positioned([
+      createBlock({
+        id: "guests",
+        type: "NUMBER",
+        title: "How many guests?",
+        pageId: "count-page",
+      }),
+      createBlock({
+        id: "member",
+        type: "SHORT_TEXT",
+        title: "Member name",
+        pageId: "team-page",
+        ...memberOverrides,
+      }),
+      createBlock({
+        id: "drinks",
+        type: "MULTIPLE_CHOICE",
+        title: "Drinks",
+        pageId: "team-page",
+      }),
+      ...extraBlocks,
+    ]);
+  }
+
+  const guestPages = [
+    { id: "count-page" },
+    { id: "team-page", repeat: { countBlockId: "guests" } },
+    { id: "note-page" },
+  ];
+
+  test("stores one nested answer per block and trims trailing unanswered instances", () => {
+    const blocks = guestBlocks({}, [
+      createBlock({ id: "note", type: "LONG_TEXT", pageId: "note-page" }),
+    ]);
+
+    const result = buildSubmission(
+      blocks,
+      {
+        guests: "2",
+        member: [" Ann ", "Bob"],
+        drinks: [["red", "blue"], []],
+        note: "thanks",
+      },
+      guestPages,
+    );
+
+    expect(json(result.normalizedAnswers)).toBe(
+      json({
+        guests: "2",
+        member: ["Ann", "Bob"],
+        drinks: [["red", "blue"]],
+        note: "thanks",
+      }),
+    );
+    expect(json(result.snapshot.map((block) => block.id))).toBe(
+      json(["guests", "member", "drinks", "note"]),
+    );
+  });
+
+  test("keeps a middle unanswered instance of an optional block as a hole", () => {
+    const blocks = guestBlocks({}, [
+      createBlock({ id: "note", type: "LONG_TEXT", pageId: "note-page" }),
+    ]);
+
+    // What the client sends for count 2 when the respondent skipped the
+    // first instance of two optional questions and answered the second.
+    const answers = parseSubmissionPayload({
+      guests: "2",
+      member: [null, "Bob"],
+      drinks: [null, ["red"]],
+      note: "thanks",
+    });
+
+    const result = buildSubmission(blocks, answers, guestPages);
+
+    expect(json(result.normalizedAnswers)).toBe(
+      json({
+        guests: "2",
+        member: [null, "Bob"],
+        drinks: [null, ["red"]],
+        note: "thanks",
+      }),
+    );
+  });
+
+  test("mentions the instance when one instance of a required block is empty", () => {
+    const blocks = guestBlocks({ required: true });
+
+    const error = captureError(() =>
+      buildSubmission(
+        blocks,
+        { guests: "2", member: ["Ann", ""], drinks: [["red"], ["blue"]] },
+        guestPages,
+      ),
+    );
+
+    expect(appErrorStatus(error)).toBe(422);
+    expect(appErrorMessage(error)).toBe(
+      "Please answer “Member name”. for instance 2",
+    );
+  });
+
+  test("skips a page whose count is 0 but still resolves its exit", () => {
+    const blocks = positioned([
+      createBlock({
+        id: "guests",
+        type: "NUMBER",
+        title: "How many guests?",
+        pageId: "count-page",
+      }),
+      createBlock({
+        id: "member",
+        type: "SHORT_TEXT",
+        title: "Member name",
+        pageId: "team-page",
+        config: {
+          placeholder: "",
+          validationRegex: null,
+          branchRules: [
+            { operator: "equals", value: "vip", targetBlockId: "vip" },
+          ],
+          defaultNextBlockId: null,
+        },
+      }),
+      createBlock({
+        id: "note",
+        type: "LONG_TEXT",
+        pageId: "note-page",
+        config: {
+          placeholder: "",
+          validationRegex: null,
+          branchRules: [],
+          defaultNextBlockId: null,
+          endForm: true,
+        },
+      }),
+      createBlock({ id: "vip", type: "SHORT_TEXT", pageId: "vip-page" }),
+    ]);
+
+    const pages = [
+      { id: "count-page" },
+      { id: "team-page", repeat: { countBlockId: "guests" } },
+      { id: "note-page" },
+      { id: "vip-page" },
+    ];
+
+    const skipped = buildSubmission(blocks, { guests: "0" }, pages);
+
+    expect(json(skipped.snapshot.map((block) => block.id))).toBe(
+      json(["guests", "note"]),
+    );
+    expect(json(skipped.normalizedAnswers)).toBe(json({ guests: "0" }));
+
+    // The same exit rule fires when the page runs and the answer matches.
+    const ran = buildSubmission(
+      blocks,
+      { guests: "1", member: ["vip"], note: "x" },
+      pages,
+    );
+
+    expect(json(ran.snapshot.map((block) => block.id))).toBe(
+      json(["guests", "member", "vip"]),
+    );
+  });
+
+  test("rejects a count above the instance cap with 422", () => {
+    const blocks = guestBlocks();
+
+    const error = captureError(() =>
+      buildSubmission(blocks, { guests: "51" }, guestPages),
+    );
+
+    expect(appErrorStatus(error)).toBe(422);
+    expect(appErrorMessage(error)).toBe(
+      "Please enter a number less than or equal to 50 for “How many guests?”.",
+    );
+  });
+
+  test("rejects a missing or unresolvable count with 422", () => {
+    const blocks = guestBlocks();
+
+    const missing = captureError(() =>
+      buildSubmission(blocks, { guests: "  " }, guestPages),
+    );
+
+    expect(appErrorStatus(missing)).toBe(422);
+    expect(appErrorMessage(missing)).toBe("Please answer “How many guests?”.");
+
+    const invalid = captureError(() =>
+      buildSubmission(blocks, { guests: "-1" }, guestPages),
+    );
+
+    expect(appErrorStatus(invalid)).toBe(422);
+    expect(appErrorMessage(invalid)).toBe("Please answer “How many guests?”.");
   });
 });

@@ -103,3 +103,16 @@ a {
 ::selection {
   background: rgba(116, 173, 124, 0.18);
 }
+
+/* The native stepper arrows of number inputs do not match the form look;
+   typing, the keyboard arrows and the scroll wheel still adjust the value. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

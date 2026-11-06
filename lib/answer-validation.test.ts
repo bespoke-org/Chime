@@ -16,6 +16,7 @@ function createBlock(
     description: overrides.description ?? "",
     required: overrides.required ?? false,
     position: overrides.position ?? 0,
+    pageId: overrides.pageId ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
     config:

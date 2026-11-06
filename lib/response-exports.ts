@@ -10,6 +10,8 @@ import { getAppBaseUrl } from "@/lib/app-url";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
+import { resolveStoredAnswerView } from "@/lib/response-review";
+import type { StoredAnswerValue } from "@/lib/form-types";
 import { buildUploadDownloadUrl } from "@/lib/uploads";
 import { slugify } from "@/lib/utils";
 import { workspaceAccessWhere } from "@/lib/workspaces";
@@ -19,8 +21,6 @@ export type ResponseExportFormat = "csv" | "xlsx";
 type OwnedFormExportRecord = Awaited<
   ReturnType<typeof loadOwnedFormResponsesForExport>
 >;
-
-type ExportAnswerValue = string | string[] | undefined;
 
 export type ResponseExportColumn = {
   key: string;
@@ -132,8 +132,33 @@ export type ExportFileLink = {
 
 // A file answer is stored as the upload id; outside the app it is written as
 // the authenticated download URL so a creator can open it from the sheet.
+// A repeating block joins its instance values with "; ", each instance
+// written the same way as the block's flat value.
 export function serializeExportAnswer(
-  value: ExportAnswerValue,
+  value: StoredAnswerValue | undefined,
+  block?: Pick<SerializedBlock, "type">,
+  locale: AppLocale = DEFAULT_LOCALE,
+  fileLink?: ExportFileLink,
+) {
+  if (block) {
+    const view = resolveStoredAnswerView(block, value);
+
+    if (view.kind === "instances") {
+      return view.entries
+        .map((entry) =>
+          serializeFlatExportAnswer(entry.value, block, locale, fileLink),
+        )
+        .join("; ");
+    }
+
+    return serializeFlatExportAnswer(view.value, block, locale, fileLink);
+  }
+
+  return serializeFlatExportAnswer(value, block, locale, fileLink);
+}
+
+function serializeFlatExportAnswer(
+  value: StoredAnswerValue | undefined,
   block?: Pick<SerializedBlock, "type">,
   locale: AppLocale = DEFAULT_LOCALE,
   fileLink?: ExportFileLink,
@@ -191,7 +216,7 @@ export function buildResponseExportDataset(
       typeof response.answersJson === "object" &&
       response.answersJson &&
       !Array.isArray(response.answersJson)
-        ? (response.answersJson as Record<string, ExportAnswerValue>)
+        ? (response.answersJson as Record<string, StoredAnswerValue>)
         : {};
 
     const values = columns.reduce<Record<string, string>>(

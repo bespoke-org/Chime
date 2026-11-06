@@ -2,13 +2,20 @@ import { describe, expect, test } from "bun:test";
 
 import type { SerializedBlock } from "@/lib/blocks";
 import { resolveNextBlockId, resolveVisitedBlockIds } from "@/lib/branching";
+import { resolvePages } from "@/lib/pages";
 import {
   advanceRunnerRoute,
   createInitialRunnerRoute,
+  encodeRunnerRouteStep,
   getCurrentRouteBlockId,
+  getExitProjectionIndex,
   getRouteCursor,
-  getVisibleRouteTotal,
+  getVisibleStepTotal,
   hasRunnerProgress,
+  parseRunnerRouteStep,
+  planPageInstances,
+  resolveLandingPage,
+  resolveNextRouteStep,
   retreatRunnerRoute,
 } from "@/lib/public-form-runner-state";
 
@@ -25,6 +32,7 @@ function createBlock(
     description: overrides.description ?? "",
     required: overrides.required ?? false,
     position: overrides.position ?? 0,
+    pageId: overrides.pageId ?? null,
     createdAt: overrides.createdAt ?? now,
     updatedAt: overrides.updatedAt ?? now,
     config:
@@ -71,34 +79,6 @@ describe("public form runner state helpers", () => {
       JSON.stringify(["intro", "standard", "priority"]),
     );
     expect(nextRoute.cursor).toBe(2);
-  });
-
-  test("progress total follows the actual remaining branch route instead of the full saved block list", () => {
-    const blocks = [
-      createBlock({
-        id: "path",
-        type: "SINGLE_CHOICE",
-        position: 0,
-        config: {
-          options: ["yes", "no"],
-          branchRules: [
-            { operator: "equals", value: "yes", targetBlockId: "finish" },
-          ],
-          defaultNextBlockId: null,
-        },
-      }),
-      createBlock({ id: "skipped", type: "SHORT_TEXT", position: 1 }),
-      createBlock({ id: "finish", type: "SHORT_TEXT", position: 2 }),
-    ];
-
-    const total = getVisibleRouteTotal({
-      blocks,
-      currentBlockId: "path",
-      answers: { path: "yes" },
-      cursor: 0,
-    });
-
-    expect(total).toBe(2);
   });
 
   test("branches correctly during forward-only progression", () => {
@@ -208,22 +188,13 @@ describe("public form runner state edge cases", () => {
     createBlock({ id: "finish", type: "SHORT_TEXT", position: 3 }),
   ];
 
-  test("changing an earlier answer onto another branch truncates history and shrinks the total", () => {
+  test("changing an earlier answer onto another branch truncates history", () => {
     const answers = { path: "no", fallback: "a", extra: "b" };
     let route = createInitialRunnerRoute(branchingBlocks);
     route = advanceRunnerRoute(route, "path", "fallback");
     route = advanceRunnerRoute(route, "fallback", "extra");
     route = advanceRunnerRoute(route, "extra", "finish");
     route = { ...route, cursor: 0 };
-
-    expect(
-      getVisibleRouteTotal({
-        blocks: branchingBlocks,
-        currentBlockId: "path",
-        answers,
-        cursor: 0,
-      }),
-    ).toBe(4);
 
     const switched = { ...answers, path: "yes" };
     const next = resolveNextBlockId(branchingBlocks, "path", switched);
@@ -233,14 +204,6 @@ describe("public form runner state edge cases", () => {
       JSON.stringify(["path", "finish"]),
     );
     expect(route.cursor).toBe(1);
-    expect(
-      getVisibleRouteTotal({
-        blocks: branchingBlocks,
-        currentBlockId: "path",
-        answers: switched,
-        cursor: 0,
-      }),
-    ).toBe(2);
   });
 
   test("route helpers leave answers from an abandoned branch untouched", () => {
@@ -257,7 +220,7 @@ describe("public form runner state edge cases", () => {
     expect(advanceRunnerRoute(route, "path", "extra")).toBe(route);
   });
 
-  test("a terminal block has no next step and the total stops there", () => {
+  test("a terminal block has no next step", () => {
     const blocks = [
       createBlock({
         id: "gate",
@@ -274,14 +237,6 @@ describe("public form runner state edge cases", () => {
     ];
 
     expect(resolveNextBlockId(blocks, "gate", { gate: "yes" })).toBe(null);
-    expect(
-      getVisibleRouteTotal({
-        blocks,
-        currentBlockId: "gate",
-        answers: { gate: "yes" },
-        cursor: 0,
-      }),
-    ).toBe(1);
   });
 
   test("back navigation stops at the first step", () => {
@@ -305,27 +260,6 @@ describe("public form runner state edge cases", () => {
     expect(getCurrentRouteBlockId({ history: [], cursor: 0 }, [])).toBe(null);
   });
 
-  test("a current block that no longer exists yields a total of the steps taken so far", () => {
-    const blocks = [createBlock({ id: "a", type: "SHORT_TEXT", position: 0 })];
-
-    expect(
-      getVisibleRouteTotal({
-        blocks,
-        currentBlockId: "removed",
-        answers: {},
-        cursor: 2,
-      }),
-    ).toBe(3);
-    expect(
-      getVisibleRouteTotal({
-        blocks,
-        currentBlockId: null,
-        answers: {},
-        cursor: 2,
-      }),
-    ).toBe(1);
-  });
-
   test("whitespace-only and empty-array answers do not count as progress", () => {
     expect(
       hasRunnerProgress({
@@ -343,5 +277,254 @@ describe("public form runner state edge cases", () => {
         initialHistoryLength: 1,
       }),
     ).toBe(true);
+  });
+});
+
+describe("runner steps of repeating pages", () => {
+  // count(page 1) -> members(page 2, repeating by the count) -> note(page 3)
+  function createRepeatingPages() {
+    return resolvePages(
+      [
+        createBlock({
+          id: "count",
+          type: "NUMBER",
+          position: 0,
+          pageId: "count-page",
+        }),
+        createBlock({
+          id: "member",
+          type: "SHORT_TEXT",
+          position: 1,
+          pageId: "members-page",
+        }),
+        createBlock({
+          id: "note",
+          type: "LONG_TEXT",
+          position: 2,
+          pageId: "note-page",
+        }),
+      ],
+      [
+        { id: "count-page" },
+        { id: "members-page", repeat: { countBlockId: "count" } },
+        { id: "note-page" },
+      ],
+    );
+  }
+
+  test("encodes and parses instance steps", () => {
+    expect(encodeRunnerRouteStep({ pageId: "members", instanceIndex: 0 })).toBe(
+      "members",
+    );
+    expect(encodeRunnerRouteStep({ pageId: "members", instanceIndex: 2 })).toBe(
+      "members#2",
+    );
+    expect(parseRunnerRouteStep("members")).toEqual({
+      pageId: "members",
+      instanceIndex: 0,
+    });
+    expect(parseRunnerRouteStep("members#3")).toEqual({
+      pageId: "members",
+      instanceIndex: 3,
+    });
+    expect(parseRunnerRouteStep("members#0")).toBe(null);
+    expect(parseRunnerRouteStep("members#x")).toBe(null);
+    expect(parseRunnerRouteStep("")).toBe(null);
+  });
+
+  test("plans a page by the count answer", () => {
+    const pages = createRepeatingPages();
+    const members = pages.find((page) => page.id === "members-page");
+    const count = pages.find((page) => page.id === "count-page");
+    const note = pages.find((page) => page.id === "note-page");
+
+    expect(planPageInstances(members as never, pages, { count: "3" })).toEqual({
+      kind: "instances",
+      count: 3,
+    });
+    expect(planPageInstances(members as never, pages, { count: "0" })).toEqual({
+      kind: "skipped",
+    });
+    expect(
+      planPageInstances(members as never, pages, { count: "2.5" }),
+    ).toEqual({ kind: "blocked", status: "invalid" });
+    expect(planPageInstances(members as never, pages, {})).toEqual({
+      kind: "blocked",
+      status: "missing",
+    });
+    expect(planPageInstances(count as never, pages, {})).toEqual({
+      kind: "single",
+    });
+    expect(planPageInstances(note as never, pages, {})).toEqual({
+      kind: "single",
+    });
+  });
+
+  test("walks the instances of a page then lands on the next page", () => {
+    const pages = createRepeatingPages();
+
+    const first = resolveNextRouteStep({
+      pages,
+      pageId: "count-page",
+      instanceIndex: 0,
+      projectionIndex: 0,
+      answers: { count: "2" },
+    });
+    expect(first).toEqual({ pageId: "members-page", instanceIndex: 0 });
+
+    const second = resolveNextRouteStep({
+      pages,
+      pageId: "members-page",
+      instanceIndex: 0,
+      projectionIndex: 0,
+      answers: { count: "2" },
+    });
+    expect(second).toEqual({ pageId: "members-page", instanceIndex: 1 });
+
+    const third = resolveNextRouteStep({
+      pages,
+      pageId: "members-page",
+      instanceIndex: 1,
+      projectionIndex: 1,
+      answers: { count: "2" },
+    });
+    expect(third).toEqual({ pageId: "note-page", instanceIndex: 0 });
+
+    const end = resolveNextRouteStep({
+      pages,
+      pageId: "note-page",
+      instanceIndex: 0,
+      projectionIndex: 1,
+      answers: { count: "2" },
+    });
+    expect(end).toBe(null);
+  });
+
+  test("a count of zero skips the repeating page", () => {
+    const pages = createRepeatingPages();
+
+    const step = resolveNextRouteStep({
+      pages,
+      pageId: "count-page",
+      instanceIndex: 0,
+      projectionIndex: 0,
+      answers: { count: "0" },
+    });
+
+    expect(step).toEqual({ pageId: "note-page", instanceIndex: 0 });
+  });
+
+  test("the exit of a page skipped by a count of 0 ignores its stale answers", () => {
+    const pages = resolvePages(
+      [
+        createBlock({
+          id: "count",
+          type: "NUMBER",
+          position: 0,
+          pageId: "count-page",
+        }),
+        createBlock({
+          id: "member",
+          type: "SHORT_TEXT",
+          position: 1,
+          pageId: "members-page",
+          config: {
+            placeholder: "",
+            validationRegex: null,
+            branchRules: [
+              { operator: "equals", value: "vip", targetBlockId: "vip" },
+            ],
+            defaultNextBlockId: null,
+          },
+        }),
+        createBlock({
+          id: "note",
+          type: "LONG_TEXT",
+          position: 2,
+          pageId: "note-page",
+        }),
+        createBlock({
+          id: "vip",
+          type: "SHORT_TEXT",
+          position: 3,
+          pageId: "vip-page",
+        }),
+      ],
+      [
+        { id: "count-page" },
+        { id: "members-page", repeat: { countBlockId: "count" } },
+        { id: "note-page" },
+        { id: "vip-page" },
+      ],
+    );
+
+    // The respondent filled both instances, then dropped the count to 0.
+    // The browser keeps the extra answers, but the skipped page's exit must
+    // not see them, matching the server-side walk.
+    const stale = { count: "0", member: ["regular", "vip"] };
+
+    expect(
+      resolveLandingPage({
+        pages,
+        exitPageId: "count-page",
+        projectionIndex: 0,
+        answers: stale,
+      }),
+    ).toEqual({ pageId: "note-page", nextProjectionIndex: 0 });
+    expect(
+      resolveNextRouteStep({
+        pages,
+        pageId: "count-page",
+        instanceIndex: 0,
+        projectionIndex: 0,
+        answers: stale,
+      }),
+    ).toEqual({ pageId: "note-page", instanceIndex: 0 });
+
+    // While the page runs, the last instance's answer still routes the exit.
+    expect(
+      resolveNextRouteStep({
+        pages,
+        pageId: "members-page",
+        instanceIndex: 1,
+        projectionIndex: 1,
+        answers: { count: "2", member: ["regular", "vip"] },
+      }),
+    ).toEqual({ pageId: "vip-page", instanceIndex: 0 });
+  });
+
+  test("counts steps for progress", () => {
+    const pages = createRepeatingPages();
+
+    const total = getVisibleStepTotal({
+      route: { history: ["count-page"], cursor: 0 },
+      pages,
+      answers: { count: "3" },
+    });
+
+    // count step, three member steps, note step
+    expect(total).toBe(5);
+  });
+
+  test("an unanswered future count contributes one step", () => {
+    const pages = createRepeatingPages();
+
+    const total = getVisibleStepTotal({
+      route: { history: ["count-page"], cursor: 0 },
+      pages,
+      answers: {},
+    });
+
+    expect(total).toBe(3);
+  });
+
+  test("projects the exit on the last instance of the visited route", () => {
+    const pages = createRepeatingPages();
+    const route = {
+      history: ["count-page", "members-page", "members-page#1"],
+      cursor: 2,
+    };
+
+    expect(getExitProjectionIndex({ route, pages })).toBe(1);
   });
 });

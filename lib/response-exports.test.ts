@@ -39,6 +39,7 @@ function createBlock(
     description: "",
     required: false,
     position: 0,
+    pageId: null,
     createdAt: now,
     updatedAt: now,
     config: {},
@@ -583,5 +584,84 @@ describe("file upload export values", () => {
       }),
     ).toBe("https://forms.example.com/api/forms/form-1/uploads/up1");
     expect(serializeExportAnswer("up1", block, "en")).toBe("up1");
+  });
+});
+
+describe("repeating export values", () => {
+  test("joins instance values with a semicolon in instance order", () => {
+    const form = createForm(
+      [createBlock("names", "SHORT_TEXT")],
+      [createResponse("r1", { names: ["Ada", null, "Grace"] })],
+    );
+
+    expect(questionValues(form)[0][0]).toBe("Ada; Grace");
+  });
+
+  test("keeps the pipe inside a multiple-choice instance", () => {
+    const form = createForm(
+      [createBlock("colors", "MULTIPLE_CHOICE")],
+      [
+        createResponse("r1", {
+          colors: [["red", "blue"], null, ["green"]],
+        }),
+      ],
+    );
+
+    expect(questionValues(form)[0][0]).toBe("red | blue; green");
+  });
+
+  test("localizes each agreement instance", () => {
+    const form = createForm(
+      [createBlock("terms", "AGREEMENT")],
+      [createResponse("r1", { terms: ["agreed", "not_agreed"] })],
+    );
+
+    expect(questionValues(form, "en")[0][0]).toBe("Agree; Do not agree");
+    expect(questionValues(form, "ru")[0][0]).toBe("Согласен; Не согласен");
+  });
+
+  test("writes one download URL per file instance", () => {
+    const form = createForm(
+      [
+        createBlock("cv", "FILE_UPLOAD", {
+          title: "CV",
+          config: { accept: "documents", maxSizeMb: 5 },
+        }),
+      ],
+      [createResponse("r1", { cv: ["up1", "up2"] })],
+    );
+
+    const dataset = buildResponseExportDataset(
+      form,
+      "en",
+      "https://forms.example.com/",
+    );
+
+    expect(dataset.rows[0].values.cv).toBe(
+      "https://forms.example.com/api/forms/form-1/uploads/up1; https://forms.example.com/api/forms/form-1/uploads/up2",
+    );
+  });
+
+  test("flat answers of the same block types keep their single-value shape", () => {
+    const form = createForm(
+      [
+        createBlock("colors", "MULTIPLE_CHOICE"),
+        createBlock("name", "SHORT_TEXT"),
+      ],
+      [createResponse("r1", { colors: ["red", "blue"], name: "Ada" })],
+    );
+
+    expect(JSON.stringify(questionValues(form)[0])).toBe(
+      JSON.stringify(["red | blue", "Ada"]),
+    );
+  });
+
+  test("serializeExportAnswer joins instances through the stored answer view", () => {
+    const block = serializeBlock(createBlock("names", "SHORT_TEXT"));
+
+    expect(serializeExportAnswer(["Ada", "Grace"], block, "en")).toBe(
+      "Ada; Grace",
+    );
+    expect(serializeExportAnswer("Ada", block, "en")).toBe("Ada");
   });
 });

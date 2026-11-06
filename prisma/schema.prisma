@@ -130,6 +130,7 @@ model Form {
   closedMessage       String                         @default("")
   slug                String                         @unique
   status              FormStatus                     @default(DRAFT)
+  pagesJson           Json?
   user                User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization        Organization?                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   blocks              FormBlock[]
@@ -153,6 +154,7 @@ model FormBlock {
   description String        @default("")
   required    Boolean       @default(false)
   position    Int
+  pageId      String?
   config      Json
   form        Form          @relation(fields: [formId], references: [id], onDelete: Cascade)
   createdAt   DateTime      @default(now())
@@ -240,19 +242,22 @@ model Response {
 }
 
 model Upload {
-  id          String       @id @default(cuid())
-  formId      String
-  blockId     String
-  key         String       @unique
-  filename    String
-  contentType String
-  size        Int
-  status      UploadStatus @default(PENDING)
-  responseId  String?
-  form        Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
-  response    Response?    @relation(fields: [responseId], references: [id], onDelete: SetNull)
-  createdAt   DateTime     @default(now())
-  attachedAt  DateTime?
+  id            String       @id @default(cuid())
+  formId        String
+  blockId       String
+  key           String       @unique
+  filename      String
+  contentType   String
+  size          Int
+  status        UploadStatus @default(PENDING)
+  responseId    String?
+  form          Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
+  response      Response?    @relation(fields: [responseId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  attachedAt    DateTime?
+  // Which instance of the block's repeating page the file belongs to; null
+  // for uploads of non-repeating blocks.
+  instanceIndex Int?
 
   @@index([formId, status, createdAt])
   @@index([responseId])

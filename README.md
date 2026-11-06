@@ -8,8 +8,8 @@ Chime is a self-hosted form builder in the style of Typeform: the respondent see
 
 ## Features
 
-- Builder with eleven block types: text, short text, long text, single choice, multiple choice, number, link, agreement, date, rating and file upload; blocks are reordered by drag and drop and titles and descriptions accept basic Markdown.
-- Conditional branching between blocks, validated in the builder and shown as a graph; submissions follow the branch the respondent took.
+- Builder with eleven block types: text, short text, long text, single choice, multiple choice, number, link, agreement, date, rating and file upload; blocks are grouped into pages, reordered by drag and drop between them, and titles and descriptions accept basic Markdown.
+- Conditional branching between blocks, validated in the builder and shown as a graph; submissions follow the branch the respondent took. The runner shows one page at a time, with every block of the page on the same screen; a page can be marked repeating and is answered as many times as a number question says.
 - Public runner with keyboard controls, saved progress in the browser and a form-level locale override; respondents do not sign in.
 - Form closing by date, by response limit or by a switch; closed forms show a message and answer `410` to submissions.
 - Responses page with per-question views, a visit funnel and CSV and XLSX export; identity fields chosen in the builder label each response.

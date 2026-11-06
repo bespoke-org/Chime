@@ -2,7 +2,10 @@ import { createHmac } from "node:crypto";
 
 import { describe, expect, test } from "bun:test";
 
-import type { SubmissionSnapshotBlock } from "@/lib/form-submission";
+import {
+  parseSubmissionPayload,
+  type SubmissionSnapshotBlock,
+} from "@/lib/form-submission";
 import {
   buildWebhookPayload,
   deliverWebhook,
@@ -462,6 +465,25 @@ describe("deliverWebhook", () => {
 });
 
 describe("buildWebhookPayload file answers", () => {
+  test("converts repeating file answers to download URLs and preserves empty instances", () => {
+    const payload = buildWebhookPayload(
+      { id: "form-1", slug: "demo", title: "Demo" },
+      {
+        id: "resp-1",
+        submittedAt: new Date("2026-10-18T10:00:00.000Z"),
+        answers: parseSubmissionPayload({ cv: ["up1", null, "up3"] }),
+      },
+      [snapshotBlock({ id: "cv", type: "FILE_UPLOAD", title: "CV" })],
+      "https://forms.example.com",
+    );
+
+    expect(payload.answers[0]?.value).toEqual([
+      "https://forms.example.com/api/forms/form-1/uploads/up1",
+      null,
+      "https://forms.example.com/api/forms/form-1/uploads/up3",
+    ]);
+  });
+
   test("sends the download URL instead of the upload id", () => {
     const payload = buildWebhookPayload(
       { id: "form-1", slug: "demo", title: "Demo" },

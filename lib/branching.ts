@@ -18,6 +18,7 @@ import {
   type RatingBlockConfig,
   type SerializedBlock,
 } from "@/lib/blocks";
+import { findPageByBlock, resolvePages, type ResolvedPage } from "@/lib/pages";
 
 export type BranchValidationIssueSeverity = "blocker" | "warning";
 
@@ -32,7 +33,9 @@ export type BranchValidationIssueCode =
   | "unreachable-block"
   | "fragile-text-match"
   | "overlapping-rule"
-  | "partial-choice-coverage";
+  | "partial-choice-coverage"
+  | "ignored-page-rules"
+  | "ignored-repeat-target";
 
 export type BranchValidationIssue = {
   severity: BranchValidationIssueSeverity;
@@ -68,6 +71,15 @@ export function getBlockDisplayLabel(
   );
 }
 
+// Issues whose message lives outside branching.issueMessages. The
+// ignored-rules warnings belong to the formPages copy next to the page UI.
+const issueMessageKeyOverrides: Partial<
+  Record<BranchValidationIssueCode, string>
+> = {
+  "ignored-page-rules": "formPages.branchRulesIgnored",
+  "ignored-repeat-target": "formPages.branchTargetIntoRepeat",
+};
+
 export function getBranchValidationIssueI18n(
   issue: BranchValidationIssue,
   blocks: SerializedBlock[],
@@ -82,7 +94,9 @@ export function getBranchValidationIssueI18n(
   const targetLabel = targetBlock ? getBlockDisplayLabel(targetBlock) : "";
 
   return {
-    key: `branching.issueMessages.${issue.code}`,
+    key:
+      issueMessageKeyOverrides[issue.code] ??
+      `branching.issueMessages.${issue.code}`,
     values: {
       blockLabel,
       targetLabel,
@@ -777,11 +791,112 @@ function getReachableBlockIds(blocks: SerializedBlock[]) {
   return reachable;
 }
 
+// Only the last block of a page decides where the page goes. On a page with
+// more than one block, routing on any earlier block sits there unused, which
+// is easy to miss in the builder, so it gets a warning. Without a page
+// registry every block resolves to its own page and nothing is ignored.
+function collectIgnoredPageRuleWarnings(
+  blocks: SerializedBlock[],
+  pages: ResolvedPage[],
+) {
+  const warnings: BranchValidationIssue[] = [];
+
+  for (const page of pages) {
+    if (page.blocks.length < 2) {
+      continue;
+    }
+
+    for (const block of page.blocks.slice(0, -1)) {
+      const carriesRouting =
+        getBranchRules(block.config).length > 0 ||
+        Boolean(getDefaultNextBlockId(block.config));
+
+      if (!carriesRouting) {
+        continue;
+      }
+
+      warnings.push(
+        createIssue({
+          severity: "warning",
+          code: "ignored-page-rules",
+          blockId: block.id,
+          message: `Branch rules on “${getBlockDisplayLabel(block)}” are ignored because the block is not last on its page.`,
+        }),
+      );
+    }
+  }
+
+  return warnings;
+}
+
+// A branch into a repeating page opens its first instance, which is almost
+// never what the author meant, so every rule and explicit default target that
+// resolves there gets a warning. Stored repeat settings count even when they
+// do not resolve: the builder reports the degraded settings separately.
+// Backward and missing targets never run (they already have their blockers),
+// so only forward targets warn here.
+function collectRepeatTargetWarnings(
+  blocks: SerializedBlock[],
+  pages: ResolvedPage[],
+) {
+  const warnings: BranchValidationIssue[] = [];
+  const repeatingPageIds = new Set(
+    pages.filter((page) => page.definition?.repeat).map((page) => page.id),
+  );
+
+  if (!repeatingPageIds.size) {
+    return warnings;
+  }
+
+  for (const [sourceIndex, block] of blocks.entries()) {
+    const targets: Array<{ targetBlockId: string; ruleIndex?: number }> =
+      getBranchRules(block.config).map((rule, ruleIndex) => ({
+        targetBlockId: rule.targetBlockId,
+        ruleIndex,
+      }));
+
+    const defaultNextBlockId = getDefaultNextBlockId(block.config);
+    if (defaultNextBlockId) {
+      targets.push({ targetBlockId: defaultNextBlockId });
+    }
+
+    for (const target of targets) {
+      const targetIndex = blocks.findIndex(
+        (candidate) => candidate.id === target.targetBlockId,
+      );
+
+      if (targetIndex <= sourceIndex) {
+        continue;
+      }
+
+      const targetPage = findPageByBlock(pages, target.targetBlockId);
+      if (!targetPage || !repeatingPageIds.has(targetPage.id)) {
+        continue;
+      }
+
+      warnings.push(
+        createIssue({
+          severity: "warning",
+          code: "ignored-repeat-target",
+          blockId: block.id,
+          ruleIndex: target.ruleIndex,
+          targetBlockId: target.targetBlockId,
+          message: `A branch from “${getBlockDisplayLabel(block)}” into the repeating page of “${getBlockDisplayLabel(blocks[targetIndex])}” opens its first instance.`,
+        }),
+      );
+    }
+  }
+
+  return warnings;
+}
+
 export function analyzeBranchingGraph(
   blocks: SerializedBlock[],
+  pagesJson?: unknown,
 ): BranchValidationAnalysis {
   const blockers: BranchValidationIssue[] = [];
   const warnings: BranchValidationIssue[] = [];
+  const pages = resolvePages(blocks, pagesJson ?? null);
 
   for (const block of blocks) {
     blockers.push(...validateDefaultTarget(blocks, block));
@@ -789,6 +904,9 @@ export function analyzeBranchingGraph(
     blockers.push(...ruleAnalysis.blockers);
     warnings.push(...ruleAnalysis.warnings);
   }
+
+  warnings.push(...collectIgnoredPageRuleWarnings(blocks, pages));
+  warnings.push(...collectRepeatTargetWarnings(blocks, pages));
 
   const reachableBlockIds = getReachableBlockIds(blocks);
 
@@ -830,6 +948,47 @@ export function resolveVisitedBlockIds(
   }
 
   return visitedBlockIds;
+}
+
+// The page transition rides on the block-level mechanics of the page's last
+// block: its rules and default target resolve to a block, and the page
+// containing that block is the next page. endForm or the end of the block
+// list ends the form. Rules on non-last blocks never run, so they cannot
+// influence the exit.
+export function resolveNextPageId(
+  pages: ResolvedPage[],
+  currentPageId: string,
+  answers: Record<string, unknown>,
+): string | null {
+  const currentPage = pages.find((page) => page.id === currentPageId) ?? null;
+
+  if (!currentPage) {
+    return null;
+  }
+
+  const lastBlock = currentPage.blocks[currentPage.blocks.length - 1] ?? null;
+
+  if (!lastBlock) {
+    return null;
+  }
+
+  // resolveNextBlockId walks the saved order, so the blocks are flattened in
+  // position order rather than page by page.
+  const orderedBlocks = pages
+    .flatMap((page) => page.blocks)
+    .sort((a, b) => a.position - b.position);
+
+  const nextBlockId = resolveNextBlockId(
+    orderedBlocks,
+    lastBlock.id,
+    answers as Record<string, string | string[]>,
+  );
+
+  if (!nextBlockId) {
+    return null;
+  }
+
+  return findPageByBlock(pages, nextBlockId)?.id ?? null;
 }
 
 export function getBranchTargetBlocks(

@@ -1,13 +1,23 @@
 import { z } from "zod";
 
-import { resolveNextBlockId } from "@/lib/branching";
 import type { SerializedBlock } from "@/lib/blocks";
-import type { AnswerValue, PublicForm } from "@/lib/form-types";
+import type { PublicForm, StoredAnswerValue } from "@/lib/form-types";
 
 export const PUBLIC_FORM_DRAFT_STORAGE_PREFIX = "chime-public-runner-draft";
 export const PUBLIC_FORM_DRAFT_VERSION = 1;
 
-const answerValueSchema = z.union([z.string(), z.array(z.string())]);
+// One instance of a repeating block's nested answer: the block's flat answer
+// shape, or null where the instance was left unanswered (holes serialize as
+// null, see the repeating-pages design).
+const instanceValueSchema = z.union([
+  z.string(),
+  z.array(z.string()),
+  z.null(),
+]);
+
+// Flat answers stay string or string[]; a repeating block stores one entry
+// per instance, so the nested string[][] (and its null holes) parses too.
+const answerValueSchema = z.union([z.string(), z.array(instanceValueSchema)]);
 
 const publicFormDraftSchema = z.object({
   version: z.literal(PUBLIC_FORM_DRAFT_VERSION),
@@ -28,15 +38,6 @@ export type PublicFormDraftReadResult =
   | {
       status: "ok";
       draft: PublicFormDraft;
-    };
-
-export type PublicFormDraftValidationResult =
-  | {
-      status: "restored";
-      draft: PublicFormDraft;
-    }
-  | {
-      status: "stale" | "invalid";
     };
 
 function stableStringify(value: unknown): string {
@@ -78,19 +79,28 @@ function sanitizeBlocksForFingerprint(blocks: SerializedBlock[]) {
   }));
 }
 
-function sanitizeAnswersForDraft(
-  answers: Record<string, AnswerValue>,
-): Record<string, AnswerValue> {
-  return Object.fromEntries(
-    Object.entries(answers).filter((entry): entry is [string, AnswerValue] => {
-      const [, value] = entry;
+function isDraftAnswerValue(value: unknown): value is StoredAnswerValue {
+  if (typeof value === "string") {
+    return true;
+  }
 
-      return (
-        typeof value === "string" ||
-        (Array.isArray(value) &&
-          value.every((item) => typeof item === "string"))
-      );
-    }),
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (instance) =>
+        instance === null ||
+        typeof instance === "string" ||
+        (Array.isArray(instance) &&
+          instance.every((item) => typeof item === "string")),
+    )
+  );
+}
+
+function sanitizeAnswersForDraft(
+  answers: Record<string, StoredAnswerValue>,
+): Record<string, StoredAnswerValue> {
+  return Object.fromEntries(
+    Object.entries(answers).filter(([, value]) => isDraftAnswerValue(value)),
   );
 }
 
@@ -154,7 +164,7 @@ export function removeStoredPublicFormDraft(storageKey: string) {
 export function createPublicFormDraft(
   form: Pick<PublicForm, "id" | "blocks">,
   state: {
-    answers: Record<string, AnswerValue>;
+    answers: Record<string, StoredAnswerValue>;
     history: string[];
     cursor: number;
   },
@@ -167,72 +177,5 @@ export function createPublicFormDraft(
     history: [...state.history],
     cursor: state.cursor,
     savedAt: Date.now(),
-  };
-}
-
-export function validatePublicFormDraft(
-  form: Pick<PublicForm, "id" | "blocks">,
-  draft: PublicFormDraft,
-): PublicFormDraftValidationResult {
-  if (
-    draft.formId !== form.id ||
-    draft.fingerprint !== createPublicFormDraftFingerprint(form)
-  ) {
-    return { status: "stale" };
-  }
-
-  const firstBlock = form.blocks[0];
-
-  if (!firstBlock) {
-    return draft.history.length === 0 && draft.cursor === 0
-      ? {
-          status: "restored",
-          draft: {
-            ...draft,
-            history: [],
-          },
-        }
-      : { status: "invalid" };
-  }
-
-  if (draft.history.length === 0 || draft.cursor >= draft.history.length) {
-    return { status: "invalid" };
-  }
-
-  const activeHistory = draft.history.slice(0, draft.cursor + 1);
-
-  if (activeHistory[0] !== firstBlock.id) {
-    return { status: "invalid" };
-  }
-
-  for (let index = 0; index < activeHistory.length - 1; index += 1) {
-    const currentBlockId = activeHistory[index];
-    const expectedNextBlockId = activeHistory[index + 1];
-    const resolvedNextBlockId = resolveNextBlockId(
-      form.blocks,
-      currentBlockId,
-      draft.answers,
-    );
-
-    if (!resolvedNextBlockId || resolvedNextBlockId !== expectedNextBlockId) {
-      return { status: "invalid" };
-    }
-  }
-
-  const knownBlockIds = new Set(form.blocks.map((block) => block.id));
-  const knownAnswers = Object.fromEntries(
-    Object.entries(draft.answers).filter(([blockId]) =>
-      knownBlockIds.has(blockId),
-    ),
-  );
-
-  return {
-    status: "restored",
-    draft: {
-      ...draft,
-      answers: sanitizeAnswersForDraft(knownAnswers),
-      history: activeHistory,
-      cursor: activeHistory.length - 1,
-    },
   };
 }

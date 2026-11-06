@@ -6,11 +6,13 @@ import {
   type Prisma,
   WebhookMode,
 } from "@prisma/client";
+import { z } from "zod";
 
 import {
   getDefaultBlockConfig,
   isQuestionBlock,
   serializeBlock,
+  type FileUploadBlockConfig,
 } from "@/lib/blocks";
 import {
   getBranchValidationIssueI18n,
@@ -26,6 +28,8 @@ import {
   assertReorderMatchesForm,
   buildSubmission,
   parseSubmissionPayload,
+  type SubmissionAnswers,
+  type SubmissionSnapshotBlock,
 } from "@/lib/form-submission";
 import type {
   ActiveWorkspace,
@@ -61,11 +65,20 @@ import {
 import { getMessages } from "@/lib/i18n-server";
 import { normalizeBlockConfig } from "@/lib/block-config-normalization";
 import { getObjectStorage } from "@/lib/object-storage";
+import {
+  pageDefinitionSchema,
+  parsePageRegistry,
+  resolvePages,
+  type PageDefinition,
+  type ResolvedPage,
+} from "@/lib/pages";
+import { effectiveRepeatSettings, isNestedRepeatingAnswer } from "@/lib/repeat";
 import { removeUploadsFor } from "@/lib/upload-cleanup";
 import {
   buildUploadKey,
   collectFileUploadAnswers,
   DOWNLOAD_URL_TTL_SECONDS,
+  getEffectiveMaxSizeBytes,
   parseUploadRequest,
   UPLOAD_URL_TTL_SECONDS,
   verifyUploadForAnswer,
@@ -129,6 +142,26 @@ type BuilderFormRecord = Form &
     include: typeof builderFormInclude;
   }>;
 
+// The page registry travels with the builder and public payloads next to
+// blocks. It is parsed leniently: malformed registry entries are dropped
+// instead of failing the request.
+type BuilderFormWithPages = BuilderForm & { pages: PageDefinition[] };
+type PublicFormWithPages = PublicForm & { pages: PageDefinition[] };
+
+// The page fields arrived after the payloads below, so they stay optional:
+// a client or saved draft from before this change keeps saving without them.
+const formPagesInputSchema = z.object({
+  pages: z.array(pageDefinitionSchema).optional(),
+});
+
+const createBlockWithPageIdSchema = createBlockSchema.extend({
+  pageId: z.string().min(1).nullable().optional(),
+});
+
+const blockUpdateWithPageIdSchema = blockUpdateSchema.extend({
+  pageId: z.string().min(1).nullable().optional(),
+});
+
 export type {
   BuilderForm,
   FormListItem,
@@ -186,7 +219,7 @@ async function loadViewerNotificationState(
 function toBuilderForm(
   form: BuilderFormRecord,
   viewer: ViewerNotificationState,
-): BuilderForm {
+): BuilderFormWithPages {
   return {
     id: form.id,
     title: form.title,
@@ -217,10 +250,13 @@ function toBuilderForm(
     responseCount: form._count.responses,
     workspace: toWorkspaceReference(form),
     blocks: form.blocks.map(serializeBlock),
+    pages: parsePageRegistry(form.pagesJson),
   };
 }
 
-function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
+function toPublicForm(
+  form: Form & { blocks: FormBlock[] },
+): PublicFormWithPages {
   return {
     id: form.id,
     title: form.title,
@@ -237,6 +273,7 @@ function toPublicForm(form: Form & { blocks: FormBlock[] }): PublicForm {
     closedMessage: form.closedMessage,
     slug: form.slug,
     blocks: form.blocks.map(serializeBlock),
+    pages: parsePageRegistry(form.pagesJson),
   };
 }
 
@@ -476,6 +513,7 @@ export async function createDraftForm(
       showProgress: true,
       allowBackNavigation: true,
       slug,
+      pagesJson: [],
       blocks: {
         create: initialBlocks(locale),
       },
@@ -504,12 +542,18 @@ export async function updateOwnedFormMetadata(
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
   const parsed = formMetadataSchema.parse(payload);
+  const { pages } = formPagesInputSchema.parse(payload);
   await assertAccessibleForm(userId, formId);
   await ensureUniqueSlug(parsed.slug, formId, locale);
 
   const form = await db.form.update({
     where: { id: formId },
-    data: parsed,
+    data: {
+      ...parsed,
+      // Absent pages leave the stored registry alone; an empty array clears
+      // it, matching an explicit save from the builder.
+      ...(pages === undefined ? {} : { pagesJson: pages }),
+    },
     include: builderFormInclude,
   });
 
@@ -577,7 +621,7 @@ export async function addOwnedBlock(
   payload: unknown,
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
-  const parsed = createBlockSchema.parse(payload);
+  const parsed = createBlockWithPageIdSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
   const position = form.blocks.length;
 
@@ -591,6 +635,7 @@ export async function addOwnedBlock(
       description: "",
       required: false,
       position,
+      pageId: parsed.pageId ?? null,
       config: getDefaultBlockConfig(parsed.type, locale),
     },
   });
@@ -604,7 +649,7 @@ export async function updateOwnedBlock(
   blockId: string,
   payload: unknown,
 ) {
-  const parsed = blockUpdateSchema.parse(payload);
+  const parsed = blockUpdateWithPageIdSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
 
   const block = await db.formBlock.findFirst({
@@ -647,6 +692,7 @@ export async function updateOwnedBlock(
       description: parsed.description,
       required: isQuestionBlock(block.type) ? parsed.required : false,
       config,
+      ...(parsed.pageId === undefined ? {} : { pageId: parsed.pageId }),
     },
   });
 
@@ -700,6 +746,7 @@ export async function reorderOwnedBlocks(
   payload: unknown,
 ) {
   const parsed = reorderBlocksSchema.parse(payload);
+  const { pages } = formPagesInputSchema.parse(payload);
   const form = await assertAccessibleForm(userId, formId);
 
   assertReorderMatchesForm(
@@ -707,14 +754,19 @@ export async function reorderOwnedBlocks(
     parsed.blockIds,
   );
 
-  await db.$transaction(
-    parsed.blockIds.map((blockId, index) =>
+  await db.$transaction([
+    ...parsed.blockIds.map((blockId, index) =>
       db.formBlock.update({
         where: { id: blockId },
         data: { position: index },
       }),
     ),
-  );
+    ...(pages === undefined
+      ? []
+      : [
+          db.form.update({ where: { id: formId }, data: { pagesJson: pages } }),
+        ]),
+  ]);
 
   return getOwnedFormForBuilder(userId, formId);
 }
@@ -777,9 +829,12 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     throw new AppError("This form is not accepting responses right now.", 404);
   }
 
+  const blocks = form.blocks.map(serializeBlock);
+
   const { normalizedAnswers, snapshot } = buildSubmission(
-    form.blocks.map(serializeBlock),
+    blocks,
     answersInput,
+    form.pagesJson,
   );
 
   // Checked right before the insert. Two submissions that both pass the
@@ -790,7 +845,12 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
     throw new AppError("This form is no longer accepting responses.", 410);
   }
 
-  const fileAnswers = collectFileUploadAnswers(snapshot, normalizedAnswers);
+  const pages = resolvePages(blocks, form.pagesJson);
+  const fileAnswers = collectSubmissionFileAnswers(
+    pages,
+    snapshot,
+    normalizedAnswers,
+  );
   const responseData = {
     formId: form.id,
     answersJson: normalizedAnswers,
@@ -848,14 +908,77 @@ export async function createAnonymousResponse(slug: string, payload: unknown) {
   return response;
 }
 
+// A file answer of a submission paired with the instance of the repeating
+// page the upload belongs to: null for the flat answers of non-repeating
+// blocks and of repeating blocks whose settings degraded.
+type SubmissionFileAnswer = FileUploadAnswer & { instanceIndex: number | null };
+
+// Collects the file answers of a submission, both shapes: the flat answers
+// every block stores, and the per-instance arrays of upload ids that blocks
+// on repeating pages store (the array index is the instance). An unanswered
+// instance inside the array leaves its upload out, like a missing flat
+// answer does.
+function collectSubmissionFileAnswers(
+  pages: ResolvedPage[],
+  snapshot: SubmissionSnapshotBlock[],
+  answers: Record<string, unknown>,
+): SubmissionFileAnswer[] {
+  const flat = collectFileUploadAnswers(
+    snapshot,
+    answers as SubmissionAnswers,
+  ).map((answer) => ({ ...answer, instanceIndex: null }));
+
+  const nested: SubmissionFileAnswer[] = [];
+
+  for (const page of pages) {
+    if (!effectiveRepeatSettings(page, pages)) {
+      continue;
+    }
+
+    for (const block of page.blocks) {
+      if (block.type !== "FILE_UPLOAD") {
+        continue;
+      }
+
+      const value = answers[block.id];
+
+      if (!isNestedRepeatingAnswer(block, value)) {
+        continue;
+      }
+
+      const instances = value as unknown[];
+
+      for (let index = 0; index < instances.length; index += 1) {
+        const uploadId = instances[index];
+
+        if (typeof uploadId !== "string" || !uploadId) {
+          continue;
+        }
+
+        nested.push({
+          blockId: block.id,
+          uploadId,
+          maxSizeBytes: getEffectiveMaxSizeBytes(
+            block.config as FileUploadBlockConfig,
+          ),
+          instanceIndex: index,
+        });
+      }
+    }
+  }
+
+  return [...flat, ...nested];
+}
+
 // Every file answer must name a pending upload of this form and block whose
 // object exists in storage within the block's limit; otherwise the whole
 // submission is rejected. The response and the status flip to ATTACHED are
-// written in one transaction so an upload can never be attached twice.
+// written in one transaction so an upload can never be attached twice; each
+// upload records the instance of the repeating page it belongs to.
 async function createResponseWithUploads(
   formId: string,
   responseData: Prisma.ResponseUncheckedCreateInput,
-  fileAnswers: FileUploadAnswer[],
+  fileAnswers: SubmissionFileAnswer[],
 ) {
   const storage = getObjectStorage();
 
@@ -881,22 +1004,39 @@ async function createResponseWithUploads(
     }
   }
 
+  // instanceIndex differs per upload, so the attach runs once per instance;
+  // uploads without one (flat answers) group under null.
+  const uploadIdsByInstance = new Map<number | null, string[]>();
+
+  for (const answer of fileAnswers) {
+    const uploadIds = uploadIdsByInstance.get(answer.instanceIndex) ?? [];
+    uploadIds.push(answer.uploadId);
+    uploadIdsByInstance.set(answer.instanceIndex, uploadIds);
+  }
+
   return db.$transaction(async (tx) => {
     const response = await tx.response.create({ data: responseData });
-    const attached = await tx.upload.updateMany({
-      where: {
-        id: { in: fileAnswers.map((answer) => answer.uploadId) },
-        formId,
-        status: "PENDING",
-      },
-      data: {
-        status: "ATTACHED",
-        responseId: response.id,
-        attachedAt: new Date(),
-      },
-    });
+    let attachedCount = 0;
 
-    if (attached.count !== fileAnswers.length) {
+    for (const [instanceIndex, uploadIds] of uploadIdsByInstance) {
+      const attached = await tx.upload.updateMany({
+        where: {
+          id: { in: uploadIds },
+          formId,
+          status: "PENDING",
+        },
+        data: {
+          status: "ATTACHED",
+          responseId: response.id,
+          attachedAt: new Date(),
+          instanceIndex,
+        },
+      });
+
+      attachedCount += attached.count;
+    }
+
+    if (attachedCount !== fileAnswers.length) {
       throw new AppError("The uploaded file could not be verified.", 422);
     }
 
