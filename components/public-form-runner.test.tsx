@@ -1459,7 +1459,89 @@ describe("PublicFormRunner", () => {
     await cleanupAndRestore(restoreDom);
   });
 
-  test("Enter moves the focus between the fields of a page and submits from the last", async () => {
+  test("Shift+Enter preserves long text editing and composing Enter does not advance", async () => {
+    const restoreDom = installTestDom();
+    try {
+      const view = renderRunner(
+        createForm([
+          createBlock({
+            id: "notes",
+            type: "LONG_TEXT",
+            position: 0,
+            required: true,
+          }),
+          createBlock({ id: "next", type: "SHORT_TEXT", position: 1 }),
+        ]),
+      );
+      const input = view.getByRole("textbox", { name: "notes" });
+      typeIntoInput(input, "Hello");
+      expect(fireEvent.keyDown(input, { key: "Enter", shiftKey: true })).toBe(
+        true,
+      );
+      expect(
+        fireEvent.keyDown(input, { key: "Enter", isComposing: true }),
+      ).toBe(true);
+      expect(view.getByRole("textbox", { name: "notes" }) !== null).toBe(true);
+      expect(view.queryByRole("alert")).toBe(null);
+      fireEvent.keyDown(input, { key: "Enter" });
+      await waitFor(() =>
+        expect(view.queryByRole("textbox", { name: "next" }) !== null).toBe(
+          true,
+        ),
+      );
+    } finally {
+      await cleanupAndRestore(restoreDom);
+    }
+  });
+
+  test("Enter keeps focus on the unanswered field instead of cycling between page fields", async () => {
+    const restoreDom = installTestDom();
+    try {
+      const view = renderRunner(
+        createForm(
+          [
+            createBlock({
+              id: "team",
+              type: "SHORT_TEXT",
+              position: 0,
+              required: true,
+              pageId: "details",
+            }),
+            createBlock({
+              id: "count",
+              type: "NUMBER",
+              position: 1,
+              required: true,
+              pageId: "details",
+            }),
+          ],
+          { pages: [{ id: "details" }] },
+        ),
+      );
+      const team = view.getByRole("textbox", { name: "team" });
+      const count = view.getByRole("textbox", { name: "count" });
+      typeIntoInput(count, "3");
+      fireEvent.keyDown(count, { key: "Enter" });
+      await waitFor(() =>
+        expect(document.activeElement?.getAttribute("aria-labelledby")).toBe(
+          "question-team",
+        ),
+      );
+      expect(team.getAttribute("aria-invalid")).toBe("true");
+      fireEvent.keyDown(team, { key: "Enter" });
+      // Flush the scheduled field-focus callback and initial autofocus retry.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      expect(document.activeElement?.getAttribute("aria-labelledby")).toBe(
+        "question-team",
+      );
+      expect(view.getAllByRole("alert").length).toBe(1);
+      expect(view.queryByRole("status")).toBe(null);
+    } finally {
+      await cleanupAndRestore(restoreDom);
+    }
+  });
+
+  test("Enter advances a valid page from any field and submits the last page", async () => {
     const restoreDom = installTestDom();
     const previousFetch = globalThis.fetch;
     const requests: Array<Record<string, unknown>> = [];
@@ -1508,15 +1590,8 @@ describe("PublicFormRunner", () => {
     ) as HTMLElement[];
 
     typeIntoInput(firstField, "Ada");
-    fireEvent.keyDown(firstField, { key: "Enter" });
-
-    await waitFor(() => {
-      expect(document.activeElement === secondField).toBe(true);
-    });
-    expect(requests.length).toBe(0);
-
     typeIntoInput(secondField, "Lovelace");
-    fireEvent.keyDown(secondField, { key: "Enter" });
+    fireEvent.keyDown(firstField, { key: "Enter" });
 
     await waitFor(() => {
       expect(view.getByText("last") !== null).toBe(true);

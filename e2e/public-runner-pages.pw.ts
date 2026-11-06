@@ -35,6 +35,32 @@ test.describe("Grouped pages", () => {
     },
   });
 
+  test("Enter keeps focus on the first invalid field across repeated presses", async ({
+    page,
+    publicForm,
+  }) => {
+    await page.goto(`/f/${publicForm.slug}`);
+    const name = page.getByPlaceholder("Type your name");
+    const notes = page.getByPlaceholder("Type your notes");
+    await notes.fill("Hello");
+    await notes.press("Enter");
+    await expect(name).toBeFocused();
+    await expect(name).toHaveAttribute("aria-invalid", "true");
+    for (let press = 0; press < 3; press += 1) {
+      await name.press("Enter");
+      // Flush any deferred focus scheduled by the keyboard handler.
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      await expect(name).toBeFocused();
+    }
+    await expect(page.locator("p[role=alert]")).toHaveCount(1);
+    await expect(page.getByRole("status")).toHaveCount(0);
+  });
+
   test("validates every field of a page and saves both answers", async ({
     page,
     publicForm,
