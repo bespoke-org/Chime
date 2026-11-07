@@ -541,14 +541,6 @@ function restoreRunnerDraft(
   };
 }
 
-function ShortcutBadge({ shortcut }: { shortcut: string }) {
-  return (
-    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-[color:var(--line)] bg-[var(--surface)] px-2 text-xs font-semibold text-[var(--muted)]">
-      {shortcut}
-    </span>
-  );
-}
-
 // The number constraints the respondent should know before typing, shown
 // only for the ends the block actually constrains. Validation repeats the
 // same limits after Continue.
@@ -1715,9 +1707,6 @@ export function PublicFormRunner({
                                       </span>
                                       <span>{option}</span>
                                     </div>
-                                    {shortcut ? (
-                                      <ShortcutBadge shortcut={shortcut} />
-                                    ) : null}
                                   </button>
                                 );
                               },
@@ -1773,9 +1762,6 @@ export function PublicFormRunner({
                                       </span>
                                       <span>{option}</span>
                                     </div>
-                                    {shortcut ? (
-                                      <ShortcutBadge shortcut={shortcut} />
-                                    ) : null}
                                   </button>
                                 );
                               },
@@ -1966,7 +1952,6 @@ export function PublicFormRunner({
                                     </span>
                                     <span>{label}</span>
                                   </div>
-                                  <ShortcutBadge shortcut="1" />
                                 </button>
                               );
                             })()}

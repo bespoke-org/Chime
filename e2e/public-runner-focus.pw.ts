@@ -30,7 +30,7 @@ test.describe("Public runner text-input focus", () => {
     await page.getByRole("button", { name: /^Continue$/ }).click();
 
     await expect(page.getByRole("heading", { name: "Pick one" })).toBeVisible();
-    await page.getByRole("button", { name: /Yes 1/i }).click();
+    await page.getByRole("button", { name: /^Yes$/i }).click();
     await page.getByRole("button", { name: /^Continue$/ }).click();
 
     const emailInput = page.getByPlaceholder("Type your email");
