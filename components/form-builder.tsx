@@ -677,6 +677,7 @@ export function FormBuilder({
   );
   const { toasts, showToast, dismissToast } = useLocalToasts();
   const [busy, setBusy] = useState<string | null>(null);
+  const pendingReorderRef = useRef<Promise<void> | null>(null);
   const [isDndReady, setIsDndReady] = useState(false);
 
   const [metadataDraft, setMetadataDraft] = useState<FormMetadataDraft>({
@@ -870,7 +871,26 @@ export function FormBuilder({
     form.slug,
   ]);
 
+  const previousSelectedBlockRef = useRef<BuilderBlock | null>(null);
   useEffect(() => {
+    const previous = previousSelectedBlockRef.current;
+    previousSelectedBlockRef.current = selectedBlock;
+
+    // Reordering replaces block objects even though their editable content
+    // is unchanged. Keep the in-progress editor and its option/rule drafts.
+    if (
+      previous &&
+      selectedBlock &&
+      previous.id === selectedBlock.id &&
+      previous.type === selectedBlock.type &&
+      previous.title === selectedBlock.title &&
+      previous.description === selectedBlock.description &&
+      previous.required === selectedBlock.required &&
+      JSON.stringify(previous.config) === JSON.stringify(selectedBlock.config)
+    ) {
+      return;
+    }
+
     setBlockDraft(selectedBlock);
     setChoiceOptionsDraft(
       selectedBlock &&
@@ -1333,6 +1353,12 @@ export function FormBuilder({
   }
 
   async function saveBlock() {
+    // A cross-page drop PATCHes the saved question as well as its pageId.
+    // Finish that transaction before saving newer editor content.
+    if (pendingReorderRef.current) {
+      await pendingReorderRef.current;
+    }
+
     if (!blockDraft) {
       return false;
     }
@@ -1605,6 +1631,20 @@ export function FormBuilder({
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (pendingReorderRef.current) {
+      return;
+    }
+
+    const task = reorderFromDrop(event);
+    pendingReorderRef.current = task;
+    try {
+      await task;
+    } finally {
+      pendingReorderRef.current = null;
+    }
+  }
+
+  async function reorderFromDrop(event: DragEndEvent) {
     const { active, over } = event;
 
     if (busy || !over || active.id === over.id) {
@@ -1633,7 +1673,7 @@ export function FormBuilder({
         : null;
 
       if (next) {
-        void applyPageMove(next);
+        await applyPageMove(next);
       }
 
       return;

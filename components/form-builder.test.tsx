@@ -113,6 +113,41 @@ mock.module("@/components/ui/popover", () => {
   return { Popover, PopoverTrigger, PopoverContent };
 });
 
+const dndCore = await import("@dnd-kit/core");
+const RealDndContext = dndCore.DndContext;
+type DragEndHandler = NonNullable<
+  React.ComponentProps<typeof RealDndContext>["onDragEnd"]
+>;
+const builderDragHandlers = new Map<string, DragEndHandler>();
+
+// Keep the real DnD provider and sortable tree while exposing completion
+// callbacks: jsdom has no layout for pointer collision detection.
+mock.module("@dnd-kit/core", () => ({
+  ...dndCore,
+  DndContext: (props: React.ComponentProps<typeof RealDndContext>) => {
+    if (
+      props.onDragEnd &&
+      React.isValidElement<{ items?: string[] }>(props.children)
+    ) {
+      for (const id of props.children.props.items ?? []) {
+        builderDragHandlers.set(id, props.onDragEnd);
+      }
+    }
+    return <RealDndContext {...props} />;
+  },
+}));
+
+async function dropBuilderItem(activeId: string, overId: string) {
+  const onDragEnd = builderDragHandlers.get(activeId);
+  if (!onDragEnd) throw new Error(`No sortable item ${activeId}`);
+  await React.act(async () => {
+    void onDragEnd({
+      active: { id: activeId },
+      over: { id: overId },
+    } as Parameters<DragEndHandler>[0]);
+  });
+}
+
 const { FormBuilder } = await import("@/components/form-builder");
 
 function createBlock(
@@ -176,6 +211,7 @@ function renderBuilder(
   initialMode?: "standard" | "graph",
   messages: TranslationTree = {},
 ) {
+  builderDragHandlers.clear();
   return render(
     <I18nProvider locale="en" messages={messages}>
       <FormBuilder initialForm={initialForm} initialMode={initialMode} />
@@ -226,6 +262,303 @@ describe("FormBuilder", () => {
     expect(view.queryByText("builder.unsavedBlockChangesTitle")).toBe(null);
 
     await cleanupAndRestore(restoreDom);
+  });
+
+  for (const scenario of [
+    { label: "the edited question moves", active: "first", over: "second" },
+    { label: "another question moves", active: "second", over: "third" },
+    {
+      label: "the edited question changes pages",
+      active: "first",
+      over: "third",
+    },
+    { label: "the page moves", active: "page:page-1", over: "page:page-2" },
+  ]) {
+    test(`keeps pending edits when ${scenario.label}`, async () => {
+      const restoreDom = installTestDom();
+      const previousFetch = globalThis.fetch;
+      const blocks = [
+        createBlock({
+          id: "first",
+          type: "SHORT_TEXT",
+          position: 0,
+          title: "First question",
+          description: "Original support text",
+          pageId: "page-1",
+          config: {
+            ...getDefaultBlockConfig("SHORT_TEXT"),
+            branchRules: [
+              {
+                operator: "contains",
+                value: "original-rule",
+                targetBlockId: "third",
+              },
+            ],
+          },
+        }),
+        createBlock({
+          id: "second",
+          type: "SHORT_TEXT",
+          position: 1,
+          title: "Second question",
+          pageId: "page-1",
+        }),
+        createBlock({
+          id: "third",
+          type: "SHORT_TEXT",
+          position: 2,
+          title: "Third question",
+          pageId: "page-2",
+        }),
+      ];
+      const pages = [{ id: "page-1" }, { id: "page-2" }];
+      let finishReorder!: (response: Response) => void;
+      const reorderResponse = new Promise<Response>((resolve) => {
+        finishReorder = resolve;
+      });
+      const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+      globalThis.fetch = (async (
+        url: string | URL | Request,
+        init?: RequestInit,
+      ) => {
+        calls.push({ url: String(url), body: JSON.parse(String(init?.body)) });
+        return String(url).endsWith("/reorder")
+          ? reorderResponse
+          : ({ ok: true, json: async () => ({}) } as Response);
+      }) as typeof fetch;
+      try {
+        const view = renderBuilder(createForm(blocks, pages));
+        typeIntoInput(
+          view.getByDisplayValue("First question"),
+          "Edited question",
+        );
+        typeIntoInput(
+          view.getByDisplayValue("Original support text"),
+          "Edited support text",
+        );
+        typeIntoInput(view.getByDisplayValue("original-rule"), "edited-rule");
+        fireEvent.click(
+          view.getByRole("checkbox", { name: "builder.requiredToggle" }),
+        );
+        await dropBuilderItem(scenario.active, scenario.over);
+        const expectDraft = () => {
+          expect(
+            (view.getByDisplayValue("Edited question") as HTMLInputElement)
+              .value,
+          ).toBe("Edited question");
+          expect(
+            (
+              view.getByDisplayValue(
+                "Edited support text",
+              ) as HTMLTextAreaElement
+            ).value,
+          ).toBe("Edited support text");
+          expect(
+            (view.getByDisplayValue("edited-rule") as HTMLInputElement).value,
+          ).toBe("edited-rule");
+          expect(
+            (
+              view.getByRole("checkbox", {
+                name: "builder.requiredToggle",
+              }) as HTMLInputElement
+            ).checked,
+          ).toBe(true);
+        };
+        expectDraft();
+        await React.act(async () =>
+          finishReorder({
+            ok: true,
+            json: async () => ({
+              form: createForm(
+                [
+                  { ...blocks[2], position: 0 },
+                  { ...blocks[1], position: 1 },
+                  { ...blocks[0], position: 2 },
+                ],
+                pages,
+              ),
+            }),
+          } as Response),
+        );
+        await waitFor(() =>
+          expect(
+            view.queryByText(
+              scenario.active.startsWith("page:")
+                ? "builder.toasts.updatedPageOrder"
+                : "builder.toasts.updatedBlockOrder",
+            ) !== null,
+          ).toBe(true),
+        );
+        expectDraft();
+        // Reordering is structural: pending editor content still requires Save.
+        expect(
+          calls
+            .filter((call) => !call.url.endsWith("/reorder"))
+            .every(
+              (call) =>
+                call.body.title ===
+                blocks.find((block) => block.id === scenario.active)?.title,
+            ),
+        ).toBe(true);
+        fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+        expect(
+          view.queryByText("builder.unsavedBlockChangesTitle") !== null,
+        ).toBe(true);
+      } finally {
+        globalThis.fetch = previousFetch;
+        await cleanupAndRestore(restoreDom);
+      }
+    });
+  }
+
+  test("saves newer content only after a cross-page drop finishes", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+    const first = createBlock({
+      id: "first",
+      type: "SHORT_TEXT",
+      position: 0,
+      title: "First question",
+      pageId: "page-1",
+    });
+    const second = createBlock({
+      id: "second",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+      pageId: "page-2",
+    });
+    const pages = [{ id: "page-1" }, { id: "page-2" }];
+    let finishMove!: (response: Response) => void;
+    let finishReorder!: (response: Response) => void;
+    const moveResponse = new Promise<Response>((resolve) => {
+      finishMove = resolve;
+    });
+    const reorderResponse = new Promise<Response>((resolve) => {
+      finishReorder = resolve;
+    });
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const body = JSON.parse(String(init?.body));
+      calls.push({ url: String(url), body });
+      if (String(url).endsWith("/reorder")) return reorderResponse;
+      if (body.pageId) return moveResponse;
+      return {
+        ok: true,
+        json: async () => ({
+          block: { ...first, title: body.title, pageId: "page-2", position: 1 },
+        }),
+      } as Response;
+    }) as typeof fetch;
+    try {
+      const view = renderBuilder(createForm([first, second], pages));
+      typeIntoInput(
+        view.getByDisplayValue("First question"),
+        "Edited question",
+      );
+      await dropBuilderItem("first", "second");
+      fireEvent.click(view.getByRole("button", { name: "builder.saveBlock" }));
+      await dropBuilderItem("first", "second");
+      expect(calls.length).toBe(1);
+      expect(calls[0].body.title).toBe("First question");
+      await React.act(async () =>
+        finishMove({ ok: true, json: async () => ({}) } as Response),
+      );
+      await waitFor(() => expect(calls.length).toBe(2));
+      expect(calls[1].url).toBe("/api/forms/form-1/blocks/reorder");
+      await React.act(async () =>
+        finishReorder({
+          ok: true,
+          json: async () => ({
+            form: createForm(
+              [
+                { ...second, position: 0 },
+                { ...first, position: 1, pageId: "page-2" },
+              ],
+              pages,
+            ),
+          }),
+        } as Response),
+      );
+      await waitFor(() => expect(calls.length).toBe(3));
+      expect(calls[2].body.title).toBe("Edited question");
+      expect(calls[2].body.pageId).toBe(undefined);
+      expect(
+        (view.getByDisplayValue("Edited question") as HTMLInputElement).value,
+      ).toBe("Edited question");
+      fireEvent.click(view.getByRole("button", { name: "builder.settings" }));
+      await waitFor(() =>
+        expect(view.queryByText("builder.settingsTitle") !== null).toBe(true),
+      );
+      expect(view.queryByText("builder.unsavedBlockChangesTitle")).toBe(null);
+    } finally {
+      globalThis.fetch = previousFetch;
+      await cleanupAndRestore(restoreDom);
+    }
+  });
+
+  test("keeps edited choice options after a failed reorder and saves them on retry", async () => {
+    const restoreDom = installTestDom();
+    const previousFetch = globalThis.fetch;
+    const first = createBlock({
+      id: "first",
+      type: "SINGLE_CHOICE",
+      position: 0,
+      title: "Choice",
+      config: {
+        ...getDefaultBlockConfig("SINGLE_CHOICE"),
+        options: ["Yes", "No"],
+      },
+    });
+    const second = createBlock({
+      id: "second",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Second question",
+    });
+    const saves: Array<Record<string, unknown>> = [];
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      if (String(url).endsWith("/reorder"))
+        return {
+          ok: false,
+          json: async () => ({ error: "Reorder failed" }),
+        } as Response;
+      const body = JSON.parse(String(init?.body));
+      saves.push(body);
+      return {
+        ok: true,
+        json: async () => ({ block: { ...first, config: body.config } }),
+      } as Response;
+    }) as typeof fetch;
+    try {
+      const view = renderBuilder(createForm([first, second]));
+      typeIntoInput(view.getByDisplayValue("Yes"), "Maybe");
+      await dropBuilderItem("first", "second");
+      await waitFor(() =>
+        expect(view.queryByText("Reorder failed") !== null).toBe(true),
+      );
+      expect((view.getByDisplayValue("Maybe") as HTMLInputElement).value).toBe(
+        "Maybe",
+      );
+      fireEvent.click(view.getByRole("button", { name: "builder.saveBlock" }));
+      await waitFor(() => expect(saves.length).toBe(1));
+      expect((saves[0].config as { options: string[] }).options).toEqual([
+        "Maybe",
+        "No",
+      ]);
+      expect((view.getByDisplayValue("Maybe") as HTMLInputElement).value).toBe(
+        "Maybe",
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+      await cleanupAndRestore(restoreDom);
+    }
   });
 
   test("opens form settings immediately when there are no unsaved edits", async () => {
