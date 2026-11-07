@@ -678,7 +678,7 @@ describe("PublicFormRunner", () => {
     await cleanupAndRestore(restoreDom);
   });
 
-  test("shows visible shortcut hints and responds to digit shortcuts for choice questions", async () => {
+  test("hides answer numbering while preserving digit shortcuts for choice questions", async () => {
     const restoreDom = installTestDom();
     const singleChoiceView = renderRunner(
       createForm([
@@ -692,7 +692,7 @@ describe("PublicFormRunner", () => {
     );
 
     expect(
-      singleChoiceView.getByRole("button", { name: /yes 1/i }) !== null,
+      singleChoiceView.getByRole("button", { name: /^yes$/i }) !== null,
     ).toBe(true);
 
     fireEvent.keyDown(window, { key: "2" });
@@ -700,7 +700,7 @@ describe("PublicFormRunner", () => {
     await waitFor(() => {
       expect(
         singleChoiceView
-          .getByRole("button", { name: /no 2/i })
+          .getByRole("button", { name: /^no$/i })
           .getAttribute("aria-pressed"),
       ).toBe("true");
     });
@@ -722,7 +722,7 @@ describe("PublicFormRunner", () => {
     await waitFor(() => {
       expect(
         multiChoiceView
-          .getByRole("button", { name: /yes 1/i })
+          .getByRole("button", { name: /^yes$/i })
           .getAttribute("aria-pressed"),
       ).toBe("true");
     });
@@ -731,7 +731,7 @@ describe("PublicFormRunner", () => {
     await waitFor(() => {
       expect(
         multiChoiceView
-          .getByRole("button", { name: /yes 1/i })
+          .getByRole("button", { name: /^yes$/i })
           .getAttribute("aria-pressed"),
       ).toBe("false");
     });
@@ -754,7 +754,7 @@ describe("PublicFormRunner", () => {
     await waitFor(() => {
       expect(
         agreementView
-          .getByRole("button", { name: /I agree 1/i })
+          .getByRole("button", { name: /^I agree$/i })
           .getAttribute("aria-pressed"),
       ).toBe("true");
     });
@@ -764,7 +764,7 @@ describe("PublicFormRunner", () => {
     await waitFor(() => {
       expect(
         agreementView
-          .getByRole("button", { name: /I agree 1/i })
+          .getByRole("button", { name: /^I agree$/i })
           .getAttribute("aria-pressed"),
       ).toBe("false");
     });
@@ -809,17 +809,17 @@ describe("PublicFormRunner", () => {
       ]),
     );
 
-    fireEvent.click(view.getByRole("button", { name: /yes 1/i }));
+    fireEvent.click(view.getByRole("button", { name: /^yes$/i }));
 
     await waitFor(() => {
       expect(
         view
-          .getByRole("button", { name: /yes 1/i })
+          .getByRole("button", { name: /^yes$/i })
           .getAttribute("aria-pressed"),
       ).toBe("true");
     });
 
-    const noButton = view.getByRole("button", { name: /no 2/i });
+    const noButton = view.getByRole("button", { name: /^no$/i });
     noButton.focus();
     fireEvent.keyDown(noButton, {
       key: "Enter",
