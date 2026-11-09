@@ -21,7 +21,11 @@ export type SubmissionAnswers = Record<string, StoredAnswerValue>;
 export type SubmissionSnapshotBlock = Pick<
   SerializedBlock,
   "id" | "type" | "title" | "description" | "required" | "position" | "config"
->;
+> & {
+  pageId?: string | null;
+  pageName?: string;
+  instanceCount?: number;
+};
 
 export type Submission = {
   normalizedAnswers: SubmissionAnswers;
@@ -153,7 +157,11 @@ function pageInstanceCount(
   throw new AppError(`Please answer “${questionLabel}”.`, 422);
 }
 
-function toSnapshotBlock(block: SerializedBlock): SubmissionSnapshotBlock {
+function toSnapshotBlock(
+  block: SerializedBlock,
+  page?: ResolvedPage,
+  instanceCount?: number,
+): SubmissionSnapshotBlock {
   return {
     id: block.id,
     type: block.type,
@@ -162,6 +170,10 @@ function toSnapshotBlock(block: SerializedBlock): SubmissionSnapshotBlock {
     required: block.required,
     position: block.position,
     config: block.config,
+    pageId: block.pageId,
+    ...(instanceCount === undefined
+      ? {}
+      : { pageName: page?.definition?.name, instanceCount }),
   };
 }
 
@@ -195,7 +207,7 @@ export function buildSubmission(
         ranInstanceCount = instanceCount;
 
         for (const block of currentPage.blocks) {
-          snapshot.push(toSnapshotBlock(block));
+          snapshot.push(toSnapshotBlock(block, currentPage, instanceCount));
 
           const result = validateAndNormalizeRepeatingAnswer(
             block,

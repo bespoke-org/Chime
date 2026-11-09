@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ResponseInstanceTable } from "@/components/response-instance-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,11 +11,14 @@ import { AuthoredMarkdown } from "@/components/ui/authored-markdown";
 import { AGREEMENT_ANSWER_VALUES } from "@/lib/blocks";
 import { requireServerSessionUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
-import type { AnswerValue } from "@/lib/form-types";
+import type { AnswerValue, ResponseDetailBlock } from "@/lib/form-types";
 import { getOwnedResponseDetail } from "@/lib/forms";
 import { getRequestI18n } from "@/lib/i18n-server";
 import { formatResponseIdentity } from "@/lib/response-identity";
-import { resolveStoredAnswerView } from "@/lib/response-review";
+import {
+  groupResponseDetailBlocks,
+  resolveStoredAnswerView,
+} from "@/lib/response-review";
 import { resolveTitle, withTitle } from "@/lib/metadata";
 import { formatSizeMb } from "@/lib/uploads";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
@@ -69,6 +73,14 @@ export default async function ResponseDetailPage({
   // One answer value as the detail card shows it: a single selection list,
   // link, date, agreement, upload or plain text.
   const renderAnswerValue = (type: string, value: AnswerValue | undefined) => {
+    if (!value || (Array.isArray(value) && value.length === 0)) {
+      return (
+        <p className="text-sm text-[var(--muted)]">
+          {t("responseDetail.noAnswer")}
+        </p>
+      );
+    }
+
     if (Array.isArray(value)) {
       return (
         <div className="flex flex-wrap gap-2">
@@ -81,14 +93,6 @@ export default async function ResponseDetailPage({
             </Badge>
           ))}
         </div>
-      );
-    }
-
-    if (!value) {
-      return (
-        <p className="text-sm text-[var(--muted)]">
-          {t("responseDetail.noAnswer")}
-        </p>
       );
     }
 
@@ -107,7 +111,7 @@ export default async function ResponseDetailPage({
 
     if (type === "DATE") {
       return (
-        <p className="whitespace-pre-wrap text-base leading-8">
+        <p className="whitespace-pre-wrap text-base leading-6 [overflow-wrap:anywhere]">
           {formatCalendarDate(value, locale)}
         </p>
       );
@@ -115,7 +119,7 @@ export default async function ResponseDetailPage({
 
     if (type === "AGREEMENT") {
       return (
-        <p className="whitespace-pre-wrap text-base leading-8">
+        <p className="whitespace-pre-wrap text-base leading-6 [overflow-wrap:anywhere]">
           {value === AGREEMENT_ANSWER_VALUES.AGREED
             ? t("publicRunner.agree")
             : t("publicRunner.doNotAgree")}
@@ -151,7 +155,33 @@ export default async function ResponseDetailPage({
       );
     }
 
-    return <p className="whitespace-pre-wrap text-base leading-8">{value}</p>;
+    return (
+      <p className="whitespace-pre-wrap text-base leading-6 [overflow-wrap:anywhere]">
+        {value}
+      </p>
+    );
+  };
+
+  const renderContext = (block: ResponseDetailBlock) => {
+    return (
+      <section key={block.id} className="px-2 pt-6">
+        <h2 className="text-lg font-semibold text-[var(--muted)]">
+          {block.title || t("responseDetail.contextTitle")}
+        </h2>
+        {block.description ? (
+          <AuthoredMarkdown
+            content={block.description}
+            className="mt-3 text-sm leading-7 text-[var(--muted)]"
+          />
+        ) : null}
+        {"body" in block.config ? (
+          <AuthoredMarkdown
+            content={block.config.body}
+            className="mt-4 text-base leading-8 text-[var(--muted)]"
+          />
+        ) : null}
+      </section>
+    );
   };
 
   return (
@@ -174,17 +204,47 @@ export default async function ResponseDetailPage({
       />
 
       <div className="space-y-4">
-        {response.blocks.map((block) => {
-          const answerView = resolveStoredAnswerView(
-            block,
-            response.answers[block.id],
-          );
+        {groupResponseDetailBlocks(response.blocks, response.answers).map(
+          (section) => {
+            if (section.kind === "repeatedPage") {
+              return (
+                <section key={section.id} className="space-y-4">
+                  {section.blocks
+                    .filter((block) => block.type === "TEXT")
+                    .map(renderContext)}
+                  <ResponseInstanceTable
+                    section={section}
+                    answers={response.answers}
+                    title={t("responseDetail.repeatedAnswers")}
+                    instanceLabel={(number) =>
+                      t("formPages.instanceShortLabel", { number })
+                    }
+                    noAnswer={t("responseDetail.noAnswer")}
+                    renderAnswer={renderAnswerValue}
+                  />
+                </section>
+              );
+            }
+            const { block } = section;
+            const answerView = resolveStoredAnswerView(
+              block,
+              response.answers[block.id],
+            );
 
-          if (block.type === "TEXT") {
+            if (block.type === "TEXT") return renderContext(block);
+
             return (
-              <section key={block.id} className="px-2 pt-6">
-                <h2 className="text-lg font-semibold text-[var(--muted)]">
-                  {block.title || t("responseDetail.contextTitle")}
+              <Card key={block.id} className="p-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge>{blockTypeLabel(block.type)}</Badge>
+                  {block.required ? (
+                    <Badge className="bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+                      {t("responseDetail.required")}
+                    </Badge>
+                  ) : null}
+                </div>
+                <h2 className="mt-4 text-xl font-semibold text-[var(--ink)]">
+                  {block.title}
                 </h2>
                 {block.description ? (
                   <AuthoredMarkdown
@@ -192,66 +252,16 @@ export default async function ResponseDetailPage({
                     className="mt-3 text-sm leading-7 text-[var(--muted)]"
                   />
                 ) : null}
-                {"body" in block.config ? (
-                  <AuthoredMarkdown
-                    content={block.config.body}
-                    className="mt-4 text-base leading-8 text-[var(--muted)]"
-                  />
-                ) : null}
-              </section>
+                <div className="mt-6 border-l-2 border-[var(--accent)] pl-4 text-[var(--ink)]/80">
+                  {renderAnswerValue(
+                    block.type,
+                    answerView.kind === "flat" ? answerView.value : undefined,
+                  )}
+                </div>
+              </Card>
             );
-          }
-
-          return (
-            <Card key={block.id} className="p-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge>{blockTypeLabel(block.type)}</Badge>
-                {block.required ? (
-                  <Badge className="bg-[var(--accent-soft)] text-[var(--accent-ink)]">
-                    {t("responseDetail.required")}
-                  </Badge>
-                ) : null}
-              </div>
-              <h2 className="mt-4 text-xl font-semibold text-[var(--ink)]">
-                {block.title}
-              </h2>
-              {block.description ? (
-                <AuthoredMarkdown
-                  content={block.description}
-                  className="mt-3 text-sm leading-7 text-[var(--muted)]"
-                />
-              ) : null}
-              <div className="mt-6 border-l-2 border-[var(--accent)] pl-4 text-[var(--ink)]/80">
-                {answerView.kind === "instances" ? (
-                  answerView.entries.length ? (
-                    // A repeating page leaves one entry per answered
-                    // instance, labeled by its instance number.
-                    <div className="space-y-5">
-                      {answerView.entries.map((entry) => (
-                        <div key={entry.instanceIndex}>
-                          <p className="text-sm font-medium text-[var(--muted)]">
-                            {t("formPages.instanceShortLabel", {
-                              number: entry.instanceIndex + 1,
-                            })}
-                          </p>
-                          <div className="mt-2">
-                            {renderAnswerValue(block.type, entry.value)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[var(--muted)]">
-                      {t("responseDetail.noAnswer")}
-                    </p>
-                  )
-                ) : (
-                  renderAnswerValue(block.type, answerView.value)
-                )}
-              </div>
-            </Card>
-          );
-        })}
+          },
+        )}
       </div>
     </div>
   );

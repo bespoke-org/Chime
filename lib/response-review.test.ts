@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import type { SerializedBlock } from "@/lib/blocks";
+import { buildSubmission } from "@/lib/form-submission";
 import {
   buildResponseDetailData,
   buildResponseReviewData,
   resolveStoredAnswerView,
+  groupResponseDetailBlocks,
+  restoreVisitedBlocksFromSnapshot,
 } from "@/lib/response-review";
 
 function createBlock(
@@ -727,5 +730,110 @@ describe("repeating question summaries", () => {
     expect(note?.answeredCount).toBe(0);
     expect(note?.emptyCount).toBe(1);
     expect(note?.kind === "freeform" ? note.answers.length : -1).toBe(0);
+  });
+});
+
+describe("response detail page grouping", () => {
+  const blocks = [
+    createBlock({ id: "count", type: "NUMBER", position: 0 }),
+    createBlock({
+      id: "name",
+      type: "SHORT_TEXT",
+      pageId: "team",
+      position: 1,
+    }),
+    createBlock({
+      id: "surname",
+      type: "SHORT_TEXT",
+      pageId: "team",
+      position: 2,
+    }),
+    createBlock({
+      id: "choices",
+      type: "MULTIPLE_CHOICE",
+      pageId: "team",
+      position: 3,
+    }),
+  ];
+
+  test("preserves submitted page membership and fully empty instances after form edits", () => {
+    const submission = buildSubmission(
+      blocks,
+      { count: "3", name: ["Ann"], choices: [["red", "blue"]] },
+      [{ id: "team", name: "Guests", repeat: { countBlockId: "count" } }],
+    );
+    const saved = JSON.parse(JSON.stringify(submission.snapshot));
+    const restored = restoreVisitedBlocksFromSnapshot(
+      saved,
+      blocks.map((block) => ({ ...block, pageId: "changed" })),
+      "form-1",
+      new Date(),
+    );
+    const sections = groupResponseDetailBlocks(
+      restored,
+      submission.normalizedAnswers,
+    );
+    expect(sections.length).toBe(2);
+    expect(sections[0].kind).toBe("block");
+    expect(restored[0].pageId).toBe(null);
+    const group = sections[1];
+    expect(group.kind).toBe("repeatedPage");
+    if (group.kind !== "repeatedPage") throw new Error("Missing group");
+    expect(group.name).toBe("Guests");
+    expect(group.instanceCount).toBe(3);
+    expect(group.blocks.map((block) => block.id)).toEqual([
+      "name",
+      "surname",
+      "choices",
+    ]);
+  });
+
+  test("groups old snapshots by current membership and keeps independent pages separate", () => {
+    const current = [
+      ...blocks,
+      createBlock({
+        id: "other",
+        type: "SHORT_TEXT",
+        pageId: "other-page",
+        position: 4,
+      }),
+      createBlock({ id: "deleted", type: "SHORT_TEXT", position: 5 }),
+    ];
+    const snapshot = current.map(({ pageId, ...block }) => {
+      void pageId;
+      return block;
+    });
+    const restored = restoreVisitedBlocksFromSnapshot(
+      snapshot,
+      current.slice(0, -1),
+      "form-1",
+      new Date(),
+    );
+    const sections = groupResponseDetailBlocks(restored, {
+      count: "3",
+      name: ["Ann", "", "Chris"],
+      other: ["Separate"],
+      deleted: ["Old"],
+    });
+    expect(
+      sections.map((section) =>
+        section.kind === "block" ? section.block.id : section.id,
+      ),
+    ).toEqual(["count", "team", "other-page", "deleted"]);
+    const group = sections[1];
+    if (group.kind !== "repeatedPage") throw new Error("Missing group");
+    expect(group.instanceCount).toBe(3);
+    expect(group.blocks.map((block) => block.id)).toEqual([
+      "name",
+      "surname",
+      "choices",
+    ]);
+  });
+
+  test("does not turn an ordinary multiple-choice answer into repeated rows", () => {
+    const sections = groupResponseDetailBlocks(blocks, {
+      choices: ["red", "blue"],
+    });
+    expect(sections.every((section) => section.kind === "block")).toBe(true);
   });
 });

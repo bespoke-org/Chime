@@ -160,6 +160,11 @@ export type ResponseDetailUpload = {
   size: number;
 };
 
+export type ResponseDetailBlock = SerializedBlock & {
+  pageName?: string;
+  instanceCount?: number;
+};
+
 export type ResponseDetail = {
   id: string;
   submittedAt: string;
@@ -169,7 +174,7 @@ export type ResponseDetail = {
   identity: ResponseIdentityEntry[];
   answers: Record<string, StoredAnswerValue>;
   uploads: Record<string, ResponseDetailUpload>;
-  blocks: SerializedBlock[];
+  blocks: ResponseDetailBlock[];
 };
 
 export type ResponseReviewFormSummary = {

@@ -588,13 +588,13 @@ describe("file upload export values", () => {
 });
 
 describe("repeating export values", () => {
-  test("joins instance values with a semicolon in instance order", () => {
+  test("writes one row per instance and preserves unanswered rows", () => {
     const form = createForm(
       [createBlock("names", "SHORT_TEXT")],
       [createResponse("r1", { names: ["Ada", null, "Grace"] })],
     );
 
-    expect(questionValues(form)[0][0]).toBe("Ada; Grace");
+    expect(questionValues(form)).toEqual([["Ada"], [""], ["Grace"]]);
   });
 
   test("keeps the pipe inside a multiple-choice instance", () => {
@@ -607,7 +607,7 @@ describe("repeating export values", () => {
       ],
     );
 
-    expect(questionValues(form)[0][0]).toBe("red | blue; green");
+    expect(questionValues(form)).toEqual([["red | blue"], [""], ["green"]]);
   });
 
   test("localizes each agreement instance", () => {
@@ -616,8 +616,8 @@ describe("repeating export values", () => {
       [createResponse("r1", { terms: ["agreed", "not_agreed"] })],
     );
 
-    expect(questionValues(form, "en")[0][0]).toBe("Agree; Do not agree");
-    expect(questionValues(form, "ru")[0][0]).toBe("Согласен; Не согласен");
+    expect(questionValues(form, "en")).toEqual([["Agree"], ["Do not agree"]]);
+    expect(questionValues(form, "ru")).toEqual([["Согласен"], ["Не согласен"]]);
   });
 
   test("writes one download URL per file instance", () => {
@@ -637,9 +637,10 @@ describe("repeating export values", () => {
       "https://forms.example.com/",
     );
 
-    expect(dataset.rows[0].values.cv).toBe(
-      "https://forms.example.com/api/forms/form-1/uploads/up1; https://forms.example.com/api/forms/form-1/uploads/up2",
-    );
+    expect(dataset.rows.map((row) => row.values.cv)).toEqual([
+      "https://forms.example.com/api/forms/form-1/uploads/up1",
+      "https://forms.example.com/api/forms/form-1/uploads/up2",
+    ]);
   });
 
   test("flat answers of the same block types keep their single-value shape", () => {
@@ -663,5 +664,124 @@ describe("repeating export values", () => {
       "Ada; Grace",
     );
     expect(serializeExportAnswer("Ada", block, "en")).toBe("Ada");
+  });
+});
+
+describe("repeated page export rows", () => {
+  test("keeps related fields aligned, copies common answers, and separates independent pages", () => {
+    const form = createForm(
+      [
+        createBlock("team", "SHORT_TEXT"),
+        createBlock("name", "SHORT_TEXT", { pageId: "people" }),
+        createBlock("phone", "SHORT_TEXT", { pageId: "people" }),
+        createBlock("item", "SHORT_TEXT", { pageId: "items" }),
+      ],
+      [
+        createResponse("r1", {
+          team: "Team A",
+          name: ["Ann", "Bob", "Chris"],
+          phone: ["111", null, "333"],
+          item: ["Desk", "Chair"],
+        }),
+        createResponse("r2", {
+          team: "Team B",
+          name: ["Dana"],
+          item: ["Lamp"],
+        }),
+        createResponse("r3", { team: "Team C" }),
+      ],
+    );
+    form.pagesJson = [
+      { id: "people", name: "People" },
+      { id: "items", name: "Items" },
+    ];
+    const dataset = buildResponseExportDataset(form, "en");
+    expect(
+      dataset.rows.map(({ values }) => [
+        values.submissionNumber,
+        values.team,
+        values.repeatingPage,
+        values.instanceNumber,
+        values.name,
+        values.phone,
+        values.item,
+      ]),
+    ).toEqual([
+      ["1", "Team A", "People", "1", "Ann", "111", ""],
+      ["1", "Team A", "People", "2", "Bob", "", ""],
+      ["1", "Team A", "People", "3", "Chris", "333", ""],
+      ["1", "Team A", "Items", "1", "", "", "Desk"],
+      ["1", "Team A", "Items", "2", "", "", "Chair"],
+      ["2", "Team B", "People", "1", "Dana", "", ""],
+      ["2", "Team B", "Items", "1", "", "", "Lamp"],
+      ["3", "Team C", "", "", "", "", ""],
+    ]);
+    const csv = csvLines(createCsvExportBuffer(dataset));
+    expect(csv[2]).toBe("1,2026-04-14T00:00:00.000Z,r1,People,2,Team A,Bob,,");
+    const { sheet } = readXlsxSheet(createXlsxExportBuffer(dataset));
+    expect(sheet.G3.v).toBe("Bob");
+    expect(sheet.H3.v).toBe("");
+    expect(sheet.G4.v).toBe("Chris");
+    expect(sheet.H4.v).toBe("333");
+  });
+
+  test("retains saved groups and fully empty trailing instances after page edits", () => {
+    const response = createResponse("r1", {
+      name: ["Ann"],
+      other: ["Separate"],
+    });
+    response.formSnapshotJson = [
+      {
+        id: "name",
+        pageId: "old-people",
+        pageName: "Guests",
+        instanceCount: 3,
+      },
+      {
+        id: "phone",
+        pageId: "old-people",
+        pageName: "Guests",
+        instanceCount: 3,
+      },
+      {
+        id: "other",
+        pageId: "old-other",
+        pageName: "Guests",
+        instanceCount: 1,
+      },
+    ].map((block, position) => ({
+      ...block,
+      position,
+      type: "SHORT_TEXT",
+      title: block.id,
+      description: "",
+      required: false,
+      config: {},
+    }));
+    const form = createForm(
+      ["name", "phone", "other"].map((id) =>
+        createBlock(id, "SHORT_TEXT", { pageId: "merged" }),
+      ),
+      [response],
+    );
+    const dataset = buildResponseExportDataset(form, "ru");
+    expect(
+      dataset.rows.map(({ values }) => [
+        values.repeatingPage,
+        values.instanceNumber,
+        values.name,
+        values.phone,
+        values.other,
+      ]),
+    ).toEqual([
+      ["Guests", "1", "Ann", "", ""],
+      ["Guests", "2", "", "", ""],
+      ["Guests", "3", "", "", ""],
+      ["Guests (2)", "1", "", "", "Separate"],
+    ]);
+    expect(dataset.columns.slice(3, 5).map((column) => column.label)).toEqual([
+      "Повторяющаяся страница",
+      "Экземпляр №",
+    ]);
   });
 });
