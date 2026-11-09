@@ -2,15 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
 
-import { ResponseInstanceTable } from "@/components/response-instance-table";
+import { ResponseInstanceCards } from "@/components/response-instance-cards";
 import { parseSubmissionPayload } from "@/lib/form-submission";
 import {
   restoreVisitedBlocksFromSnapshot,
   groupResponseDetailBlocks,
 } from "@/lib/response-review";
 
-describe("ResponseInstanceTable", () => {
-  test("keeps names, sparse surnames, and multiple selections in their original rows", () => {
+describe("ResponseInstanceCards", () => {
+  test("keeps names, sparse surnames, and multiple selections in their original cards", () => {
     const blocks = restoreVisitedBlocksFromSnapshot(
       [
         { id: "name", type: "SHORT_TEXT", title: "Имя" },
@@ -38,7 +38,7 @@ describe("ResponseInstanceTable", () => {
     const section = groupResponseDetailBlocks(blocks, answers)[0];
     if (section.kind !== "repeatedPage") throw new Error("Missing group");
     const markup = renderToStaticMarkup(
-      <ResponseInstanceTable
+      <ResponseInstanceCards
         section={section}
         answers={answers}
         title="Ответы"
@@ -53,11 +53,11 @@ describe("ResponseInstanceTable", () => {
     );
     const dom = new JSDOM(markup);
     const document = dom.window.document;
-    expect(document.querySelector("caption")?.textContent).toBe("Участники");
-    const rows = [...document.querySelectorAll("tbody tr")];
-    expect(rows.length).toBe(4);
-    const values = rows.map((row) =>
-      [...row.querySelectorAll("td p")].map((cell) => cell.textContent),
+    expect(document.querySelector("h2")?.textContent).toBe("Участники");
+    const cards = [...document.querySelectorAll("article")];
+    expect(cards.length).toBe(4);
+    const values = cards.map((card) =>
+      [...card.querySelectorAll("dd p")].map((cell) => cell.textContent),
     );
     expect(values).toEqual([
       ["Леонид", "Тихонов", "A, B"],

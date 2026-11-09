@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ResponseInstanceTable } from "@/components/response-instance-table";
+import { ResponseInstanceCards } from "@/components/response-instance-cards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -212,7 +212,7 @@ export default async function ResponseDetailPage({
                   {section.blocks
                     .filter((block) => block.type === "TEXT")
                     .map(renderContext)}
-                  <ResponseInstanceTable
+                  <ResponseInstanceCards
                     section={section}
                     answers={response.answers}
                     title={t("responseDetail.repeatedAnswers")}
