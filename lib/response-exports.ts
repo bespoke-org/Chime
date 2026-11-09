@@ -10,7 +10,13 @@ import { getAppBaseUrl } from "@/lib/app-url";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { DEFAULT_LOCALE, type AppLocale } from "@/lib/i18n";
-import { resolveStoredAnswerView } from "@/lib/response-review";
+import {
+  groupResponseDetailBlocks,
+  parseStoredAnswers,
+  resolveStoredAnswerView,
+  restoreVisitedBlocksFromSnapshot,
+} from "@/lib/response-review";
+import { parsePageRegistry } from "@/lib/pages";
 import type { StoredAnswerValue } from "@/lib/form-types";
 import { buildUploadDownloadUrl } from "@/lib/uploads";
 import { slugify } from "@/lib/utils";
@@ -45,6 +51,9 @@ const exportCopyByLocale: Record<
     sheetName: string;
     agreed: string;
     notAgreed: string;
+    repeatingPage: string;
+    instance: string;
+    pageFallback: string;
   }
 > = {
   en: {
@@ -57,6 +66,9 @@ const exportCopyByLocale: Record<
     sheetName: "Responses",
     agreed: "Agree",
     notAgreed: "Do not agree",
+    repeatingPage: "Repeating page",
+    instance: "Instance #",
+    pageFallback: "Page {number}",
   },
   ru: {
     metadataColumns: [
@@ -68,6 +80,9 @@ const exportCopyByLocale: Record<
     sheetName: "Ответы",
     agreed: "Согласен",
     notAgreed: "Не согласен",
+    repeatingPage: "Повторяющаяся страница",
+    instance: "Экземпляр №",
+    pageFallback: "Страница {number}",
   },
 };
 
@@ -132,8 +147,8 @@ export type ExportFileLink = {
 
 // A file answer is stored as the upload id; outside the app it is written as
 // the authenticated download URL so a creator can open it from the sheet.
-// A repeating block joins its instance values with "; ", each instance
-// written the same way as the block's flat value.
+// Notifications can summarize a repeating block with "; ". Spreadsheet
+// exports instead serialize each instance into its own row below.
 export function serializeExportAnswer(
   value: StoredAnswerValue | undefined,
   block?: Pick<SerializedBlock, "type">,
@@ -198,56 +213,113 @@ export function buildResponseExportDataset(
     .filter((block) => isQuestionBlock(block.type));
   const seenLabels = new Map<string, number>();
   const copy = getExportCopy(locale);
+  const responses = form.responses.map((response) => {
+    const answers = parseStoredAnswers(response.answersJson);
+    const savedBlocks = new Map(
+      restoreVisitedBlocksFromSnapshot(
+        response.formSnapshotJson,
+        questionBlocks,
+        form.id,
+        response.submittedAt,
+      ).map((block) => [block.id, block]),
+    );
+    // Keep the existing export columns, but prefer the submitted grouping
+    // and types when a question or its page has since been edited.
+    const sections = groupResponseDetailBlocks(
+      questionBlocks.map((block) => savedBlocks.get(block.id) ?? block),
+      answers,
+    );
+    return { response, answers, sections };
+  });
+  const pageNames = new Map(
+    parsePageRegistry(form.pagesJson).map((page) => [page.id, page.name]),
+  );
+  const pageLabels = new Map<string, string>();
+  const usedPageLabels = new Set<string>();
+  for (const { sections } of responses) {
+    for (const section of sections) {
+      if (section.kind !== "repeatedPage" || pageLabels.has(section.id))
+        continue;
+      const baseLabel =
+        section.name ||
+        pageNames.get(section.id) ||
+        copy.pageFallback.replace("{number}", String(pageLabels.size + 1));
+      let label = baseLabel;
+      let suffix = 2;
+      while (usedPageLabels.has(label)) label = `${baseLabel} (${suffix++})`;
+      pageLabels.set(section.id, label);
+      usedPageLabels.add(label);
+    }
+  }
 
   const columns = [
     ...copy.metadataColumns,
+    ...(pageLabels.size
+      ? [
+          { key: "repeatingPage", label: copy.repeatingPage },
+          { key: "instanceNumber", label: copy.instance },
+        ]
+      : []),
     ...questionBlocks.map((block, index) => ({
       key: block.id,
       label: createQuestionColumnLabel(block, index + 1, seenLabels, locale),
       blockId: block.id,
     })),
   ];
-  const questionBlocksById = new Map(
-    questionBlocks.map((block) => [block.id, block]),
-  );
-
-  const rows = form.responses.map((response, index) => {
-    const answers =
-      typeof response.answersJson === "object" &&
-      response.answersJson &&
-      !Array.isArray(response.answersJson)
-        ? (response.answersJson as Record<string, StoredAnswerValue>)
-        : {};
-
-    const values = columns.reduce<Record<string, string>>(
-      (accumulator, column) => {
-        if (column.key === "submissionNumber") {
-          accumulator[column.key] = String(index + 1);
-          return accumulator;
-        }
-
-        if (column.key === "submittedAt") {
-          accumulator[column.key] = response.submittedAt.toISOString();
-          return accumulator;
-        }
-
-        if (column.key === "responseId") {
-          accumulator[column.key] = response.id;
-          return accumulator;
-        }
-
-        accumulator[column.key] = serializeExportAnswer(
-          answers[column.key],
-          questionBlocksById.get(column.key),
-          locale,
-          fileLink,
-        );
-        return accumulator;
-      },
-      {},
+  const rows = responses.flatMap(({ response, answers, sections }, index) => {
+    const common = Object.fromEntries(
+      columns.map((column) => [column.key, ""]),
     );
+    common.submissionNumber = String(index + 1);
+    common.submittedAt = response.submittedAt.toISOString();
+    common.responseId = response.id;
+    for (const section of sections) {
+      if (section.kind !== "block") continue;
+      common[section.block.id] = serializeExportAnswer(
+        answers[section.block.id],
+        section.block,
+        locale,
+        fileLink,
+      );
+    }
 
-    return { values };
+    const instanceRows: ResponseExportRow[] = [];
+    for (const section of sections) {
+      if (section.kind !== "repeatedPage") continue;
+      const views = section.blocks.map((block) => ({
+        block,
+        view: resolveStoredAnswerView(block, answers[block.id]),
+      }));
+      for (
+        let instanceIndex = 0;
+        instanceIndex < section.instanceCount;
+        instanceIndex++
+      ) {
+        const values = {
+          ...common,
+          repeatingPage: pageLabels.get(section.id)!,
+          instanceNumber: String(instanceIndex + 1),
+        } as Record<string, string>;
+        for (const { block, view } of views) {
+          const value =
+            view.kind === "instances"
+              ? view.entries.find(
+                  (entry) => entry.instanceIndex === instanceIndex,
+                )?.value
+              : instanceIndex === 0
+                ? view.value
+                : undefined;
+          values[block.id] = serializeFlatExportAnswer(
+            value,
+            block,
+            locale,
+            fileLink,
+          );
+        }
+        instanceRows.push({ values });
+      }
+    }
+    return instanceRows.length ? instanceRows : [{ values: common }];
   });
 
   return {

@@ -286,6 +286,7 @@ describe("buildSubmission snapshot", () => {
         "config",
         "description",
         "id",
+        "pageId",
         "position",
         "required",
         "title",
@@ -301,6 +302,7 @@ describe("buildSubmission snapshot", () => {
         required: true,
         position: 2,
         config: blocks[2].config,
+        pageId: null,
       }),
     );
   });

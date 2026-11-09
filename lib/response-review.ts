@@ -18,6 +18,7 @@ import type {
   QuestionSummary,
   QuestionSummaryAnswer,
   ResponseDetail,
+  ResponseDetailBlock,
   ResponseDetailUpload,
   ResponseListItem,
   ResponseReviewData,
@@ -41,6 +42,9 @@ const snapshotBlockSchema = z.object({
   required: z.boolean(),
   position: z.number(),
   config: z.unknown(),
+  pageId: z.string().nullable().optional(),
+  pageName: z.string().optional(),
+  instanceCount: z.number().int().positive().optional(),
 });
 
 export function parseStoredAnswers(
@@ -54,8 +58,8 @@ export function parseStoredAnswers(
 }
 
 // How review and export read a stored answer. A block of a repeating page
-// stores one entry per instance; every other block keeps its flat shape. A
-// response carries no page registry, so the nesting is read from the value
+// stores one entry per instance; every other block keeps its flat shape. An
+// answer can predate saved page metadata, so nesting is read from the value
 // itself: a flat scalar answer is a string and a flat multiple-choice answer
 // holds only strings, so instance entries mark a repeating block (for multiple
 // choice: arrays among the entries, because an unanswered instance between
@@ -97,7 +101,7 @@ export function restoreVisitedBlocksFromSnapshot(
   fallbackBlocks: SerializedBlock[],
   formId: string,
   submittedAt: Date,
-) {
+): ResponseDetailBlock[] {
   const parsed = z.array(snapshotBlockSchema).safeParse(formSnapshotJson);
 
   if (!parsed.success) {
@@ -115,13 +119,82 @@ export function restoreVisitedBlocksFromSnapshot(
           description: block.description,
           required: block.required,
           position: block.position,
-          pageId: null,
+          // Older snapshots omitted page membership. Prefer saved membership,
+          // including an explicit null, when it is available.
+          pageId:
+            block.pageId !== undefined
+              ? block.pageId
+              : (fallbackBlocks.find((current) => current.id === block.id)
+                  ?.pageId ?? null),
+          pageName: block.pageName,
+          instanceCount: block.instanceCount,
           formId,
           createdAt: submittedAt,
           updatedAt: submittedAt,
           config: normalizeBlockConfig(block.type, block.config),
-        }) satisfies SerializedBlock,
+        }) satisfies ResponseDetailBlock,
     );
+}
+
+export type ResponseDetailSection =
+  | { kind: "block"; block: ResponseDetailBlock }
+  | {
+      kind: "repeatedPage";
+      id: string;
+      name?: string;
+      blocks: ResponseDetailBlock[];
+      instanceCount: number;
+    };
+
+// Transpose repeated answers by their original index, never by the position
+// in the filtered entries list: optional fields can have holes.
+export function groupResponseDetailBlocks(
+  blocks: ResponseDetailBlock[],
+  answers: Record<string, StoredAnswerValue>,
+): ResponseDetailSection[] {
+  const repeatedPages = new Map<
+    string,
+    Extract<ResponseDetailSection, { kind: "repeatedPage" }>
+  >();
+
+  for (const block of blocks) {
+    const view = resolveStoredAnswerView(block, answers[block.id]);
+    if (block.instanceCount === undefined && view.kind !== "instances") {
+      continue;
+    }
+
+    const id = block.pageId ?? block.id;
+    const count = Math.max(
+      block.instanceCount ?? 0,
+      ...(view.kind === "instances"
+        ? view.entries.map((entry) => entry.instanceIndex + 1)
+        : []),
+    );
+    const group = repeatedPages.get(id);
+    if (group) {
+      group.instanceCount = Math.max(group.instanceCount, count);
+    } else {
+      repeatedPages.set(id, {
+        kind: "repeatedPage",
+        id,
+        name: block.pageName,
+        blocks: [],
+        instanceCount: count,
+      });
+    }
+  }
+
+  const sections: ResponseDetailSection[] = [];
+  for (const block of blocks) {
+    const group = repeatedPages.get(block.pageId ?? block.id);
+    if (group) {
+      if (!group.blocks.length) sections.push(group);
+      group.blocks.push(block);
+    } else {
+      sections.push({ kind: "block", block });
+    }
+  }
+  return sections;
 }
 
 export function getVisitedBlockIds(
