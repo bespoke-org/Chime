@@ -55,6 +55,7 @@ function SortableBranchRuleRow({
   rule,
   index,
   placeholder,
+  choiceOptions,
   targetOptions,
   onChange,
   onRemove,
@@ -63,6 +64,7 @@ function SortableBranchRuleRow({
   rule: BranchRuleDraft;
   index: number;
   placeholder: string;
+  choiceOptions: string[] | null;
   targetOptions: BuilderBlock[];
   onChange: (
     ruleId: string,
@@ -94,12 +96,8 @@ function SortableBranchRuleRow({
     block.type === "RATING"
       ? (block.config as { min: number; max: number })
       : null;
-  const discreteOptions =
-    block.type === "SINGLE_CHOICE" || block.type === "MULTIPLE_CHOICE"
-      ? (block.config as { options: string[] }).options
-      : block.type === "AGREEMENT"
-        ? [AGREEMENT_ANSWER_VALUES.AGREED, AGREEMENT_ANSWER_VALUES.NOT_AGREED]
-        : null;
+  const selectedChoice =
+    rule.value && choiceOptions?.includes(rule.value) ? rule.value : "";
 
   return (
     <div
@@ -134,7 +132,7 @@ function SortableBranchRuleRow({
                     block.type === "AGREEMENT"
                       ? AGREEMENT_ANSWER_VALUES.AGREED
                       : branchOperatorNeedsValue(value as BranchOperator)
-                        ? rule.value
+                        ? (rule.value ?? choiceOptions?.[0] ?? null)
                         : null,
                 })
               }
@@ -182,20 +180,18 @@ function SortableBranchRuleRow({
               <span className="font-medium text-[var(--ink)]">
                 {t("builder.branchWhenAnswer")}
               </span>
-              {discreteOptions ? (
+              {choiceOptions ? (
                 <Select
-                  value={rule.value ?? undefined}
+                  value={selectedChoice}
                   onValueChange={(value) => onChange(rule.id, { value })}
                 >
                   <SelectTrigger className="h-10 w-full text-sm font-medium">
-                    <SelectValue placeholder={placeholder} />
+                    <SelectValue placeholder={t("builder.branchSelectValue")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {discreteOptions.map((option) => (
+                    {choiceOptions.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {block.type === "AGREEMENT"
-                          ? t(`builder.branchAgreementValues.${option}`)
-                          : option}
+                        {option}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -297,6 +293,10 @@ export function BranchRulesEditor({
     (issue) => issue.severity === "warning",
   );
   const branchRulePlaceholder = getBranchRuleValueHint(blockDraft);
+  const choiceOptions =
+    "options" in blockDraft.config
+      ? blockDraft.config.options.filter((option) => option.trim())
+      : null;
   const defaultNextBlockId =
     "defaultNextBlockId" in blockDraft.config
       ? blockDraft.config.defaultNextBlockId
@@ -338,13 +338,16 @@ export function BranchRulesEditor({
       return;
     }
 
-    syncBranchRules([
-      ...branchRulesDraft,
-      createDefaultBranchRuleDraft({
-        blockType: blockDraft.type,
-        targetBlockId: firstTarget.id,
-      }),
-    ]);
+    const rule = createDefaultBranchRuleDraft({
+      blockType: blockDraft.type,
+      targetBlockId: firstTarget.id,
+    });
+
+    if (choiceOptions && branchOperatorNeedsValue(rule.operator)) {
+      rule.value = choiceOptions[0] ?? null;
+    }
+
+    syncBranchRules([...branchRulesDraft, rule]);
   }
 
   function removeBranchRule(ruleId: string) {
@@ -405,6 +408,7 @@ export function BranchRulesEditor({
                   rule={rule}
                   index={index}
                   placeholder={branchRulePlaceholder}
+                  choiceOptions={choiceOptions}
                   targetOptions={branchTargetOptions}
                   onChange={updateBranchRule}
                   onRemove={removeBranchRule}

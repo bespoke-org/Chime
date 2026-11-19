@@ -1478,7 +1478,7 @@ describe("FormBuilder", () => {
     await cleanupAndRestore(restoreDom);
   });
 
-  test("saves branch edits from graph mode through the existing block save flow", async () => {
+  test("saves the default condition of a new single-choice branch from graph mode", async () => {
     const restoreDom = installTestDom();
     const sourceBlock = createBlock({
       id: "block-1",
@@ -1560,8 +1560,9 @@ describe("FormBuilder", () => {
 
     expect(fetchCalls[0]?.url).toBe("/api/forms/form-1/blocks/block-1");
     expect(fetchCalls[0]?.init?.method).toBe("PATCH");
-    expect(fetchCalls[0]?.init?.body).toContain('"targetBlockId":"block-2"');
-    expect(fetchCalls[0]?.init?.body).toContain('"operator":"equals"');
+    expect(
+      JSON.parse(String(fetchCalls[0]?.init?.body)).config.branchRules,
+    ).toEqual([{ operator: "equals", value: "Yes", targetBlockId: "block-2" }]);
 
     globalThis.fetch = previousFetch;
     await cleanupAndRestore(restoreDom);

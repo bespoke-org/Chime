@@ -80,6 +80,46 @@ function BranchRulesEditorHarness({
 }
 
 describe("BranchRulesEditor", () => {
+  test("stores the first multiple-choice option when adding a rule", () => {
+    const restoreDom = installTestDom();
+    const blockDraft = createBlock({
+      id: "choices",
+      type: "MULTIPLE_CHOICE",
+      position: 0,
+      config: {
+        ...getDefaultBlockConfig("MULTIPLE_CHOICE"),
+        options: ["A", "B"],
+      },
+    });
+    const targetBlock = createBlock({
+      id: "follow-up",
+      type: "SHORT_TEXT",
+      position: 1,
+      title: "Follow-up",
+    });
+
+    try {
+      const view = render(
+        <BranchRulesEditorHarness
+          allBlocks={[blockDraft, targetBlock]}
+          blockDraft={blockDraft}
+        />,
+      );
+      fireEvent.click(
+        view.getByRole("button", { name: "builder.addBranchRule" }),
+      );
+      const config = JSON.parse(
+        view.getByTestId("block-config").textContent ?? "{}",
+      );
+      expect(config.branchRules).toEqual([
+        { operator: "contains_any", value: "A", targetBlockId: "follow-up" },
+      ]);
+    } finally {
+      cleanup();
+      restoreDom();
+    }
+  });
+
   test("adds an agreement branch rule using the first available target and agreed default", () => {
     const restoreDom = installTestDom();
     const blockDraft = createBlock({

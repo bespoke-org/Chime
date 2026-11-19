@@ -263,6 +263,7 @@ builder:
   addBranchRule: Добавить правило
   branchOperator: Оператор
   branchWhenAnswer: Значение условия
+  branchSelectValue: Выберите вариант ответа
   branchGoTo: Перейти к блоку
   branchOtherwise: Иначе продолжить к
   branchDefaultLinear: Следующему блоку в сохранённом порядке

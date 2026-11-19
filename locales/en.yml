@@ -263,6 +263,7 @@ builder:
   addBranchRule: Add rule
   branchOperator: Operator
   branchWhenAnswer: Condition value
+  branchSelectValue: Select an answer option
   branchGoTo: Go to block
   branchOtherwise: Otherwise continue to
   branchDefaultLinear: The next block in saved order
