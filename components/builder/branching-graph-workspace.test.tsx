@@ -77,6 +77,80 @@ function renderWorkspace({
 }
 
 describe("BranchingGraphWorkspace", () => {
+  for (const target of ["canvas", "node", "space+left"] as const) {
+    for (const endEvent of ["pointerUp", "pointerCancel"] as const) {
+      test(`pans using ${target} until ${endEvent}`, () => {
+        const restoreDom = installTestDom();
+        try {
+          const view = renderWorkspace({
+            selectedBlockId: "block-1",
+            onAddBlockAfter: () => {},
+          });
+          const scene = view.container.querySelector("svg")!
+            .parentElement as HTMLDivElement;
+          const canvas = scene.parentElement as HTMLDivElement;
+          Object.defineProperties(canvas, {
+            clientWidth: { value: 300 },
+            clientHeight: { value: 100 },
+          });
+          let captured = false;
+          canvas.setPointerCapture = () => {
+            captured = true;
+          };
+          canvas.hasPointerCapture = () => captured;
+          canvas.releasePointerCapture = () => {
+            captured = false;
+          };
+          fireEvent.wheel(canvas, { deltaX: 0, deltaY: 0 });
+          const node = view.container.querySelector(
+            '[data-graph-node-id="block-1"]',
+          )!;
+          const initialPosition = (node as HTMLElement).style.cssText;
+
+          const button = target === "space+left" ? 0 : 1;
+          const buttons = target === "space+left" ? 1 : 4;
+          if (target === "space+left") {
+            fireEvent.keyDown(window, { code: "Space" });
+          }
+          fireEvent.pointerDown(target === "node" ? node : canvas, {
+            button,
+            buttons,
+            pointerId: 1,
+            clientX: 150,
+            clientY: 80,
+          });
+          expect(canvas.style.cursor).toBe("grabbing");
+          fireEvent.pointerMove(canvas, {
+            buttons,
+            pointerId: 1,
+            clientX: 90,
+            clientY: 40,
+          });
+          expect(scene.style.transform).toBe(
+            "translate(-60px, -40px) scale(1)",
+          );
+          expect((node as HTMLElement).style.cssText).toBe(initialPosition);
+          fireEvent[endEvent](canvas, { button, pointerId: 1 });
+          if (target === "space+left") {
+            fireEvent.keyUp(window, { code: "Space" });
+          }
+          expect(canvas.style.cursor).toBe("default");
+          fireEvent.pointerMove(canvas, {
+            pointerId: 1,
+            clientX: 50,
+            clientY: 20,
+          });
+          expect(scene.style.transform).toBe(
+            "translate(-60px, -40px) scale(1)",
+          );
+        } finally {
+          cleanup();
+          restoreDom();
+        }
+      });
+    }
+  }
+
   test("shows a localized add button only for the selected node", () => {
     const restoreDom = installTestDom();
     const view = renderWorkspace({

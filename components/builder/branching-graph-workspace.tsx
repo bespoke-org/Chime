@@ -999,7 +999,7 @@ export function BranchingGraphWorkspace({
   }, [applyGraphCamera, updateGraphZoomAtPoint]);
 
   function handleGraphPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) {
+    if (event.button !== 0 && event.button !== 1) {
       return;
     }
 
@@ -1009,7 +1009,8 @@ export function BranchingGraphWorkspace({
       return;
     }
 
-    if (isSpacePressed) {
+    if (event.button === 1 || isSpacePressed) {
+      event.preventDefault();
       graphPanStateRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
